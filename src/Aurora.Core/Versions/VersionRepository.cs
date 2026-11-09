@@ -489,10 +489,51 @@ public sealed class VersionRepository
         return 8;
     }
 
-    private static string GuessClientVersion(string id)
+    /// <summary>
+    /// 版本 json 里没写 clientVersion（也没写 inheritsFrom）时，从版本号里猜 MC 版本。
+    /// 注意加载器的版本号也长这样（fabric-loader-0.20.1-26.3），不能简单取第一个数字。
+    /// </summary>
+    public static string GuessClientVersion(string id)
     {
-        var match = Regex.Match(id, @"\b(\d{1,2}\.\d{1,2}(?:\.\d{1,2})?)\b");
-        return match.Success ? match.Groups[1].Value : id;
+        // fabric-loader-<loader>-<mc> / quilt-loader-<loader>-<mc>：后半截才是 MC
+        var loaderForm = Regex.Match(
+            id,
+            @"^(?:fabric|quilt)[-_ ]loader[-_ ]+[0-9][0-9A-Za-z.+]*[-_ ]+(?<mc>.+)$",
+            RegexOptions.IgnoreCase);
+        if (loaderForm.Success)
+        {
+            var tail = ExtractMcVersion(loaderForm.Groups["mc"].Value);
+            if (tail != null)
+            {
+                return tail;
+            }
+        }
+
+        return ExtractMcVersion(id) ?? id;
+    }
+
+    /// <summary>
+    /// 从一串文本里挑出最像 Minecraft 版本号的那段：
+    /// 1.x / 1.xx.x，或者 26.3 这种按年份的新版本号；0.x 开头的多半是加载器版本，跳过。
+    /// </summary>
+    public static string? ExtractMcVersion(string text)
+    {
+        var matches = Regex.Matches(text, @"(?<![\d.])(\d{1,2}\.\d{1,2}(?:\.\d{1,2})?)(?![\d.])");
+        string? fallback = null;
+
+        foreach (Match match in matches)
+        {
+            var candidate = match.Groups[1].Value;
+            fallback ??= candidate;
+
+            if (candidate.StartsWith("1.", StringComparison.Ordinal) ||
+                candidate.StartsWith("2", StringComparison.Ordinal))
+            {
+                return candidate;
+            }
+        }
+
+        return fallback;
     }
 
     /// <summary>按版本号自然排序（26.3 > 1.21.11）。</summary>
