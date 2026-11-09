@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.9.2";
+    private const string AppVersion = "0.9.3";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -193,7 +193,9 @@ public partial class MainWindow : Window
             VersionList.ItemsSource = cards;
             if (cards.Count > 0)
             {
-                VersionList.SelectedIndex = 0;
+                var saved = cards.FirstOrDefault(c =>
+                    string.Equals(c.Summary.Id, _settings.SelectedVersionId, StringComparison.OrdinalIgnoreCase));
+                VersionList.SelectedItem = saved ?? cards[0];
                 StatusText.Text = $"找到 {cards.Count} 个版本 · {_settings.GameDirectory}";
             }
             else
@@ -216,6 +218,13 @@ public partial class MainWindow : Window
 
     private void OnVersionSelected(object sender, SelectionChangedEventArgs e)
     {
+        if (VersionList.SelectedItem is VersionCard selected)
+        {
+            _settings.SelectedVersionId = selected.Summary.Id;
+            ConfigStore.Save(_settings);
+        }
+
+        UpdateVersionPicker();
         if (VersionList.SelectedItem is not VersionCard card)
         {
             return;
@@ -1147,6 +1156,30 @@ public partial class MainWindow : Window
         _settings.MaxMemoryMb = memory;
         ConfigStore.Save(_settings);
         VmStatus.Text = "内存已设为 " + memory + " MB";
+    }
+
+    private void OnVmSetAsTarget(object sender, RoutedEventArgs e)
+    {
+        if (_vmCurrent == null)
+        {
+            return;
+        }
+
+        if (VersionList.ItemsSource is IEnumerable<VersionCard> cards)
+        {
+            var target = cards.FirstOrDefault(c =>
+                string.Equals(c.Summary.Id, _vmCurrent.Id, StringComparison.OrdinalIgnoreCase));
+            if (target != null)
+            {
+                VersionList.SelectedItem = target;
+                VmStatus.Text = "已设为安装目标：" + _vmCurrent.Id;
+                return;
+            }
+        }
+
+        _settings.SelectedVersionId = _vmCurrent.Id;
+        ConfigStore.Save(_settings);
+        VmStatus.Text = "已记住这个版本为安装目标（启动页列表里还没刷新）";
     }
 
     private void OnVmOpenVersionDir(object sender, RoutedEventArgs e)
@@ -3504,6 +3537,93 @@ public partial class MainWindow : Window
     }
 
     /// <summary>版本轮播用滚轮横向滚动（横向滚动条已经藏起来了）。</summary>
+    private void UpdateVersionPicker()
+    {
+        if (VersionPickerText == null)
+        {
+            return;
+        }
+
+        VersionPickerText.Text = VersionList.SelectedItem is VersionCard card
+            ? $"{card.Summary.Id}"
+            : "未选择";
+    }
+
+    private void OnPickVersion(object sender, RoutedEventArgs e)
+    {
+        if (VersionList.ItemsSource is not IEnumerable<VersionCard> cards)
+        {
+            return;
+        }
+
+        var list = cards.ToList();
+        if (list.Count == 0)
+        {
+            SetStatus("还没有可用版本，先去「内容 → 安装版本」装一个");
+            return;
+        }
+
+        var panel = new StackPanel { Margin = new Thickness(20) };
+        var box = new ListBox
+        {
+            Height = 320,
+            Background = new SolidColorBrush(Color.FromRgb(0x0B, 0x0E, 0x13)),
+            BorderThickness = new Thickness(0),
+            Foreground = (Brush)FindResource("Ink"),
+            ItemsSource = list.Select(c => c.Summary.Id).ToList(),
+        };
+
+        box.SelectedItem = (VersionList.SelectedItem as VersionCard)?.Summary.Id;
+        panel.Children.Add(box);
+
+        var buttons = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 14, 0, 0),
+        };
+        var ok = new Button { Content = "用这个版本", Style = (Style)FindResource("HeroButton"), Width = 130, Height = 36 };
+        var cancel = new Button
+        {
+            Content = "取消",
+            Style = (Style)FindResource("GlassButton"),
+            Width = 80,
+            Margin = new Thickness(8, 0, 0, 0),
+        };
+        buttons.Children.Add(ok);
+        buttons.Children.Add(cancel);
+        panel.Children.Add(buttons);
+
+        var window = new Window
+        {
+            Owner = this,
+            Title = "选择版本",
+            Width = 460,
+            SizeToContent = SizeToContent.Height,
+            ResizeMode = ResizeMode.NoResize,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = (Brush)FindResource("Bg"),
+            Content = panel,
+        };
+
+        ok.Click += (_, __) =>
+        {
+            if (box.SelectedItem is string id)
+            {
+                var target = list.FirstOrDefault(c => c.Summary.Id == id);
+                if (target != null)
+                {
+                    VersionList.SelectedItem = target;
+                }
+            }
+
+            window.Close();
+        };
+        cancel.Click += (_, __) => window.Close();
+
+        window.ShowDialog();
+    }
+
     private void OnVersionWheel(object sender, MouseWheelEventArgs e)
     {
         var viewer = FindScrollViewer(VersionList);

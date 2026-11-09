@@ -557,9 +557,19 @@
 
                         <!-- 版本轮播 -->
                         <StackPanel Grid.Row="2" Margin="26,0,0,6">
-                            <Grid Margin="0,0,0,8">
-                                <TextBlock Text="全部版本" FontSize="10.5" Foreground="{StaticResource InkFaint}"
-                                           FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <Grid Margin="0,0,0,4">
+                                <Button x:Name="VersionPickerButton" HorizontalAlignment="Left"
+                                        Style="{StaticResource GlassButton}" Padding="14,7" Click="OnPickVersion">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="版本" FontSize="11" Foreground="{StaticResource InkFaint}"
+                                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                        <TextBlock x:Name="VersionPickerText" Text="未选择" FontSize="12"
+                                                   Foreground="{StaticResource Ink}" VerticalAlignment="Center"
+                                                   MaxWidth="360" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="▾" FontSize="10" Foreground="{StaticResource InkFaint}"
+                                                   VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                    </StackPanel>
+                                </Button>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                                     <Button Content="版本管理" Style="{StaticResource GlassButton}" Padding="12,4" FontSize="11"
                                             Click="OnOpenVersionManager"/>
@@ -567,7 +577,8 @@
                                             Margin="8,0,0,0" Click="OnImportPackHome"/>
                                 </StackPanel>
                             </Grid>
-                            <ListBox x:Name="VersionList" Background="Transparent" BorderThickness="0" Height="88" PreviewMouseWheel="OnVersionWheel"
+                            <ListBox x:Name="VersionList" Background="Transparent" BorderThickness="0" Height="0" Visibility="Collapsed"
+                                     PreviewMouseWheel="OnVersionWheel"
                                      ItemContainerStyle="{StaticResource VersionTile}"
                                      ScrollViewer.HorizontalScrollBarVisibility="Hidden"
                                      ScrollViewer.VerticalScrollBarVisibility="Disabled"
@@ -974,6 +985,8 @@
                                                         Click="OnVmSaveMemory"/>
                                                 <Button Content="打开版本目录" Style="{StaticResource GlassButton}" Margin="8,0,0,0"
                                                         Click="OnVmOpenVersionDir"/>
+                                                <Button Content="设为安装目标" Style="{StaticResource GlassButton}" Margin="8,0,0,0"
+                                                        Click="OnVmSetAsTarget"/>
                                             </StackPanel>
 
                                             <WrapPanel Margin="0,12,0,0">

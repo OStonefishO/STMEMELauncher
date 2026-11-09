@@ -49,6 +49,9 @@ public sealed class LauncherSettings
 
     public string YggdrasilName { get; set; } = string.Empty;
 
+    /// <summary>当前选中的版本 id（安装 mod 的目标）。</summary>
+    public string SelectedVersionId { get; set; } = string.Empty;
+
     /// <summary>用过的游戏目录（版本管理页的文件夹下拉）。</summary>
     public List<string> KnownGameDirs { get; set; } = new();
 
