@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.10.4";
+    private const string AppVersion = "0.11.0";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -3410,9 +3410,38 @@ public partial class MainWindow : Window
 
         var model = SkinModel3D.Build(skin, _skinSlim);
         _skinRotation = new AxisAngleRotation3D(new Vector3D(0, 1, 0), -20);
+
+        // 待机动画：上下浮动 + 轻微左右摆
+        var bob = new TranslateTransform3D(0, 0, 0);
+        var swayRotation = new AxisAngleRotation3D(new Vector3D(0, 0, 1), 0);
+
         var transform = new Transform3DGroup();
         transform.Children.Add(new RotateTransform3D(_skinRotation));
+        transform.Children.Add(new RotateTransform3D(swayRotation));
+        transform.Children.Add(bob);
         model.Transform = transform;
+
+        var bobAnimation = new System.Windows.Media.Animation.DoubleAnimation(-1.4, 1.4, TimeSpan.FromSeconds(2.2))
+        {
+            AutoReverse = true,
+            RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever,
+            EasingFunction = new System.Windows.Media.Animation.SineEase
+            {
+                EasingMode = System.Windows.Media.Animation.EasingMode.EaseInOut,
+            },
+        };
+        bob.BeginAnimation(TranslateTransform3D.OffsetYProperty, bobAnimation);
+
+        var swayAnimation = new System.Windows.Media.Animation.DoubleAnimation(-1.8, 1.8, TimeSpan.FromSeconds(3.4))
+        {
+            AutoReverse = true,
+            RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever,
+            EasingFunction = new System.Windows.Media.Animation.SineEase
+            {
+                EasingMode = System.Windows.Media.Animation.EasingMode.EaseInOut,
+            },
+        };
+        swayRotation.BeginAnimation(AxisAngleRotation3D.AngleProperty, swayAnimation);
 
         AccountSkinViewport.Children.Add(new ModelVisual3D { Content = model });
     }

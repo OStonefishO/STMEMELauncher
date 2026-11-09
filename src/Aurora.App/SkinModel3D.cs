@@ -22,13 +22,37 @@ internal sealed class SkinModel3D
 
         // 关键：整体下移，让模型以 (0,0,0) 为中心
         group.Children.Add(Box(new Rect3(0, 4, 0, HeadSize, HeadSize, HeadSize), material, HeadFaces));
+
+        // 帽子层（透明覆盖，只有皮肤带 hats 才有内容）
+        if (skin != null)
+        {
+            var overlay = OverlayMaterial(skin);
+            var pad = 0.6;
+
+            group.Children.Add(Box(new Rect3(0, 4, 0, HeadSize + pad, HeadSize + pad, HeadSize + pad),
+                overlay, HatFaces));
+
+            group.Children.Add(Box(new Rect3(0, -6, 0, BodyWidth + pad, BodyHeight + pad, LimbDepth + pad),
+                overlay, JacketFaces));
+
+            var armW = slim ? 3.0 : 4.0;
+            var sleeve = slim ? SlimSleeveFaces : SleeveFaces;
+            group.Children.Add(Box(new Rect3(-(BodyWidth / 2 + armW / 2), -6, 0, armW + pad, BodyHeight + pad, LimbDepth + pad),
+                overlay, sleeve));
+            group.Children.Add(Box(new Rect3(BodyWidth / 2 + armW / 2, -6, 0, armW + pad, BodyHeight + pad, LimbDepth + pad),
+                overlay, sleeve));
+
+            group.Children.Add(Box(new Rect3(-2, -18, 0, 4 + pad, BodyHeight + pad, LimbDepth + pad), overlay, PantFaces));
+            group.Children.Add(Box(new Rect3(2, -18, 0, 4 + pad, BodyHeight + pad, LimbDepth + pad), overlay, PantFaces));
+        }
         group.Children.Add(Box(new Rect3(0, -6, 0, BodyWidth, BodyHeight, LimbDepth), material, BodyFaces));
 
         var armWidth = slim ? 3.0 : 4.0;
+        var armFaces = slim ? SlimArmFaces : ArmFaces;
         group.Children.Add(Box(new Rect3(-(BodyWidth / 2 + armWidth / 2), -6, 0, armWidth, BodyHeight, LimbDepth),
-            material, ArmFaces));
+            material, armFaces));
         group.Children.Add(Box(new Rect3(BodyWidth / 2 + armWidth / 2, -6, 0, armWidth, BodyHeight, LimbDepth),
-            material, ArmFaces));
+            material, armFaces));
 
         group.Children.Add(Box(new Rect3(-2, -18, 0, 4, BodyHeight, LimbDepth), material, RightLegFaces));
         group.Children.Add(Box(new Rect3(2, -18, 0, 4, BodyHeight, LimbDepth), material, LeftLegFaces));
@@ -64,6 +88,46 @@ internal sealed class SkinModel3D
         new(16, 0, 8, 8),   // bottom
     };
 
+    private static readonly Rect[] HatFaces =
+    {
+        new(40, 8, 8, 8),
+        new(48, 8, 8, 8),
+        new(56, 8, 8, 8),
+        new(32, 8, 8, 8),
+        new(40, 0, 8, 8),
+        new(48, 0, 8, 8),
+    };
+
+    private static readonly Rect[] JacketFaces =
+    {
+        new(20, 36, 8, 12),
+        new(28, 36, 4, 12),
+        new(32, 36, 8, 12),
+        new(16, 36, 4, 12),
+        new(20, 32, 8, 4),
+        new(28, 32, 8, 4),
+    };
+
+    private static readonly Rect[] SleeveFaces =
+    {
+        new(44, 36, 4, 12),
+        new(48, 36, 4, 12),
+        new(56, 36, 4, 12),
+        new(40, 36, 4, 12),
+        new(44, 32, 4, 4),
+        new(48, 32, 4, 4),
+    };
+
+    private static readonly Rect[] PantFaces =
+    {
+        new(4, 36, 4, 12),
+        new(8, 36, 4, 12),
+        new(12, 36, 4, 12),
+        new(0, 36, 4, 12),
+        new(4, 32, 4, 4),
+        new(8, 32, 4, 4),
+    };
+
     private static readonly Rect[] BodyFaces =
     {
         new(20, 20, 8, 12),
@@ -82,6 +146,16 @@ internal sealed class SkinModel3D
         new(40, 20, 4, 12),
         new(44, 16, 4, 4),
         new(48, 16, 4, 4),
+    };
+
+    private static readonly Rect[] SlimArmFaces =
+    {
+        new(44, 20, 3, 12),
+        new(47, 20, 4, 12),
+        new(55, 20, 3, 12),
+        new(40, 20, 4, 12),
+        new(44, 16, 3, 4),
+        new(47, 16, 3, 4),
     };
 
     private static readonly Rect[] RightLegFaces =
@@ -122,6 +196,33 @@ internal sealed class SkinModel3D
         };
         brush.Freeze();
         return new DiffuseMaterial(brush);
+    }
+
+    private static readonly Rect[] SlimSleeveFaces =
+    {
+        new(44, 36, 3, 12),
+        new(47, 36, 4, 12),
+        new(55, 36, 3, 12),
+        new(40, 36, 4, 12),
+        new(44, 32, 3, 4),
+        new(47, 32, 3, 4),
+    };
+
+    private static Material OverlayMaterial(BitmapSource skin)
+    {
+        var brush = new ImageBrush(skin)
+        {
+            ViewboxUnits = BrushMappingMode.Absolute,
+            Viewbox = new Rect(0, 0, skin.PixelWidth, skin.PixelHeight),
+            Stretch = Stretch.Fill,
+            AlignmentX = AlignmentX.Left,
+            AlignmentY = AlignmentY.Top,
+        };
+        brush.Freeze();
+
+        var group = new MaterialGroup();
+        group.Children.Add(new DiffuseMaterial(brush));
+        return group;
     }
 
     private readonly record struct Rect3(double X, double Y, double Z, double W, double H, double D);
