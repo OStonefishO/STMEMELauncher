@@ -173,6 +173,14 @@ public sealed class MicrosoftAuth
         using var mcResponse = await _http.PostAsync(McLoginUrl,
             new StringContent(mcBody, Encoding.UTF8, "application/json"), ct).ConfigureAwait(false);
         var mcJson = await mcResponse.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        if ((int)mcResponse.StatusCode == 403 &&
+            mcJson.Contains("Invalid app registration", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "Mojang 还没把这个应用加入白名单（403 Invalid app registration）。申请已提交，等待审核；" +
+                "这期间请先用「外置登录」或「导入官方启动器账号」。");
+        }
+
         EnsureSuccess(mcResponse, mcJson, "Minecraft 登录失败");
 
         string mcToken;

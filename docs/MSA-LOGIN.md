@@ -78,3 +78,44 @@ Minecraft 官方提供一个表单，把 Client ID 报上去，Mojang Enforcemen
 
 - [Microsoft Q&A：Invalid app registration 的解决过程](https://learn.microsoft.com/en-us/answers/questions/5984225/minecraft-services-http-403-invalid-app-registrati)
 - [Microsoft Q&A：第三方启动器如何获得 XboxLive.signin 权限](https://learn.microsoft.com/en-us/answers/questions/5768276/how-to-get-xboxlive-signin-permission-for-azure-ap)
+
+## AppID Review 表单逐项怎么填
+
+| # | 字段 | 填什么 |
+|---|---|---|
+| 1 | 已阅读 EULA 与使用指南 | **Yes** |
+| 2 | Contact Information (email) | 注册 Azure 应用时用的那个邮箱（要和 Azure 门户里的联系信息一致，他们会交叉核对） |
+| 3 | What type of request | **New AppID for Approval** |
+| 4 | Application Name | `MEME Launcher` |
+| 5 | Application ID | `52fb2aba-9fa1-4605-be0d-431776c0880d` |
+| 6 | Tenant ID | `e37c944f-a046-4e7a-9cde-c7b92e6d033c` |
+| 7 | Associated website or domain | `https://github.com/OStonefishO/STMEMELauncher` |
+| 8 | Justification | 见下面的英文模板 |
+| 9 | Any other information | 可选，补充说明用 |
+
+### Justification 模板
+
+> MEME Launcher is a free, open-source third-party launcher for Minecraft: Java Edition
+> (https://github.com/OStonefishO/STMEMELauncher), distributed as a Windows build via GitHub Releases.
+> It is not a game, not a server, and not a paid service.
+>
+> Players sign in with their own Microsoft account that already owns Minecraft: Java Edition.
+> We never resell, share, proxy, or transfer accounts, and we do not bypass Microsoft authentication.
+>
+> Our flow is the standard one: OAuth 2.0 device code (scope `XboxLive.signin offline_access`)
+> → Xbox Live (`user.auth.xboxlive.com`) → XSTS (RETAIL, relying party `rp://api.minecraftservices.com/`)
+> → `POST /authentication/login_with_xbox`. Steps 1-3 succeed and return a valid XSTS token;
+> step 4 returns HTTP 403 "Invalid app registration".
+>
+> We are requesting that our Application (client) ID be added to the Minecraft Services allowlist
+> so legitimate owners of the game can sign in with our launcher. Every other feature of the launcher
+> (version installation, mod downloads, offline accounts) works without the Minecraft API; only
+> account sign-in is blocked.
+>
+> We can provide any additional information, logs, or a test account on request.
+
+### 注意事项
+
+- 一个表单只能提交一个 AppID
+- 邮箱必须与 Azure 应用所在账号一致，否则会被打回
+- 提交后等 Mojang Enforcement 的邮件，可能几天

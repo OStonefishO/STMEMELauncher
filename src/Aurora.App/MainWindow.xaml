@@ -868,7 +868,7 @@
                                                 Height="40" Click="OnYggdrasilLogin"/>
                                         <Button Content="导入官方启动器账号" Style="{StaticResource GlassButton}" Margin="0,10,0,0"
                                                 Click="OnImportOfficial"/>
-                                        <Button x:Name="LoginButton" Content="微软账号登录（需 ClientId）" Style="{StaticResource GlassButton}"
+                                        <Button x:Name="LoginButton" Content="微软账号登录（等待白名单）" Style="{StaticResource GlassButton}"
                                                 Margin="0,10,0,0" Click="OnLogin"/>
                                         <Expander Header="高级：Azure ClientId" Margin="0,12,0,0" Foreground="{StaticResource InkFaint}">
                                             <TextBox x:Name="ClientIdBox" Margin="0,8,0,0"/>
