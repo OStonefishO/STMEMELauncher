@@ -546,6 +546,43 @@ public sealed class CurseForgeClient : IContentSource
         return result;
     }
 
+    /// <summary>CurseForge 按 id 取项目信息（用于前置模组跳转）。</summary>
+    public async Task<ContentItem?> GetProjectAsync(string id, CancellationToken ct = default)
+    {
+        if (!IsAvailable || string.IsNullOrEmpty(id))
+        {
+            return null;
+        }
+
+        try
+        {
+            var json = await GetStringAsync($"{Api}/mods/{id}", ct).ConfigureAwait(false);
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("data", out var mod))
+            {
+                return null;
+            }
+
+            return new ContentItem
+            {
+                Source = "CurseForge",
+                Kind = ContentKind.Mod,
+                Id = id,
+                Slug = ModrinthClient.GetString(mod, "slug") ?? string.Empty,
+                Title = ModrinthClient.GetString(mod, "name") ?? ("CurseForge #" + id),
+                Summary = ModrinthClient.GetString(mod, "summary") ?? string.Empty,
+                IconUrl = mod.TryGetProperty("logo", out var logo)
+                    ? ModrinthClient.GetString(logo, "thumbnailUrl")
+                    : null,
+                Downloads = mod.TryGetProperty("downloadCount", out var dc) ? dc.GetInt64() : 0,
+            };
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     /// <summary>CurseForge 版本列表（带前置依赖），用于详情页。</summary>
     public async Task<List<ContentVersion>> GetVersionsAsync(ContentItem item, CancellationToken ct = default)
     {

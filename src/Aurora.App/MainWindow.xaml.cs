@@ -30,7 +30,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.8.2";
+    private const string AppVersion = "0.8.3";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -844,13 +844,28 @@ public partial class MainWindow : Window
 
     // ---------------- 内容详情 ----------------
 
-    private void OnCloseContentDetail(object sender, RoutedEventArgs e)
+    private async void OnCloseContentDetail(object sender, RoutedEventArgs e)
     {
+        if (_detailStack.Count > 0)
+        {
+            var previous = _detailStack.Pop();
+            _detailCurrent = null;
+            await ShowContentDetailAsync(previous, pushHistory: false);
+            return;
+        }
+
+        _detailCurrent = null;
         ContentDetailPanel.Visibility = Visibility.Collapsed;
     }
 
-    private async Task ShowContentDetailAsync(ContentItem item)
+    private async Task ShowContentDetailAsync(ContentItem item, bool pushHistory = true)
     {
+        if (pushHistory && _detailCurrent != null && _detailCurrent.Id != item.Id)
+        {
+            _detailStack.Push(_detailCurrent);
+        }
+
+        _detailCurrent = item;
         ContentDetailPanel.Visibility = Visibility.Visible;
         DetailTitle.Text = item.Title;
         DetailSummary.Text = item.Summary;
@@ -1009,7 +1024,7 @@ public partial class MainWindow : Window
 
             var install = new Button
             {
-                Content = "安装前置",
+                Content = "查看 / 安装",
                 Style = (Style)FindResource("GlassButton"),
                 Padding = new Thickness(12, 5, 12, 5),
                 FontSize = 11.5,
@@ -1037,48 +1052,29 @@ public partial class MainWindow : Window
                 install.IsEnabled = false;
                 try
                 {
-                    var source = item.Source == "CurseForge"
-                        ? (IContentSource)_service.CreateCurseForge()
-                        : _service.CreateModrinth();
-
-                    List<ContentVersion> depVersions;
-                    if (source is CurseForgeClient cfSource)
+                    // 跳到前置模组自己的详情页，让玩家自己挑版本
+                    var target = depItem;
+                    if (target == null && item.Source == "CurseForge")
                     {
-                        depVersions = await cfSource.GetVersionsAsync(
-                            new ContentItem { Id = projectId, Kind = ContentKind.Mod, Source = "CurseForge" });
-                    }
-                    else
-                    {
-                        var target = depItem ?? new ContentItem
-                        {
-                            Id = projectId,
-                            Kind = ContentKind.Mod,
-                            Source = "Modrinth",
-                        };
-                        depVersions = await _service.CreateModrinth().GetVersionsAsync(target);
-                    }
-                    var pick = depVersions
-                        .Where(v => currentMc == null || v.GameVersions.Contains(currentMc))
-                        .Where(v => currentLoader == null || v.Loaders.Count == 0 ||
-                                    v.Loaders.Contains(currentLoader, StringComparer.OrdinalIgnoreCase))
-                        .OrderByDescending(v => v.Published)
-                        .FirstOrDefault() ?? depVersions.FirstOrDefault();
-
-                    if (pick == null)
-                    {
-                        DetailStatus.Text = $"{name.Text} 没有适配当前版本的构建";
-                        install.IsEnabled = true;
-                        return;
+                        target = await _service.CreateCurseForge().GetProjectAsync(projectId);
                     }
 
-                    await InstallVersionAsync(
-                        depItem ?? new ContentItem { Id = projectId, Kind = ContentKind.Mod, Source = item.Source },
-                        pick, install);
-                    install.Content = "已装";
+                    target ??= new ContentItem
+                    {
+                        Id = projectId,
+                        Kind = ContentKind.Mod,
+                        Source = item.Source,
+                        Title = item.Source == "CurseForge" ? "CurseForge #" + projectId : projectId,
+                    };
+
+                    await ShowContentDetailAsync(target);
                 }
                 catch (Exception ex)
                 {
-                    DetailStatus.Text = "安装前置失败: " + ex.Message;
+                    DetailStatus.Text = "打开前置失败: " + ex.Message;
+                }
+                finally
+                {
                     install.IsEnabled = true;
                 }
             };
@@ -1089,6 +1085,8 @@ public partial class MainWindow : Window
     }
 
     private int expanderCount;
+    private readonly Stack<ContentItem> _detailStack = new();
+    private ContentItem? _detailCurrent;
 
     private Border BuildVersionRow(ContentItem item, ContentVersion version, string? currentLoader)
     {
