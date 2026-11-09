@@ -28,7 +28,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.5.1";
+    private const string AppVersion = "0.5.2";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -1453,6 +1453,52 @@ public partial class MainWindow : Window
         };
 
         return card;
+    }
+
+    private async void OnImportSkin(object sender, RoutedEventArgs e)
+    {
+        var account = _service.ActiveAccount;
+        if (account == null)
+        {
+            AccountPageStatus.Text = "先选一个账号，皮肤会按账号名写进去";
+            return;
+        }
+
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "选择皮肤 PNG（64x64 或 64x32）",
+            Filter = "PNG 图片|*.png",
+        };
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        var target = VersionList.SelectedItem as VersionCard;
+        var resolved = target == null ? null : _service.Resolve(target.Summary.Id);
+        if (resolved == null)
+        {
+            AccountPageStatus.Text = "先在「启动」页选一个版本，皮肤要装进那个版本";
+            return;
+        }
+
+        try
+        {
+            AccountPageStatus.Text = "正在安装皮肤…";
+            var gameDir = _service.GameDirectoryFor(resolved);
+            var progress = new Progress<InstallProgress>(p => AccountPageStatus.Text = $"{p.Stage} · {p.Message}");
+
+            var result = await _service.CreateOfflineSkinService().ApplyAsync(
+                dialog.FileName, account.Name, gameDir, resolved.ClientVersion, resolved.Loader, progress);
+
+            AccountPageStatus.Text = result.ModAlreadyExisted
+                ? $"皮肤已应用：{account.Name}.png（CustomSkinLoader 已在）"
+                : $"皮肤已应用，并装好了 CustomSkinLoader：{account.Name}.png";
+        }
+        catch (Exception ex)
+        {
+            AccountPageStatus.Text = "导入皮肤失败: " + ex.Message;
+        }
     }
 
     private void OnAddOfflineAccount(object sender, RoutedEventArgs e)

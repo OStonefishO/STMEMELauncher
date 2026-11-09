@@ -65,6 +65,8 @@ internal static class Program
                 return await SearchAsync(service, positional, flags).ConfigureAwait(false);
             case "pack":
                 return await PackAsync(service, positional, flags).ConfigureAwait(false);
+            case "skin":
+                return await SkinAsync(service, positional, flags).ConfigureAwait(false);
             default:
                 PrintHelp();
                 return 0;
@@ -473,6 +475,32 @@ internal static class Program
         return 0;
     }
 
+    private static async Task<int> SkinAsync(LauncherService service, List<string> positional,
+        Dictionary<string, string> flags)
+    {
+        var png = positional.ElementAtOrDefault(0);
+        var name = positional.ElementAtOrDefault(1);
+        if (string.IsNullOrEmpty(png) || string.IsNullOrEmpty(name))
+        {
+            Console.Error.WriteLine("用法: aurora skin <png> <账号名> --dir <目标目录> [--mc 26.2] [--loader fabric]");
+            return 1;
+        }
+
+        var dir = flags.TryGetValue("dir", out var d) ? d : service.Settings.GameDirectory;
+        var mc = flags.TryGetValue("mc", out var m) ? m : null;
+        var loader = flags.TryGetValue("loader", out var l) ? l : "fabric";
+
+        Console.WriteLine($"目标目录: {dir}");
+        var progress = new Progress<InstallProgress>(p => Console.WriteLine($"  [{p.Stage}] {p.Message}"));
+        var result = await service.CreateOfflineSkinService()
+            .ApplyAsync(png, name, dir, mc, loader, progress).ConfigureAwait(false);
+
+        Console.WriteLine("皮肤: " + result.SkinPath);
+        Console.WriteLine("Mod : " + result.ModPath + (result.ModAlreadyExisted ? " (已存在)" : " (新装)"));
+        Console.WriteLine("配置: " + result.ConfigPath);
+        return 0;
+    }
+
     private static void PrintHelp()
     {
         Console.WriteLine(@"Aurora Launcher CLI (框架/自检工具)
@@ -489,6 +517,7 @@ internal static class Program
   aurora loader-install <类型> <mc> [版本]
   aurora search <mod|modpack|shader|resourcepack> <关键词> [--mc 1.21.1] [--loader fabric] [--cf]
   aurora pack <关键词> [--mc 1.21.1] [--loader fabric]
+  aurora skin <png> <账号名> --dir <目录> [--mc 26.2] [--loader fabric]
 
 公共参数:
   --game <目录>                      临时指定 .minecraft 目录");
