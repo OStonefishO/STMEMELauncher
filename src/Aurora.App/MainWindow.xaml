@@ -1240,6 +1240,7 @@
                                 <StackPanel x:Name="AccountList" MaxWidth="620" HorizontalAlignment="Left"/>
                             </ScrollViewer>
 
+                            <ScrollViewer Grid.Column="1" Margin="16,0,0,0" VerticalScrollBarVisibility="Auto">
                             <StackPanel Grid.Column="1" Margin="16,0,0,0">
                                 <Border CornerRadius="16" Background="{StaticResource Glass}"
                                         BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16">
@@ -1255,6 +1256,33 @@
                                         <TextBlock Text="会用 CustomSkinLoader 把皮肤写进当前版本，装好后进游戏就能看到"
                                                    FontSize="10.5" Foreground="{StaticResource InkFaint}" Margin="0,8,0,0"
                                                    TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border CornerRadius="16" Background="{StaticResource Glass}"
+                                        BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16"
+                                        Margin="0,12,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="皮肤" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
+                                        <Grid Margin="0,12,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Width="88" Height="88" CornerRadius="16" Background="#1AFFFFFF">
+                                                <Image x:Name="AccountHeadImage" Stretch="UniformToFill"/>
+                                            </Border>
+                                            <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center">
+                                                <TextBlock x:Name="AccountSkinName" Text="当前账号" FontSize="12.5"
+                                                           Foreground="{StaticResource Ink}" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock x:Name="AccountSkinStatus" Text="还没有皮肤" FontSize="10.5"
+                                                           Foreground="{StaticResource InkFaint}" Margin="0,4,0,0"
+                                                           TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                        </Grid>
+                                        <Border CornerRadius="10" Background="#0B0E13" Padding="8" Margin="0,12,0,0" Height="140">
+                                            <Image x:Name="AccountSkinImage" Stretch="Uniform"/>
+                                        </Border>
                                     </StackPanel>
                                 </Border>
 
@@ -1277,6 +1305,7 @@
                                 <TextBlock x:Name="AccountPageStatus" Text="" FontSize="11.5" Margin="4,12,0,0"
                                            Foreground="{StaticResource InkFaint}" TextWrapping="Wrap"/>
                             </StackPanel>
+                            </ScrollViewer>
                         </Grid>
                     </Grid>
 

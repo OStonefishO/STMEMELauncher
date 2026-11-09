@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.9.3";
+    private const string AppVersion = "0.10.0";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -157,6 +157,7 @@ public partial class MainWindow : Window
         if (index == 3)
         {
             RefreshAccounts();
+            RefreshCurrentSkinPreview();
         }
 
         try
@@ -2888,7 +2889,11 @@ public partial class MainWindow : Window
             var accounts = OfficialLauncherImport.Read();
             if (accounts.Count == 0)
             {
-                AccountStatus.Text = "没找到官方启动器的登录记录（先用官方启动器登录一次）";
+                var path = OfficialLauncherImport.DefaultPath;
+                AccountPageStatus.Text = File.Exists(path)
+                    ? "找到了 launcher_accounts.json，但里面没有可用的微软账号（可能只登录过离线号）"
+                    : "没找到 " + path + "\n需要先用官方启动器登录一次";
+                ShowToast("导入失败", "没有读到官方启动器的账号", "⚠", 4200);
                 return;
             }
 
@@ -2903,6 +2908,8 @@ public partial class MainWindow : Window
             _service.UpsertAccount(account);
             RefreshAccounts();
             AccountPageStatus.Text = $"已导入官方启动器账号：{first.PlayerName}（token 约 24 小时）";
+            RefreshCurrentSkinPreview();
+            ShowToast("已导入账号", first.PlayerName, "✓", 3600);
         }
         catch (Exception ex)
         {
@@ -3077,22 +3084,31 @@ public partial class MainWindow : Window
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
         var initial = string.IsNullOrEmpty(account.Name) ? "?" : account.Name[..1].ToUpperInvariant();
+        var headImage = new Image { Stretch = Stretch.UniformToFill, Visibility = Visibility.Collapsed };
+        var initialText = new TextBlock
+        {
+            Text = initial,
+            FontSize = 16,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = (Brush)FindResource("Ink"),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+
         var avatar = new Border
         {
             Width = 40,
             Height = 40,
             CornerRadius = new CornerRadius(20),
             Background = new SolidColorBrush(Color.FromArgb(0x33, 0x5B, 0x8C, 0xFF)),
-            Child = new TextBlock
+            Child = new Grid
             {
-                Text = initial,
-                FontSize = 16,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = (Brush)FindResource("Ink"),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
+                Children = { initialText, headImage },
+                Clip = new RectangleGeometry(new Rect(0, 0, 40, 40), 20, 20),
             },
         };
+
+        _ = LoadAccountHeadAsync(account, headImage, initialText);
         grid.Children.Add(avatar);
 
         var text = new StackPanel { Margin = new Thickness(14, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
@@ -3227,10 +3243,115 @@ public partial class MainWindow : Window
             AccountPageStatus.Text = result.ModAlreadyExisted
                 ? $"皮肤已应用：{account.Name}.png（CustomSkinLoader 已在）"
                 : $"皮肤已应用，并装好了 CustomSkinLoader：{account.Name}.png";
+            RefreshAccounts();
+            RefreshCurrentSkinPreview();
         }
         catch (Exception ex)
         {
             AccountPageStatus.Text = "导入皮肤失败: " + ex.Message;
+        }
+    }
+
+    /// <summary>找皮肤时要看的目录：全局游戏目录 + 当前版本目录（版本隔离）。</summary>
+    private List<string> SkinSearchDirs()
+    {
+        var dirs = new List<string> { _settings.GameDirectory };
+        try
+        {
+            if (VersionList?.SelectedItem is VersionCard card)
+            {
+                var resolved = _service.Resolve(card.Summary.Id);
+                if (resolved != null)
+                {
+                    dirs.Add(_service.GameDirectoryFor(resolved));
+                }
+            }
+        }
+        catch
+        {
+            // 忽略
+        }
+
+        return dirs;
+    }
+
+    private async Task LoadAccountHeadAsync(SavedAccount account, Image target, TextBlock fallback)
+    {
+        try
+        {
+            var bytes = await SkinResolver.GetSkinBytesAsync(
+                account.Type, account.Uuid, account.ApiRoot, account.Name, _settings.GameDirectory);
+
+            if (bytes == null && account.Type == "offline")
+            {
+                var local = SkinResolver.FindLocalSkin(SkinSearchDirs(), account.Name);
+                if (local != null)
+                {
+                    bytes = await File.ReadAllBytesAsync(local);
+                }
+            }
+
+            if (bytes == null)
+            {
+                return;
+            }
+
+            var head = SkinImage.Head(bytes, 40);
+            if (head != null)
+            {
+                target.Source = head;
+                target.Visibility = Visibility.Visible;
+                fallback.Visibility = Visibility.Collapsed;
+            }
+        }
+        catch
+        {
+            // 没皮肤就用首字母
+        }
+    }
+
+    private async void RefreshCurrentSkinPreview()
+    {
+        var account = _service.ActiveAccount;
+        if (account == null || AccountSkinImage == null)
+        {
+            return;
+        }
+
+        AccountSkinName.Text = account.Name + "（" + account.TypeLabel + "）";
+        AccountSkinStatus.Text = "读取皮肤…";
+        AccountHeadImage.Source = null;
+        AccountSkinImage.Source = null;
+
+        try
+        {
+            var bytes = await SkinResolver.GetSkinBytesAsync(
+                account.Type, account.Uuid, account.ApiRoot, account.Name, _settings.GameDirectory);
+
+            if (bytes == null && account.Type == "offline")
+            {
+                var local = SkinResolver.FindLocalSkin(SkinSearchDirs(), account.Name);
+                if (local != null)
+                {
+                    bytes = await File.ReadAllBytesAsync(local);
+                }
+            }
+
+            if (bytes == null)
+            {
+                AccountSkinStatus.Text = account.Type == "offline"
+                    ? "还没有皮肤，可以点下面「导入离线皮肤」"
+                    : "这个账号没有设置皮肤";
+                return;
+            }
+
+            AccountHeadImage.Source = SkinImage.Head(bytes, 88);
+            AccountSkinImage.Source = SkinImage.Full(bytes, 256);
+            AccountSkinStatus.Text = "已加载皮肤";
+        }
+        catch (Exception ex)
+        {
+            AccountSkinStatus.Text = "读取失败: " + ex.Message;
         }
     }
 
