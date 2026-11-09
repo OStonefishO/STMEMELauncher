@@ -16,6 +16,7 @@ using Aurora.Core.Configuration;
 using Aurora.Core.Launch;
 using Aurora.Core.Models;
 using Aurora.Core.Net;
+using Aurora.Core.Network;
 
 namespace Aurora.App;
 
@@ -28,6 +29,8 @@ public partial class MainWindow : Window
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
     private bool _updatesLoaded;
+    private readonly SakuraFrp _tunnel = new();
+    private bool _onlineLoaded;
 
     public MainWindow()
     {
@@ -56,7 +59,7 @@ public partial class MainWindow : Window
         var flag = Array.IndexOf(argv, "--page");
         if (flag >= 0 && flag + 1 < argv.Length && int.TryParse(argv[flag + 1], out var pageIndex))
         {
-            SetPage(Math.Clamp(pageIndex, 0, 5));
+            SetPage(Math.Clamp(pageIndex, 0, 6));
         }
         Loaded += (_, __) => ApplyDarkTitleBar();
     }
@@ -76,6 +79,7 @@ public partial class MainWindow : Window
         LaunchPage.Visibility = index == 0 ? Visibility.Visible : Visibility.Collapsed;
         InstallPage.Visibility = index == 1 ? Visibility.Visible : Visibility.Collapsed;
         ContentPage.Visibility = index == 2 ? Visibility.Visible : Visibility.Collapsed;
+        OnlinePage.Visibility = index == 6 ? Visibility.Visible : Visibility.Collapsed;
         AccountPage.Visibility = index == 3 ? Visibility.Visible : Visibility.Collapsed;
         SettingsPage.Visibility = index == 4 ? Visibility.Visible : Visibility.Collapsed;
         UpdatesPage.Visibility = index == 5 ? Visibility.Visible : Visibility.Collapsed;
@@ -85,6 +89,7 @@ public partial class MainWindow : Window
         NavLaunch.Foreground = index == 0 ? active : inactive;
         NavInstall.Foreground = index == 1 ? active : inactive;
         NavContent.Foreground = index == 2 ? active : inactive;
+        NavOnline.Foreground = index == 6 ? active : inactive;
         NavAccount.Foreground = index == 3 ? active : inactive;
         NavSettings.Foreground = index == 4 ? active : inactive;
         NavUpdates.Foreground = index == 5 ? active : inactive;
@@ -92,6 +97,13 @@ public partial class MainWindow : Window
         if (index == 1 && _mcVersions.Count == 0)
         {
             _ = LoadMcVersionsAsync();
+        }
+
+        if (index == 6 && !_onlineLoaded)
+        {
+            _onlineLoaded = true;
+            _tunnel.Output += line => Dispatcher.BeginInvoke(() => AppendTunnelLog(line));
+            RefreshAddresses();
         }
 
         if (index == 3)
@@ -629,6 +641,170 @@ public partial class MainWindow : Window
         {
             _busy = false;
             ContentInstallButton.IsEnabled = true;
+        }
+    }
+
+    // ---------------- 联机 ----------------
+
+    private int Port => int.TryParse(PortBox?.Text, out var p) ? p : 25565;
+
+    private void OnRefreshAddresses(object sender, RoutedEventArgs e) => RefreshAddresses();
+
+    private void RefreshAddresses()
+    {
+        if (AddressList == null)
+        {
+            return;
+        }
+
+        AddressList.Children.Clear();
+        var addresses = NetworkProbe.GetAddresses();
+        if (addresses.Count == 0)
+        {
+            AddressList.Children.Add(new TextBlock
+            {
+                Text = "没有检测到可用地址（可能只有内网 IPv4）",
+                FontSize = 11.5,
+                Foreground = (Brush)FindResource("InkFaint"),
+            });
+            return;
+        }
+
+        foreach (var address in addresses)
+        {
+            var row = new Grid { Margin = new Thickness(0, 0, 0, 8) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var badge = new Border
+            {
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(7, 2, 7, 2),
+                Background = new SolidColorBrush(address.Family == "IPv6"
+                    ? Color.FromArgb(0x33, 0x4A, 0xDE, 0x80)
+                    : Color.FromArgb(0x22, 0x8C, 0x94, 0xA8)),
+                Child = new TextBlock
+                {
+                    Text = address.Family,
+                    FontSize = 10,
+                    Foreground = (Brush)FindResource("InkDim"),
+                },
+            };
+            row.Children.Add(badge);
+
+            var text = address.WithPort(Port);
+            var label = new TextBlock
+            {
+                Text = text,
+                FontSize = 12,
+                Margin = new Thickness(10, 0, 8, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = (Brush)FindResource("Ink"),
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            };
+            Grid.SetColumn(label, 1);
+            row.Children.Add(label);
+
+            var copy = new Button
+            {
+                Content = "复制",
+                Style = (Style)FindResource("GlassButton"),
+                Padding = new Thickness(10, 4, 10, 4),
+                FontSize = 11,
+            };
+            copy.Click += (_, __) =>
+            {
+                try
+                {
+                    Clipboard.SetText(text);
+                    TunnelStatus.Text = "已复制：" + text;
+                }
+                catch
+                {
+                    // 忽略
+                }
+            };
+            Grid.SetColumn(copy, 2);
+            row.Children.Add(copy);
+
+            AddressList.Children.Add(row);
+        }
+
+        var has6 = addresses.Any(a => a.Family == "IPv6");
+        TunnelStatus.Text = has6
+            ? "本机有公网 IPv6，朋友可以直接用 [IPv6]:端口 连进来"
+            : "只有内网 IPv4，外网联机需要下面的樱花穿透";
+    }
+
+    private async void OnEnsureFrpc(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            TunnelStatus.Text = "准备 frpc…";
+            var progress = new Progress<string>(t => TunnelStatus.Text = t);
+            await _tunnel.EnsureAsync(progress);
+            TunnelStatus.Text = "frpc 已就绪：" + SakuraFrp.ExePath;
+        }
+        catch (Exception ex)
+        {
+            TunnelStatus.Text = "下载失败: " + ex.Message;
+        }
+    }
+
+    private async void OnStartTunnel(object sender, RoutedEventArgs e)
+    {
+        var token = TunnelTokenBox.Text?.Trim() ?? string.Empty;
+        var ids = TunnelIdBox.Text?.Trim() ?? string.Empty;
+        if (string.IsNullOrEmpty(token) || string.IsNullOrEmpty(ids))
+        {
+            TunnelStatus.Text = "访问密钥和隧道 ID 都要填";
+            return;
+        }
+
+        try
+        {
+            TunnelStartButton.IsEnabled = false;
+            TunnelStatus.Text = "准备 frpc…";
+            await _tunnel.EnsureAsync(new Progress<string>(t => TunnelStatus.Text = t));
+
+            _tunnel.Start(token, ids);
+            TunnelStopButton.IsEnabled = true;
+            TunnelStatus.Text = "隧道启动中，看下面的日志确认连接地址";
+        }
+        catch (Exception ex)
+        {
+            TunnelStatus.Text = "启动失败: " + ex.Message;
+            TunnelStartButton.IsEnabled = true;
+        }
+    }
+
+    private void OnStopTunnel(object sender, RoutedEventArgs e)
+    {
+        _tunnel.Stop();
+        TunnelStopButton.IsEnabled = false;
+        TunnelStartButton.IsEnabled = true;
+        TunnelStatus.Text = "已停止";
+    }
+
+    private void AppendTunnelLog(string line)
+    {
+        if (TunnelLog == null)
+        {
+            return;
+        }
+
+        TunnelLog.AppendText(line + Environment.NewLine);
+        TunnelLog.ScrollToEnd();
+
+        if (line.Contains("启动成功", StringComparison.Ordinal) ||
+            line.Contains("start proxy success", StringComparison.OrdinalIgnoreCase))
+        {
+            TunnelStatus.Text = "隧道已连通";
+        }
+        else if (line.Contains("error", StringComparison.OrdinalIgnoreCase))
+        {
+            TunnelStatus.Text = "frpc 报错，看日志";
         }
     }
 
@@ -1400,7 +1576,11 @@ public partial class MainWindow : Window
 
     private void OnMinimize(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
 
-    private void OnCloseWindow(object sender, RoutedEventArgs e) => Close();
+    private void OnCloseWindow(object sender, RoutedEventArgs e)
+    {
+        _tunnel.Dispose();
+        Close();
+    }
 
     /// <summary>版本轮播用滚轮横向滚动（横向滚动条已经藏起来了）。</summary>
     private void OnVersionWheel(object sender, MouseWheelEventArgs e)
