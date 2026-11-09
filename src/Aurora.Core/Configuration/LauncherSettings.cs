@@ -19,6 +19,8 @@ public sealed class LauncherSettings
     public int MaxMemoryMb { get; set; } = 4096;
 
     /// <summary>窗口宽高，0 表示交给游戏默认。</summary>
+    /// <summary>启动方式：window（窗口）/ borderless（窗口化全屏）/ fullscreen（独占全屏）</summary>
+    public string LaunchMode { get; set; } = "window";
     public int WindowWidth { get; set; }
 
     public int WindowHeight { get; set; }

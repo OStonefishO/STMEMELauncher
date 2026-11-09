@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.9";
+    private const string AppVersion = "0.15.10";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -1338,6 +1338,127 @@ public partial class MainWindow : Window
     {
         SetPage(7);
         OnVmImportPack(sender, e);
+    }
+
+    /// <summary>
+    /// 导入存档：从别处复制来的存档目录或 zip，直接放进这个版本实际读的 saves。
+    /// （版本隔离开着时，游戏读的是 versions\版本名\saves，不是根目录的 saves，所以不能只丢文件）
+    /// </summary>
+    private void OnVmImportSave(object sender, RoutedEventArgs e)
+    {
+        var gameDir = CurrentVmGameDir();
+        if (gameDir == null)
+        {
+            VmStatus.Text = "先在左边选一个版本";
+            return;
+        }
+
+        var saves = Path.Combine(gameDir, "saves");
+        Directory.CreateDirectory(saves);
+
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "选择存档 zip（文件夹请用下面的按钮）",
+            Filter = "存档压缩包|*.zip|所有文件|*.*",
+        };
+
+        // 先问要不要选文件夹，取消就当成选 zip
+        var useFolder = MessageBox.Show(this,
+            "要导入的是文件夹形式的存档吗？\n\n选「是」然后挑存档文件夹；选「否」去挑 zip 压缩包。",
+            "导入存档", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+
+        try
+        {
+            if (useFolder == MessageBoxResult.Yes)
+            {
+                using var picker = new System.Windows.Forms.FolderBrowserDialog
+                {
+                    Description = "选存档文件夹（里面应该有 level.dat）",
+                    UseDescriptionForTitle = true,
+                };
+
+                if (picker.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+                {
+                    return;
+                }
+
+                var source = picker.SelectedPath;
+                if (!File.Exists(Path.Combine(source, "level.dat")))
+                {
+                    var nested = Directory.GetDirectories(source)
+                        .Where(d => File.Exists(Path.Combine(d, "level.dat"))).ToList();
+                    if (nested.Count == 0)
+                    {
+                        VmStatus.Text = "这个文件夹里没有 level.dat，不像存档（如果是多个存档，请选到具体某个存档）";
+                        return;
+                    }
+
+                    var target = Path.Combine(saves, Path.GetFileName(source));
+                    CopyDirectory(source, target);
+                    FinishImport(target);
+                    return;
+                }
+
+                var dest = Path.Combine(saves, Path.GetFileName(source.TrimEnd('\\')));
+                CopyDirectory(source, dest);
+                FinishImport(dest);
+            }
+            else if (useFolder != MessageBoxResult.Cancel && dialog.ShowDialog() == true)
+            {
+                var name = Path.GetFileNameWithoutExtension(dialog.FileName);
+                var dest = Path.Combine(saves, name);
+                if (Directory.Exists(dest))
+                {
+                    dest += "-" + DateTime.Now.ToString("HHmmss");
+                }
+
+                System.IO.Compression.ZipFile.ExtractToDirectory(dialog.FileName, dest);
+                // zip 里裹了一层同名文件夹的话挪出来
+                var inner = Path.Combine(dest, name);
+                if (Directory.Exists(inner) && !File.Exists(Path.Combine(dest, "level.dat")))
+                {
+                    CopyDirectory(inner, Path.Combine(saves, name));
+                    Directory.Delete(dest, true);
+                    dest = Path.Combine(saves, name);
+                }
+
+                FinishImport(dest);
+            }
+        }
+        catch (Exception ex)
+        {
+            VmStatus.Text = "导入存档失败: " + ex.Message;
+        }
+
+        void FinishImport(string target)
+        {
+            VmStatus.Text = "存档已放进 " + target;
+            ShowToast("存档已导入", Path.GetFileName(target), "✓", 4200);
+            RefreshModList(gameDir);
+
+            try
+            {
+                Process.Start(new ProcessStartInfo("explorer.exe", $"\"{saves}\"") { UseShellExecute = true });
+            }
+            catch
+            {
+                // 忽略
+            }
+        }
+    }
+
+    private static void CopyDirectory(string source, string target)
+    {
+        Directory.CreateDirectory(target);
+        foreach (var file in Directory.GetFiles(source))
+        {
+            File.Copy(file, Path.Combine(target, Path.GetFileName(file)), true);
+        }
+
+        foreach (var dir in Directory.GetDirectories(source))
+        {
+            CopyDirectory(dir, Path.Combine(target, Path.GetFileName(dir)));
+        }
     }
 
     private void OnVmVersionSelected(object sender, SelectionChangedEventArgs e)
@@ -4463,6 +4584,13 @@ public partial class MainWindow : Window
         ClientIdBox.Text = _settings.MicrosoftClientId;
         SettingsMirrorUrl.Text = _settings.MirrorBaseUrl;
         SettingsCfKey.Text = _settings.CurseForgeApiKey;
+        SettingsLaunchMode.SelectedIndex = _settings.LaunchMode switch
+        {
+            "fullscreen" => 2,
+            "borderless" => 1,
+            _ => 0,
+        };
+
         SettingsIsolation.SelectedIndex = _settings.VersionIsolation?.ToLowerInvariant() switch
         {
             "off" => 2,
@@ -4493,6 +4621,19 @@ public partial class MainWindow : Window
             _settings.MicrosoftClientId = ClientIdBox.Text?.Trim() ?? string.Empty;
             _settings.MirrorBaseUrl = SettingsMirrorUrl.Text?.Trim() ?? string.Empty;
             _settings.CurseForgeApiKey = SettingsCfKey.Text?.Trim() ?? string.Empty;
+            _settings.LaunchMode = SettingsLaunchMode.SelectedIndex switch
+            {
+                2 => "fullscreen",
+                1 => "borderless",
+                _ => "window",
+            };
+
+            if (_settings.LaunchMode == "borderless")
+            {
+                _settings.WindowWidth = (int)SystemParameters.PrimaryScreenWidth;
+                _settings.WindowHeight = (int)SystemParameters.PrimaryScreenHeight;
+            }
+
             _settings.VersionIsolation = SettingsIsolation.SelectedIndex switch
             {
                 2 => "off",

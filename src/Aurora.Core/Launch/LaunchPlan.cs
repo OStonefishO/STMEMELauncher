@@ -14,6 +14,8 @@ public sealed class LaunchOptions
     public int MaxMemoryMb { get; set; } = 4096;
     public string ExtraJvmArgs { get; set; } = string.Empty;
     public string ExtraGameArgs { get; set; } = string.Empty;
+    /// <summary>window / borderless（窗口化全屏）/ fullscreen</summary>
+    public string LaunchMode { get; set; } = "window";
     public int WindowWidth { get; set; }
     public int WindowHeight { get; set; }
     public string LauncherName { get; set; } = "MemeLauncher";

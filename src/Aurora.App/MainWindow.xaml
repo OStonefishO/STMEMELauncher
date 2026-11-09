@@ -1168,6 +1168,8 @@
                                                         Tag="mods" Click="OnVmOpenFolder"/>
                                                 <Button Content="saves（地图）" Style="{StaticResource GlassButton}" Margin="0,0,8,8"
                                                         Tag="saves" Click="OnVmOpenFolder"/>
+                                                <Button Content="导入存档" Style="{StaticResource GlassButton}" Margin="0,0,8,8"
+                                                        Click="OnVmImportSave" ToolTip="把别处复制的存档（文件夹或 zip）放进这个版本实际读的 saves 目录"/>
                                                 <Button Content="resourcepacks" Style="{StaticResource GlassButton}" Margin="0,0,8,8"
                                                         Tag="resourcepacks" Click="OnVmOpenFolder"/>
                                                 <Button Content="shaderpacks" Style="{StaticResource GlassButton}" Margin="0,0,8,8"
@@ -1549,6 +1551,13 @@
                                                            FontSize="10.5" Margin="0,10,0,0" TextWrapping="Wrap"/>
                                             </StackPanel>
                                         </Grid>
+
+                                        <TextBlock Text="启动方式" Foreground="{StaticResource InkFaint}" FontSize="11" Margin="0,14,0,0"/>
+                                        <ComboBox x:Name="SettingsLaunchMode" Margin="0,6,0,0" SelectedIndex="0">
+                                            <ComboBoxItem Content="窗口（游戏自己记大小）"/>
+                                            <ComboBoxItem Content="窗口化全屏（铺满屏幕，有标题栏，切出去方便）"/>
+                                            <ComboBoxItem Content="独占全屏（--fullscreen，全屏玩游戏）"/>
+                                        </ComboBox>
 
                                         <TextBlock Text="启动游戏用的 Java" Foreground="{StaticResource InkFaint}" FontSize="11" Margin="0,14,0,0"/>
                                         <ComboBox x:Name="SettingsJavaCombo" Margin="0,6,0,0"/>

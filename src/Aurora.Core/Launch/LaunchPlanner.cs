@@ -126,6 +126,13 @@ public sealed class LaunchPlanner
             gameArgs.Add(options.ServerPort > 0 ? options.ServerPort.ToString() : "25565");
         }
 
+        // 窗口化全屏：铺满主屏但不走独占全屏；全屏：直接用游戏的 --fullscreen
+        if (string.Equals(options.LaunchMode, "fullscreen", StringComparison.OrdinalIgnoreCase) &&
+            !gameArgs.Any(a => a.Equals("--fullscreen", StringComparison.OrdinalIgnoreCase)))
+        {
+            gameArgs.Add("--fullscreen");
+        }
+
         if (options.WindowWidth > 0 && options.WindowHeight > 0 &&
             !gameArgs.Any(a => a.Equals("--width", StringComparison.OrdinalIgnoreCase)))
         {

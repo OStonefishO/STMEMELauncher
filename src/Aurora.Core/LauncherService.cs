@@ -412,6 +412,7 @@ public sealed partial class LauncherService
             MaxMemoryMb = Settings.MaxMemoryMb,
             ExtraJvmArgs = Settings.ExtraJvmArgs,
             ExtraGameArgs = Settings.ExtraGameArgs,
+            LaunchMode = Settings.LaunchMode,
             WindowWidth = Settings.WindowWidth,
             WindowHeight = Settings.WindowHeight,
             GameDirectory = gameDir,
