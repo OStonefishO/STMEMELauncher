@@ -1,170 +1,171 @@
 # MEME Launcher
 
-一个从零写的 Minecraft 启动器，参考 PCL2 的行为设计，**先把框架跑通，UI 后面再打磨**。
+一个从零写的 Minecraft: Java 版启动器 —— 自绘 3D 主界面、四种加载器一键安装、内置联机开服、内容站下载、多账号管理。
 
-框架的目标很明确：把「扫描本地版本 → 解析继承链 → 挑 Java → 拼命令行 → 起进程 → 收日志 → 定位崩溃」这条链路做扎实、可测试、可复用，UI 只是最后一层壳。
+**不需要装 .NET、不需要 Java 环境预配置**：下载单个 exe，双击就用。
+
+![主界面](docs/screens/p0.png)
+
+---
+
+## 下载
+
+| 通道 | 地址 | 说明 |
+|---|---|---|
+| **GitHub Releases** | [最新版本](https://github.com/OStonefishO/STMEMELauncher/releases/latest) | 原版，海外/有代理时最快 |
+| **gh-proxy 加速** | `https://gh-proxy.com/` + Release 资产地址 | 国内可用，已实测 65.9MB 完整下载 |
+| **ghfast 加速** | `https://ghfast.top/` + Release 资产地址 | 备用 |
+| **ghproxy.net 加速** | `https://ghproxy.net/` + Release 资产地址 | 备用 |
+
+加速链接示例（把 `<资产文件名>` 换成 Release 里的 exe 名）：
+
+```
+https://gh-proxy.com/https://github.com/OStonefishO/STMEMELauncher/releases/download/v0.5.7/MEME-Launcher-v0.5.7.exe
+```
+
+> 启动器内置的「一键更新」也会自动依次尝试 直连 → gh-proxy → ghfast，国内网络下不用手动找镜像。
 
 ---
 
 ## 现在能做什么
 
-| 能力 | 状态 | 说明 |
-|---|---|---|
-| 扫描 `.minecraft/versions` | ✅ | 自动挑主 json、识别 Forge / NeoForge / Fabric / Quilt / OptiFine / 原版 |
-| 继承链解析（`inheritsFrom`） | ✅ | 库、参数、主类、资源索引按子版本优先合并 |
-| rules 求值（系统 / 架构 / features） | ✅ | 与官方启动器语义一致，默认拒绝 |
-| Natives 解压 | ✅ | 支持 `${arch}` 分类器、`extract.exclude` |
-| 参数占位符替换 | ✅ | 含 `${classpath}` `${library_directory}` 等；空值保留为空参数 |
-| Java 探测与匹配 | ✅ | 读 `release` 文件，找不到再跑 `java -version`；按主版本择优 |
-| 版本隔离（PCL2 行为） | ✅ | auto：版本目录里有 mods/config/saves 就单独用该目录做游戏目录 |
-| 启动进程 + 日志 | ✅ | 逐行回调，log4j XML 自动转成可读文本 |
-| 崩溃定位 | ✅ | 读 `crash-reports` 最新报告，提取 Description / 异常行 |
-| 原版安装（下载） | ⚠️ 未实测 | 版本 json / client jar / 依赖库 / 资源对象，走 BMCLAPI 镜像 |
-| 微软登录 | ❌ | 目前只有离线登录（UUID 用 `OfflinePlayer:` 算法） |
-| Forge / Fabric 自动安装 | ❌ | 还没有跑安装器 |
-| 正式 UI | ❌ | 只有占位壳，见下文 |
+### 启动与版本
 
-### 已实测
+| 能力 | 说明 |
+|---|---|
+| 扫描 `.minecraft/versions` | 自动识别 Forge / NeoForge / Fabric / Quilt / OptiFine / 原版 |
+| 继承链解析（`inheritsFrom`） | 库、参数、主类、资源索引按子版本优先合并 |
+| rules 求值（系统 / 架构 / features） | 与官方启动器语义一致，默认拒绝 |
+| Natives 解压 | 支持 `${arch}` 分类器、`extract.exclude` |
+| 参数占位符替换 | 含 `${classpath}` `${library_directory}` 等 |
+| Java 探测与匹配 | 读 `release` 文件，找不到再跑 `java -version`，按主版本择优 |
+| 版本隔离 | auto：版本目录里有 mods/config/saves 就单独用该目录做游戏目录 |
+| 崩溃定位 | 读 `crash-reports` 最新报告，提取 Description / 异常行 |
 
-在本机 `D:\PCL2\.minecraft`（12 个版本）上验证过：
+### 安装
 
-- `aurora list` / `doctor` / `info` / `plan` 全部输出正确（见下方输出样例）
-- **真实启动成功**：`26.2-Fabric 0.19.3`，Java 25，进到游戏内并生成了世界；日志写入 `.minecraft/logs/latest.log`，含 `Setting user: Aurora` 与 `Loading Minecraft 26.2 with Fabric Loader 0.19.3`
-- 1.8.9-Forge 这类旧版（`minecraftArguments` 字符串、无 JVM 参数段）能正确拼接并给出缺失库清单
+| 能力 | 说明 |
+|---|---|
+| 原版安装 | 版本 json / client jar / 依赖库 / 资源对象，默认走 BMCLAPI 镜像 |
+| Fabric / Quilt | 走 Fabric Meta，自动挑适配的 loader |
+| Forge / NeoForge | 下载官方安装器 → 提取版本信息 → 依赖走镜像 → `--offline` 生成客户端 jar |
+| 内容下载 | Modrinth（模组 / 整合包 / 光影 / 资源包）+ CurseForge（API Key 可选） |
+| 分页与筛选 | 每页 20 个，按版本、加载器、分类过滤，带图标缓存 |
+
+### 账号
+
+| 类型 | 说明 |
+|---|---|
+| 离线 | 可保存任意多个，独立 UUID，切换即换人 |
+| 外置登录 | LittleSkin 等 Yggdrasil 皮肤站，自动装 `authlib-injector`，带皮肤 |
+| 微软账号 | 设备码流程已跑通到 XSTS，**卡在 Mojang 白名单审批**（见下） |
+| 导入官方启动器 | 读 `launcher_accounts.json` 复用已登录 token，不需要 Azure |
+
+### 联机
+
+| 能力 | 说明 |
+|---|---|
+| 一键开服 | 原版 / Fabric / Forge / NeoForge 服务端，自动写 `eula.txt` + `server.properties`，停服走 `stop` 不丢世界 |
+| IPv6 直连 | 自动列出公网 IPv6，一键复制 `[IPv6]:端口` |
+| UPnP | SSDP 发现路由器 + `AddPortMapping`，成功直接给外网地址 |
+| 樱花穿透 | 自动下载官方 frpc，`-f 密钥:隧道` 启动，日志实时回显 |
+| 开服教程 | 内置弹窗指引：开服 → 三种联机方式 → 朋友怎么连 → 常见问题 |
+
+### 其他
+
+- **离线皮肤**：一键导入 PNG，自动装 CustomSkinLoader 并写入 `LocalSkin`
+- **更新检查 + 一键更新**：主界面横幅提示，点一下下载新 exe、自替换、重启
+- **多镜像**：BMCLAPI / 自建镜像站地址可配
+- **CLI**：`aurora list / info / plan / launch / install / loader-install / search / pack / skin / server / upnp / update`
 
 ---
 
-## 目录结构
+## 截图
 
-```
-MCLauncher/
-├─ src/
-│  ├─ Aurora.Core/                 # 引擎（无 UI 依赖，可被任何前端复用）
-│  │  ├─ Configuration/            # 设置读写、.minecraft 自动探测
-│  │  ├─ Infrastructure/           # JSON、命令行拆分、离线 UUID、日志规范化
-│  │  ├─ Java/                     # Java 探测与版本匹配
-│  │  ├─ Launch/                   # LaunchPlan / 命令行构建 / 进程与崩溃分析
-│  │  ├─ Models/                   # version.json 模型、ResolvedVersion
-│  │  ├─ Net/                      # 下载器（镜像+重试+SHA1）、原版安装器
-│  │  ├─ Versions/                 # 版本仓库、继承合并、rules、maven、版本隔离
-│  │  └─ LauncherService.cs        # 门面：设置 + 仓库 + Java + 启动 + 安装
-│  ├─ Aurora.Cli/                  # 无界面自检/调试入口（aurora.exe）
-│  └─ Aurora.App/                  # WPF 界面（启动 / 安装 / 内容 / 设置 四页）
-├─ MEME启动器.exe                # 自包含单文件，双击即用
-├─ docs/ARCHITECTURE.md            # 设计说明与扩展点
-├─ docs/screenshot.png             # 界面截图
-├─ 启动 Aurora.cmd                 # 从源码编译并启动
-├─ build.ps1                       # 一键构建/发布
-└─ NuGet.config                    # nuget.org + 华为云镜像
-```
+| 启动页 | 安装 |
+|---|---|
+| ![](docs/screens/p0.png) | ![](docs/screens/p1.png) |
 
-## 直接打开（推荐）
+| 内容 | 账号 |
+|---|---|
+| ![](docs/screens/p2.png) | ![](docs/screens/p3.png) |
 
-双击 **`MEME启动器.exe`**（项目根目录有一份，桌面上也放了一份）。
+| 设置 | 联机 |
+|---|---|
+| ![](docs/screens/p4.png) | ![](docs/screens/p6.png) |
 
-它是**自包含单文件**（66 MB）：不用装 .NET、不用编译、不依赖仓库里的任何东西，双击就开。
+---
 
-![主界面](docs/screens/p0.png)
+## 微软登录的现状
 
-![安装](docs/screens/p1.png)
+链路本身是通的，已经实测到第 4 步：
 
-界面分四页（左侧导航）：
+| 步骤 | 结果 |
+|---|---|
+| 设备码 → 微软 token | ✅ |
+| Xbox Live | ✅ |
+| XSTS | ✅ |
+| `login_with_xbox` | ❌ 403 `Invalid app registration` |
 
-- **启动**：版本卡片列表（左侧色条按加载器区分）+ 右侧详情卡（Java / Mods / 内存 / 实际游戏目录）+ 大启动按钮
-- **安装**：选 Minecraft 版本 → 选 Fabric / NeoForge / Forge → 一条链路装完（原版自动补齐）
-- **内容**：Modrinth 搜索模组 / 整合包 / 光影 / 资源包，直接装进当前版本；CurseForge 支持粘贴链接
-- **设置**：账号（微软登录）、游戏目录、内存、Java、版本隔离、镜像开关、自建镜像站地址
+Minecraft 服务端有应用白名单，新注册的 Azure 应用默认不在里面。已经按官方流程提交 AppID Review 申请，等待 Mojang Enforcement 审批。**通过后不需要改任何代码**，Client ID 已内置。
 
-想从源码重新编译时，用 `启动 Aurora.cmd`（先 build 再启动）。
+完整记录见 [docs/MSA-LOGIN.md](docs/MSA-LOGIN.md)。
 
-## 镜像站
+---
 
-两个版本，路径规则一样（`/m/{源}/{路径}`）：
+## 已知限制
 
-| 版本 | 位置 | 特点 |
-|---|---|---|
-| 本地版 | `启动镜像站.cmd` → `http://127.0.0.1:8123/` | 磁盘缓存，要开机 |
-| 云端版 | `mirror-worker/worker.js` → Cloudflare Workers | 永久在线、边缘缓存，免费额度够用 |
+- NeoForge 服务端安装器仍会尝试直连 `maven.neoforged.net`；依赖已预下载到本地，正常网络下可用，极端网络环境可能超时
+- 微软登录等待白名单（见上）
+- UPnP 依赖路由器支持；校园网 / 公司网通常不可用
+- 内网穿透需要自备 [SakuraFrp](https://www.natfrp.com/) 账号（免费）
 
-镜像了 NeoForge / Forge maven、Mojang 库与元数据、Fabric meta、资源对象。详见 [docs/MIRROR.md](docs/MIRROR.md)。
+---
 
-## 账号
-
-默认离线登录；微软正版登录走设备码流程（点「用微软账号登录」→ 自动复制验证码并打开浏览器 → 确认即可）。
-需要一次性填 Azure 应用的 ClientId，作者内置好之后玩家看不到这一项。
-## 构建与运行
-
-需要 .NET SDK（本机已装在 `D:\综合创作\_env\dotnet`）：
+## 从源码构建
 
 ```powershell
-# CLI
-& 'D:\综合创作\_env\dotnet\dotnet.exe' build .\src\Aurora.Cli -c Release
-.\src\Aurora.Cli\bin\Release\net6.0\aurora.exe doctor
-
-# WPF 壳
-& 'D:\综合创作\_env\dotnet\dotnet.exe' build .\src\Aurora.App -c Release
-.\src\Aurora.App\bin\Release\net6.0-windows\Aurora.App.exe
+# 需要 .NET 6 SDK
+dotnet build  src/Aurora.App/Aurora.App.csproj -c Release
+dotnet publish src/Aurora.App/Aurora.App.csproj -c Release -r win-x64 --self-contained true `
+  -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
+  -p:EnableCompressionInSingleFile=true -o dist
 ```
 
-也可以用 `.\build.ps1`（构建 + 输出到 `dist\`）。
+或者直接跑 `build.ps1` / `启动 Aurora.cmd`。
 
-## CLI 用法
-
-```
-aurora list                        列出本地版本
-aurora info <id>                   版本详情（继承链、库、Java）
-aurora plan <id>                   只生成命令行，不启动
-aurora launch <id> [--name 玩家] [--timeout 秒] [--dry]
-aurora java                        列出探测到的 Java
-aurora remote [--all]              查看远端版本清单
-aurora install <id> [--no-assets]  安装原版
-aurora doctor                      环境自检
---game <目录>                      临时指定 .minecraft 目录
-```
-
-`list` 的实际输出（本机）：
+### 目录结构
 
 ```
-版本                              MC        加载器       加载器版本             Java  Mods  状态
-26.3-NeoForge_26.3.0.101        26.3      neoforge  26.3.0.101        25    2     OK
-26.2-Fabric 0.19.3              26.2      fabric    0.19.3            25    4     OK
-All the Mods 11 - ATM11         26.1.2    neoforge  -                 25    258   OK
-FTB StoneBlock 4                1.21.1    neoforge  -                 21    404   OK
-1.8.9-Forge_11.15.1.2318        1.8.9     forge     11.15.1.2318-1.8.9 8    0     OK
+src/
+├─ Aurora.Core/          # 引擎（无 UI 依赖）
+│  ├─ Accounts/          # 账号模型与持久化
+│  ├─ Auth/              # 微软设备码 / 外置登录 / 官方启动器导入
+│  ├─ Configuration/     # 设置读写
+│  ├─ Java/              # Java 探测与版本匹配
+│  ├─ Launch/            # 启动计划、命令行、崩溃分析
+│  ├─ Models/            # version.json 模型
+│  ├─ Net/               # 下载器、安装器、内容源、更新检查、自更新
+│  ├─ Network/           # 本机地址探测 / UPnP / 樱花 frpc
+│  ├─ Server/            # 服务端准备（原版 / Fabric / Forge / NeoForge）
+│  ├─ Skins/             # 离线皮肤（CustomSkinLoader）
+│  └─ Versions/          # 版本仓库、继承合并、rules
+├─ Aurora.Cli/           # 无界面命令行
+└─ Aurora.App/           # WPF 界面
+docs/
+├─ ARCHITECTURE.md
+├─ MSA-LOGIN.md
+└─ screens/              # 界面截图
 ```
 
-## 配置文件
+---
 
-`%APPDATA%\AuroraLauncher\config.json`
+## 致谢
 
-| 字段 | 默认 | 说明 |
-|---|---|---|
-| `GameDirectory` | 自动挑版本最多的 `.minecraft` | 游戏根目录 |
-| `PlayerName` | `Steve` | 离线登录名 |
-| `JavaPath` | 空 = 自动 | 指定 java 可执行文件或 JDK 目录 |
-| `ExtraJavaPaths` | `[]` | 额外 Java 搜索根目录（可填 JDK 所在父目录） |
-| `MinMemoryMb` / `MaxMemoryMb` | 512 / 物理内存一半 | JVM 堆 |
-| `WindowWidth` / `WindowHeight` | 0 | 0 表示不传，交给游戏 |
-| `ExtraJvmArgs` / `ExtraGameArgs` | 空 | 追加参数（按命令行规则拆分） |
-| `UseMirror` | true | 下载走 BMCLAPI |
-| `VersionIsolation` | `auto` | `auto` / `on` / `off` |
+- 下载镜像：[BMCLAPI](https://bmclapi2.bangbang93.com/)
+- 内容源：[Modrinth](https://modrinth.com/)、[CurseForge](https://www.curseforge.com/)
+- 外置登录：[authlib-injector](https://github.com/yushijinhun/authlib-injector)、[LittleSkin](https://littleskin.cn/)
+- 皮肤：[CustomSkinLoader](https://github.com/xfl03/MCCustomSkinLoader)
+- 内网穿透：[SakuraFrp](https://www.natfrp.com/)
 
-## UI 现状
-
-三个页面已经接好引擎，数据全部来自 `LauncherService`，不是假数据：
-
-| 页面 | 数据来源 | 备注 |
-|---|---|---|
-| 启动 | `ListVersions()` / `SelectJava()` / `GameDirectoryFor()` | 卡片左侧色条按加载器区分：Forge 橙、NeoForge 紫、Fabric 青 |
-| 下载 | `Installer.GetManifestAsync()` + `InstallVanillaAsync()` | 进度条吃 `InstallProgress` |
-| 设置 | `LauncherSettings` ↔ `config.json` | 改游戏目录会重建 `LauncherService` |
-
-还没做的（按优先级）：
-
-1. 托盘 / 最小化到后台
-2. 多账号 + 微软登录（`LaunchOptions` 里已经留好 `AccessToken` / `Uuid` / `UserType`）
-3. 模组与整合包管理（导入 CurseForge/Modrinth 压缩包）
-4. Forge / Fabric 自动安装（现在只能装原版）
-5. 资源完整性校验、下载失败重试面板
-
-设计细节和扩展点见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
+Minecraft 是 Mojang Studios 的商标，本项目与 Mojang / Microsoft 无隶属关系。
