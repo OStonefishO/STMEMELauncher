@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Security.Cryptography;
@@ -10,6 +11,10 @@ namespace Aurora.App;
 internal static class IconCache
 {
     private static readonly HttpClient Http = CreateClient();
+
+    // 同时最多下 4 个图标，避免一次性几十个请求把界面拖卡
+    private static readonly SemaphoreSlim Gate = new(4, 4);
+    private static readonly Dictionary<string, BitmapImage?> Memory = new(StringComparer.OrdinalIgnoreCase);
     private static readonly string Directory = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MEMELauncher", "icons");
 
@@ -22,17 +27,40 @@ internal static class IconCache
 
     public static async Task<BitmapImage?> GetAsync(string url)
     {
+        if (string.IsNullOrEmpty(url))
+        {
+            return null;
+        }
+
+        if (Memory.TryGetValue(url, out var cached))
+        {
+            return cached;
+        }
+
         try
         {
             var path = Path.Combine(Directory, Hash(url) + ".img");
             if (!File.Exists(path))
             {
-                var bytes = await Http.GetByteArrayAsync(url).ConfigureAwait(false);
-                System.IO.Directory.CreateDirectory(Directory);
-                await File.WriteAllBytesAsync(path, bytes).ConfigureAwait(false);
+                await Gate.WaitAsync().ConfigureAwait(false);
+                try
+                {
+                    if (!File.Exists(path))
+                    {
+                        var bytes = await Http.GetByteArrayAsync(url).ConfigureAwait(false);
+                        System.IO.Directory.CreateDirectory(Directory);
+                        await File.WriteAllBytesAsync(path, bytes).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    Gate.Release();
+                }
             }
 
-            return Load(path);
+            var bitmap = Load(path);
+            Memory[url] = bitmap;
+            return bitmap;
         }
         catch
         {

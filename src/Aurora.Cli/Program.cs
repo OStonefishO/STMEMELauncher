@@ -73,6 +73,8 @@ internal static class Program
                 return await UpnpAsync(service, positional, flags).ConfigureAwait(false);
             case "update":
                 return await UpdateAsync(service, positional, flags).ConfigureAwait(false);
+            case "download":
+                return await DownloadAsync(service, positional, flags).ConfigureAwait(false);
             default:
                 PrintHelp();
                 return 0;
@@ -656,6 +658,49 @@ internal static class Program
         return 0;
     }
 
+    private static async Task<int> DownloadAsync(LauncherService service, List<string> positional,
+        Dictionary<string, string> flags)
+    {
+        var url = positional.ElementAtOrDefault(0);
+        var name = positional.ElementAtOrDefault(1) ?? "download.jar";
+        if (string.IsNullOrEmpty(url))
+        {
+            Console.Error.WriteLine("用法: aurora download <url> [文件名] [--dir 目标目录]");
+            return 1;
+        }
+
+        var dir = flags.TryGetValue("dir", out var d) ? d : Path.Combine(Path.GetTempPath(), "memedl");
+        Directory.CreateDirectory(dir);
+
+        var manager = service.CreateDownloadManager();
+        var file = new Aurora.Core.Net.ContentFile
+        {
+            FileName = name,
+            DisplayName = name,
+            Url = url,
+        };
+
+        var task = manager.Enqueue(file, Aurora.Core.Net.ContentKind.Mod, dir);
+        Console.WriteLine($"目标: {Path.Combine(dir, "mods", name)}");
+
+        var last = -1;
+        while (task.State is Aurora.Core.Net.DownloadState.Queued or Aurora.Core.Net.DownloadState.Running)
+        {
+            var pct = (int)task.Progress;
+            if (pct != last)
+            {
+                Console.Write($"\r进度 {pct}%  {task.SizeText}  {task.SpeedText}   ");
+                last = pct;
+            }
+
+            await Task.Delay(200).ConfigureAwait(false);
+        }
+
+        Console.WriteLine();
+        Console.WriteLine($"状态: {task.StateText}  {task.Error}");
+        return task.State == Aurora.Core.Net.DownloadState.Completed ? 0 : 2;
+    }
+
     private static void PrintHelp()
     {
         Console.WriteLine(@"Aurora Launcher CLI (框架/自检工具)
@@ -676,6 +721,7 @@ internal static class Program
   aurora server <版本id> --dir <目录> [--port 25599] [--memory 1024] [--timeout 60]
   aurora upnp [--port 25565] [--unmap]
   aurora update [--download]
+  aurora download <url> [文件名] [--dir 目标目录]
 
 公共参数:
   --game <目录>                      临时指定 .minecraft 目录");

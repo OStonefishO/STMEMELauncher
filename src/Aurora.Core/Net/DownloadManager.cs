@@ -137,6 +137,19 @@ public sealed class DownloadManager
 
     private readonly HttpClient _http = new() { Timeout = Timeout.InfiniteTimeSpan };
     private readonly Dictionary<string, CancellationTokenSource> _running = new();
+    private readonly SynchronizationContext? _sync = SynchronizationContext.Current;
+
+    /// <summary>把属性变更送回 UI 线程，WPF 绑定不能跨线程改。</summary>
+    private void Ui(Action action)
+    {
+        if (_sync == null)
+        {
+            action();
+            return;
+        }
+
+        _sync.Post(_ => action(), null);
+    }
 
     public ObservableCollection<DownloadItem> Tasks { get; } = new();
 
@@ -154,8 +167,8 @@ public sealed class DownloadManager
             KindLabel = ContentKindInfo.Label(kind),
         };
 
-        Tasks.Insert(0, item);
-        _ = PumpAsync();
+        Ui(() => Tasks.Insert(0, item));
+        _ = Task.Run(PumpAsync);
         return item;
     }
 
@@ -168,12 +181,12 @@ public sealed class DownloadManager
 
         if (_running.TryGetValue(item.Id, out var cts))
         {
-            item.State = DownloadState.Paused;
+            Ui(() => item.State = DownloadState.Paused);
             cts.Cancel();
         }
         else
         {
-            item.State = DownloadState.Paused;
+            Ui(() => item.State = DownloadState.Paused);
         }
     }
 
@@ -184,9 +197,12 @@ public sealed class DownloadManager
             return;
         }
 
-        item.State = DownloadState.Queued;
-        item.Error = string.Empty;
-        _ = PumpAsync();
+        Ui(() =>
+        {
+            item.State = DownloadState.Queued;
+            item.Error = string.Empty;
+        });
+        _ = Task.Run(PumpAsync);
     }
 
     public void Cancel(DownloadItem item)
@@ -196,7 +212,7 @@ public sealed class DownloadManager
             cts.Cancel();
         }
 
-        item.State = DownloadState.Canceled;
+        Ui(() => item.State = DownloadState.Canceled);
         TryDelete(item.TargetPath + ".part");
     }
 
@@ -215,8 +231,7 @@ public sealed class DownloadManager
     {
         while (true)
         {
-            var running = Tasks.Count(t => t.State == DownloadState.Running);
-            if (running >= MaxConcurrent)
+            if (Tasks.Count(t => t.State == DownloadState.Running) >= MaxConcurrent)
             {
                 return;
             }
@@ -236,7 +251,7 @@ public sealed class DownloadManager
     {
         var cts = new CancellationTokenSource();
         _running[item.Id] = cts;
-        item.State = DownloadState.Running;
+        Ui(() => item.State = DownloadState.Running);
 
         var part = item.TargetPath + ".part";
 
@@ -256,8 +271,13 @@ public sealed class DownloadManager
             response.EnsureSuccessStatusCode();
 
             var total = response.Content.Headers.ContentLength ?? 0;
-            item.TotalBytes = existing + total;
-            item.ReceivedBytes = existing;
+            var startTotal = existing + total;
+            var received = existing;
+            Ui(() =>
+            {
+                item.TotalBytes = startTotal;
+                item.ReceivedBytes = existing;
+            });
 
             await using var source = await response.Content.ReadAsStreamAsync(cts.Token).ConfigureAwait(false);
             await using var destination = new FileStream(part, FileMode.Append, FileAccess.Write, FileShare.None);
@@ -271,14 +291,22 @@ public sealed class DownloadManager
             while ((read = await source.ReadAsync(buffer, cts.Token).ConfigureAwait(false)) > 0)
             {
                 await destination.WriteAsync(buffer.AsMemory(0, read), cts.Token).ConfigureAwait(false);
-                item.ReceivedBytes += read;
+                received += read;
 
-                if (watch.ElapsedMilliseconds - lastTick > 500)
+                // 最多每 250ms 刷一次 UI，避免每个数据块都触发绑定
+                if (watch.ElapsedMilliseconds - lastTick > 250)
                 {
-                    item.SpeedBytesPerSecond = (item.ReceivedBytes - lastBytes) /
-                                               Math.Max(0.001, (watch.ElapsedMilliseconds - lastTick) / 1000.0);
+                    var elapsed = Math.Max(0.001, (watch.ElapsedMilliseconds - lastTick) / 1000.0);
+                    var speed = (received - lastBytes) / elapsed;
                     lastTick = watch.ElapsedMilliseconds;
-                    lastBytes = item.ReceivedBytes;
+                    lastBytes = received;
+
+                    var snapshot = received;
+                    Ui(() =>
+                    {
+                        item.ReceivedBytes = snapshot;
+                        item.SpeedBytesPerSecond = speed;
+                    });
                 }
             }
 
@@ -289,8 +317,12 @@ public sealed class DownloadManager
             }
 
             File.Move(part, item.TargetPath);
-            item.State = DownloadState.Completed;
-            item.SpeedBytesPerSecond = 0;
+            Ui(() =>
+            {
+                item.ReceivedBytes = Math.Max(item.ReceivedBytes, received);
+                item.State = DownloadState.Completed;
+                item.SpeedBytesPerSecond = 0;
+            });
         }
         catch (OperationCanceledException)
         {
@@ -298,13 +330,16 @@ public sealed class DownloadManager
         }
         catch (Exception ex)
         {
-            item.Error = ex.Message;
-            item.State = DownloadState.Failed;
+            Ui(() =>
+            {
+                item.Error = ex.Message;
+                item.State = DownloadState.Failed;
+            });
         }
         finally
         {
             _running.Remove(item.Id);
-            _ = PumpAsync();
+            _ = Task.Run(PumpAsync);
         }
     }
 

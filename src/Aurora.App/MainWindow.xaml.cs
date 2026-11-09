@@ -30,7 +30,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.8.0";
+    private const string AppVersion = "0.8.1";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -149,6 +149,19 @@ public partial class MainWindow : Window
         if (index == 3)
         {
             RefreshAccounts();
+        }
+
+        try
+        {
+            // 3D 场景只在启动页渲染，其它页面隐藏省资源
+            if (HeroViewport != null)
+            {
+                HeroViewport.Visibility = index == 0 ? Visibility.Visible : Visibility.Hidden;
+            }
+        }
+        catch
+        {
+            // 忽略
         }
 
         if (index == 5 && !_updatesLoaded)
