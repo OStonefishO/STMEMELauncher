@@ -6,8 +6,15 @@
 
 ![主界面](docs/screens/p0.png)
 
----
+[![Stars](https://img.shields.io/github/stars/OStonefishO/STMEMELauncher?style=flat-square)](https://github.com/OStonefishO/STMEMELauncher/stargazers)
+[![Release](https://img.shields.io/github/v/release/OStonefishO/STMEMELauncher?style=flat-square)](https://github.com/OStonefishO/STMEMELauncher/releases)
+[![Downloads](https://img.shields.io/github/downloads/OStonefishO/STMEMELauncher/total?style=flat-square)](https://github.com/OStonefishO/STMEMELauncher/releases)
+[![License](https://img.shields.io/github/license/OStonefishO/STMEMELauncher?style=flat-square)](LICENSE)
+[![Platform](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?style=flat-square)]()
 
+> 如果这个启动器帮到你，点个 **Star ⭐** 就是最好的支持——它也会帮这个项目更快拿到免费代码签名，让更多人能直接双击打开。
+
+---
 ## 下载
 
 | 通道 | 地址 | 说明 |
