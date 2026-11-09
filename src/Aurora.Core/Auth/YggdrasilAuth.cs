@@ -86,6 +86,36 @@ public sealed class YggdrasilAuth
         }
     }
 
+    /// <summary>用 token 换一个新的 token（皮肤站注销旧 token、长时间没登录时用）。</summary>
+    public async Task<YggdrasilSession> RefreshAsync(YggdrasilSession session, CancellationToken ct = default)
+    {
+        var body = JsonSerializer.Serialize(new
+        {
+            accessToken = session.AccessToken,
+            clientToken = string.IsNullOrEmpty(session.ClientToken) ? null : session.ClientToken,
+            requestUser = true,
+        });
+
+        var json = await PostAsync($"{ApiRoot}/authserver/refresh", body, ct).ConfigureAwait(false);
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+
+        var profile = root.TryGetProperty("selectedProfile", out var sp) && sp.ValueKind == JsonValueKind.Object
+            ? sp
+            : default;
+
+        return new YggdrasilSession
+        {
+            ApiRoot = ApiRoot,
+            AccessToken = GetString(root, "accessToken") ?? session.AccessToken,
+            ClientToken = GetString(root, "clientToken") ?? session.ClientToken,
+            Uuid = profile.ValueKind == JsonValueKind.Object ? GetString(profile, "id") ?? session.Uuid : session.Uuid,
+            PlayerName = profile.ValueKind == JsonValueKind.Object
+                ? GetString(profile, "name") ?? session.PlayerName
+                : session.PlayerName,
+        };
+    }
+
     private async Task<string> PostAsync(string url, string body, CancellationToken ct)
     {
         using var content = new StringContent(body, Encoding.UTF8, "application/json");

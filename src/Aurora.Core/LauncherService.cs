@@ -130,6 +130,60 @@ public sealed class LauncherService
 
     public AuthlibInjectorInstaller CreateInjectorInstaller() => new();
 
+    /// <summary>
+    /// 启动前把外置登录准备好：token 失效就自动 refresh，authlib-injector 缺了就下下来。
+    /// 任何一步失败都会返回原因，调用方据此提示玩家重新登录。
+    /// </summary>
+    public async Task<string?> PrepareYggdrasilAsync(IProgress<string>? progress = null,
+        CancellationToken ct = default)
+    {
+        if (Yggdrasil is not { } session || string.IsNullOrEmpty(session.AccessToken))
+        {
+            return null;
+        }
+
+        var auth = CreateYggdrasil(session.ApiRoot);
+
+        // token 可能早就过期了，先验一下，能用就不动
+        var valid = await auth.ValidateAsync(session, ct).ConfigureAwait(false);
+        if (!valid)
+        {
+            progress?.Report("外置登录已过期，正在自动续期…");
+            YggdrasilSession refreshed;
+            try
+            {
+                refreshed = await auth.RefreshAsync(session, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                return "外置登录已过期，自动续期也失败了（" + ex.Message + "），去「账号」页重新登录一次";
+            }
+
+            SaveYggdrasil(refreshed);
+            var account = Settings.Accounts.FirstOrDefault(a =>
+                a.Type == "yggdrasil" && string.Equals(a.Uuid, refreshed.Uuid, StringComparison.OrdinalIgnoreCase));
+            if (account != null)
+            {
+                account.AccessToken = refreshed.AccessToken;
+                account.ClientToken = refreshed.ClientToken;
+                account.Name = refreshed.PlayerName;
+                ConfigStore.Save(Settings);
+            }
+        }
+
+        // 没有注入器，游戏里就看不到皮肤站皮肤（会显示成默认皮肤）
+        try
+        {
+            await CreateInjectorInstaller().EnsureAsync(Settings.GameDirectory, progress, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            return "authlib-injector 下载失败（" + ex.Message + "），没有它游戏里不会显示皮肤站皮肤";
+        }
+
+        return null;
+    }
+
     public DownloadClient SharedDownloader =>
         _shared ??= new DownloadClient(Settings.UseMirror) { MirrorBaseUrl = Settings.MirrorBaseUrl };
 
@@ -252,7 +306,9 @@ public sealed class LauncherService
             }
             else
             {
-                problems.Add("外置登录需要 authlib-injector.jar，请重新登录以自动下载");
+                // 没有注入器就直接别启动：否则进游戏是默认皮肤，玩家会以为皮肤丢了
+                problems.Add("外置登录需要 authlib-injector（没下下来），请重新登录外置账号");
+                return null;
             }
         }
         else if (active is { Type: "microsoft" } && !string.IsNullOrEmpty(active.AccessToken))

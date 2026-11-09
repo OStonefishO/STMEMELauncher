@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.13.4";
+    private const string AppVersion = "0.13.5";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -341,6 +341,20 @@ public partial class MainWindow : Window
 
         try
         {
+            // 外置登录：先把 token 续期、注入器备好，失败就别启动（否则进游戏没皮肤、联机也会被踢）
+            if (_service.ActiveAccount is { Type: "yggdrasil" })
+            {
+                SetStatus("准备外置登录…");
+                var prepared = await _service.PrepareYggdrasilAsync(
+                    new Progress<string>(t => SetStatus(t)));
+                if (prepared != null)
+                {
+                    SetStatus(prepared);
+                    ShowToast("外置登录有问题", prepared, "⚠", 6000);
+                    return;
+                }
+            }
+
             var plan = _service.BuildPlan(card.Summary.Id, out var resolved, out var problems);
             if (plan == null || resolved == null)
             {
@@ -3385,9 +3399,37 @@ public partial class MainWindow : Window
     private void OnChangeSkinForCurrent(object sender, RoutedEventArgs e)
     {
         var account = _service.ActiveAccount;
-        if (account != null)
+        if (account == null)
         {
-            ImportSkinFor(account);
+            return;
+        }
+
+        // 外置 / 微软账号的皮肤归服务器管，本地写了也没用，直接把人送去换皮肤的地方
+        if (account.Type is "yggdrasil" or "microsoft")
+        {
+            OpenSkinSite(account.Type);
+            return;
+        }
+
+        ImportSkinFor(account);
+    }
+
+    private void OpenSkinSite(string accountType)
+    {
+        var url = accountType == "microsoft"
+            ? "https://www.minecraft.net/msaprofile/mygames/editskin"
+            : "https://littleskin.cn/user/player";
+
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+            AccountPageStatus.Text = accountType == "microsoft"
+                ? "皮肤要在 Minecraft 官网换，换完进游戏就是新的"
+                : "在 LittleSkin 的「我的角色」里上传皮肤，换完重新启动游戏即可";
+        }
+        catch (Exception ex)
+        {
+            AccountPageStatus.Text = "打不开浏览器：" + ex.Message;
         }
     }
 
@@ -3415,8 +3457,10 @@ public partial class MainWindow : Window
     {
         if (account.Type != "offline")
         {
-            AccountPageStatus.Text = "外置 / 微软账号的皮肤来自皮肤站或 Mojang 服务器，不能本地覆盖";
-            ShowToast("不能修改", "这个账号的皮肤由服务器决定", "⚠", 3600);
+            AccountPageStatus.Text = account.Type == "yggdrasil"
+                ? "LittleSkin 账号的皮肤要在皮肤站上传，点「去 LittleSkin 换皮肤」"
+                : "微软账号的皮肤要在 Minecraft 官网换，点「去官网换皮肤」";
+            ShowToast("皮肤由服务器决定", "点下面的按钮去对应的网站换，换完重新启动游戏", "⚠", 4200);
             return;
         }
 
@@ -3685,6 +3729,16 @@ public partial class MainWindow : Window
         AccountSkinStatus.Text = "读取皮肤…";
         _skinBitmap = null;
 
+        if (SkinActionButton != null)
+        {
+            SkinActionButton.Content = account.Type switch
+            {
+                "yggdrasil" => "去 LittleSkin 换皮肤",
+                "microsoft" => "去官网换皮肤",
+                _ => "更换这个账号的皮肤",
+            };
+        }
+
         try
         {
             var bytes = await SkinResolver.GetSkinBytesAsync(
@@ -3701,10 +3755,14 @@ public partial class MainWindow : Window
 
             if (bytes == null)
             {
-                AccountSkinStatus.Text = account.Type == "offline"
-                    ? "还没有皮肤，可以点下面「导入离线皮肤」"
-                    : "这个账号没有设置皮肤";
-                        return;
+                AccountSkinStatus.Text = account.Type switch
+                {
+                    "offline" => "还没有皮肤，可以点下面「导入离线皮肤」",
+                    "yggdrasil" => "LittleSkin 上这个角色还没有皮肤，点下面按钮去上传",
+                    "microsoft" => "Mojang 服务器上没有这个账号的皮肤，点下面按钮去官网设置",
+                    _ => "这个账号没有设置皮肤",
+                };
+                return;
             }
 
             _skinBitmap = SkinImage.FromBytes(bytes);
@@ -3730,7 +3788,18 @@ public partial class MainWindow : Window
             {
                 AccountSkinImage.Source = SkinImage.Full(bytes, 256);
             }
-                AccountSkinStatus.Text = "已加载皮肤";
+
+            // 外置登录：皮肤能不能进游戏，取决于 authlib-injector 有没有装上
+            var injectorReady = account.Type != "yggdrasil" ||
+                                File.Exists(Path.Combine(_settings.GameDirectory, "authlib-injector.jar"));
+            AccountSkinStatus.Text = account.Type switch
+            {
+                "yggdrasil" => injectorReady
+                    ? "皮肤来自 LittleSkin · 已加载"
+                    : "皮肤来自 LittleSkin · 但 authlib-injector 没装好，启动时会自动补（失败就进不了游戏）",
+                "microsoft" => "皮肤来自 Mojang · 已加载",
+                _ => "已加载皮肤",
+            };
         }
         catch (Exception ex)
         {

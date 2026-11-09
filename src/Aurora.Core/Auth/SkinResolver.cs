@@ -10,7 +10,32 @@ namespace Aurora.Core.Auth;
 /// </summary>
 public static class SkinResolver
 {
-    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(15) };
+    private static readonly HttpClient Http = CreateClient();
+
+    private static HttpClient CreateClient()
+    {
+        var client = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+        // LittleSkin / Mojang 的贴图 CDN 对没有 UA 的请求有时会直接 403
+        client.DefaultRequestHeaders.TryAddWithoutValidation(
+            "User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) " +
+            "Chrome/124.0.0.0 Safari/537.36");
+        client.DefaultRequestHeaders.TryAddWithoutValidation("Accept", "application/json, image/png, */*");
+        return client;
+    }
+
+    /// <summary>sessionserver 的 profile 地址；unsigned=false 才会带签名的 textures 属性。</summary>
+    private static string ProfileEndpoint(string type, string uuid, string apiRoot)
+    {
+        var id = uuid.Replace("-", string.Empty);
+        if (type == "yggdrasil")
+        {
+            var root = string.IsNullOrWhiteSpace(apiRoot) ? "https://littleskin.cn/api/yggdrasil" : apiRoot;
+            return root.TrimEnd('/') + "/sessionserver/session/minecraft/profile/" + id + "?unsigned=false";
+        }
+
+        return "https://sessionserver.mojang.com/session/minecraft/profile/" + id + "?unsigned=false";
+    }
 
     /// <summary>皮肤和披风的贴图地址（外置/微软都走 textures 属性）。</summary>
     public static async Task<(string? Skin, string? Cape)> GetTexturesAsync(string type, string uuid,
@@ -23,16 +48,7 @@ public static class SkinResolver
                 return (null, null);
             }
 
-            string endpoint;
-            if (type == "yggdrasil")
-            {
-                var root = string.IsNullOrWhiteSpace(apiRoot) ? "https://littleskin.cn/api/yggdrasil" : apiRoot;
-                endpoint = root.TrimEnd('/') + "/sessionserver/session/minecraft/profile/" + uuid.Replace("-", string.Empty);
-            }
-            else
-            {
-                endpoint = "https://sessionserver.mojang.com/session/minecraft/profile/" + uuid.Replace("-", string.Empty);
-            }
+            var endpoint = ProfileEndpoint(type, uuid, apiRoot);
 
             var json = await Http.GetStringAsync(endpoint, ct).ConfigureAwait(false);
             using var doc = JsonDocument.Parse(json);
@@ -145,16 +161,7 @@ public static class SkinResolver
             return null;
         }
 
-        string endpoint;
-        if (type == "yggdrasil")
-        {
-            var root = string.IsNullOrWhiteSpace(apiRoot) ? "https://littleskin.cn/api/yggdrasil" : apiRoot;
-            endpoint = root.TrimEnd('/') + "/sessionserver/session/minecraft/profile/" + uuid.Replace("-", string.Empty);
-        }
-        else
-        {
-            endpoint = "https://sessionserver.mojang.com/session/minecraft/profile/" + uuid.Replace("-", string.Empty);
-        }
+        var endpoint = ProfileEndpoint(type, uuid, apiRoot);
 
         var json = await Http.GetStringAsync(endpoint, ct).ConfigureAwait(false);
         using var doc = JsonDocument.Parse(json);
