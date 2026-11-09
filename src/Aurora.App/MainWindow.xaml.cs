@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.10.3";
+    private const string AppVersion = "0.10.4";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -1027,6 +1027,22 @@ public partial class MainWindow : Window
         return resolved == null ? _settings.GameDirectory : _service.GameDirectoryFor(resolved);
     }
 
+    private void OnVmModSearch(object sender, TextChangedEventArgs e)
+    {
+        if (VmModSearchHint != null)
+        {
+            VmModSearchHint.Visibility = string.IsNullOrEmpty(VmModSearch?.Text)
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+        }
+
+        var dir = CurrentVmGameDir();
+        if (dir != null)
+        {
+            RefreshModList(dir);
+        }
+    }
+
     private void RefreshModList(string gameDir)
     {
         VmModList.Children.Clear();
@@ -1042,9 +1058,12 @@ public partial class MainWindow : Window
             return;
         }
 
+        var keyword = VmModSearch?.Text?.Trim() ?? string.Empty;
         var files = Directory.GetFiles(modsDir)
             .Where(f => f.EndsWith(".jar", StringComparison.OrdinalIgnoreCase) ||
                         f.EndsWith(".jar.disabled", StringComparison.OrdinalIgnoreCase))
+            .Where(f => string.IsNullOrEmpty(keyword) ||
+                        Path.GetFileName(f).Contains(keyword, StringComparison.OrdinalIgnoreCase))
             .OrderBy(f => Path.GetFileName(f))
             .ToList();
 

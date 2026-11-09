@@ -1031,6 +1031,14 @@
                                             </Grid>
                                             <TextBlock Text="可以直接把 .jar 拖进来；点开关启用/禁用（改扩展名，不删文件）"
                                                        FontSize="10.5" Foreground="{StaticResource InkFaint}" Margin="0,6,0,10"/>
+                                            <Grid Margin="0,0,0,10">
+                                                <TextBox x:Name="VmModSearch" Height="30" Padding="9,6,9,6"
+                                                         TextChanged="OnVmModSearch"/>
+                                                <TextBlock x:Name="VmModSearchHint" Text="搜索模组文件名"
+                                                           IsHitTestVisible="False" Margin="10,0,0,0"
+                                                           VerticalAlignment="Center" FontSize="11.5"
+                                                           Foreground="{StaticResource InkFaint}"/>
+                                            </Grid>
 
                                             <Border CornerRadius="10" Background="#0B0E13" Padding="10"
                                                     AllowDrop="True" Drop="OnVmModsDrop" DragOver="OnVmModsDragOver">
