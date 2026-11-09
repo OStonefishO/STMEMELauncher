@@ -34,6 +34,9 @@ Windows 11 的 **Smart App Control** 会拦掉所有没有数字签名的 exe，
 
 签名方案与自动发版流程见 [docs/SIGNING.md](docs/SIGNING.md)（SignPath 对开源项目免费）。
 
+> 本项目使用 **SignPath Foundation** 提供的免费代码签名服务为发布包签名。
+> This project uses the free code signing provided by SignPath Foundation.
+
 ---
 
 ## 现在能做什么
@@ -178,3 +181,11 @@ docs/
 - 内网穿透：[SakuraFrp](https://www.natfrp.com/)
 
 Minecraft 是 Mojang Studios 的商标，本项目与 Mojang / Microsoft 无隶属关系。
+
+---
+
+## 开源协议与隐私
+
+- 许可证：[MIT](LICENSE)
+- 隐私说明：[docs/PRIVACY.md](docs/PRIVACY.md)（本地运行，不收集任何使用数据）
+- 代码签名：由 [SignPath Foundation](https://signpath.org/) 免费提供
