@@ -25,9 +25,6 @@ on:
 permissions:
   contents: write
 
-# 放在这里，job 的 if 才能读到（secrets 不能直接写在 if 里）
-env:
-  SIGNPATH_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
 
 jobs:
   build:
