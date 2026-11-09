@@ -46,6 +46,7 @@ public sealed class DownloadItem : INotifyPropertyChanged
             _state = value;
             Raise();
             Raise(nameof(StateText));
+            Raise(nameof(DetailText));
             Raise(nameof(CanPause));
             Raise(nameof(CanResume));
             Raise(nameof(CanCancel));
@@ -61,6 +62,7 @@ public sealed class DownloadItem : INotifyPropertyChanged
             Raise();
             Raise(nameof(Progress));
             Raise(nameof(SizeText));
+            Raise(nameof(DetailText));
         }
     }
 
@@ -73,6 +75,7 @@ public sealed class DownloadItem : INotifyPropertyChanged
             Raise();
             Raise(nameof(Progress));
             Raise(nameof(SizeText));
+            Raise(nameof(DetailText));
         }
     }
 
@@ -84,6 +87,7 @@ public sealed class DownloadItem : INotifyPropertyChanged
             _speed = value;
             Raise();
             Raise(nameof(SpeedText));
+            Raise(nameof(DetailText));
         }
     }
 
@@ -113,6 +117,15 @@ public sealed class DownloadItem : INotifyPropertyChanged
     public string SizeText => TotalBytes > 0
         ? $"{ReceivedBytes / 1024.0 / 1024.0:0.0} / {TotalBytes / 1024.0 / 1024.0:0.0} MB"
         : $"{ReceivedBytes / 1024.0 / 1024.0:0.0} MB";
+
+    /// <summary>一行摘要（Run 绑定只读属性会抛异常，统一用这个）。</summary>
+    public string DetailText => string.Join("  ·  ", new[]
+    {
+        KindLabel,
+        StateText,
+        SizeText,
+        SpeedText,
+    }.Where(v => !string.IsNullOrWhiteSpace(v)));
 
     public string SpeedText => State == DownloadState.Running && SpeedBytesPerSecond > 0
         ? $"{SpeedBytesPerSecond / 1024.0 / 1024.0:0.0} MB/s"

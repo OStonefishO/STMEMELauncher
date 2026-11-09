@@ -793,16 +793,10 @@
                                                     <StackPanel>
                                                         <TextBlock Text="{Binding FileName}" FontSize="12"
                                                                    Foreground="{StaticResource Ink}" TextTrimming="CharacterEllipsis"/>
-                                                        <TextBlock FontSize="10.5" Foreground="{StaticResource InkFaint}" Margin="0,3,0,6">
-                                                            <Run Text="{Binding KindLabel}"/>
-                                                            <Run Text=" · "/>
-                                                            <Run Text="{Binding StateText}"/>
-                                                            <Run Text="  "/>
-                                                            <Run Text="{Binding SizeText}"/>
-                                                            <Run Text="  "/>
-                                                            <Run Text="{Binding SpeedText}"/>
-                                                        </TextBlock>
-                                                        <ProgressBar Height="3" Minimum="0" Maximum="100" Value="{Binding Progress}"
+                                                        <TextBlock Text="{Binding DetailText}" FontSize="10.5"
+                                                                   Foreground="{StaticResource InkFaint}" Margin="0,3,0,6"
+                                                                   TextTrimming="CharacterEllipsis"/>
+                                                        <ProgressBar Height="3" Minimum="0" Maximum="100" Value="{Binding Progress, Mode=OneWay}"
                                                                      Background="#1AFFFFFF" Foreground="{StaticResource AccentGrad}"
                                                                      BorderThickness="0"/>
                                                         <StackPanel Orientation="Horizontal" Margin="0,8,0,0">

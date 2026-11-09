@@ -23,12 +23,20 @@ public partial class App : Application
         };
     }
 
+    private static bool _dialogShown;
+
     private void OnDispatcherException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
         Log("Dispatcher", e.Exception);
-
-        // 不因为一次 UI 异常直接退出，写盘后继续跑
         e.Handled = true;
+
+        // 只弹一次：绑定错误可能每秒触发几十次，连环弹窗会把桌面淹掉
+        if (_dialogShown)
+        {
+            return;
+        }
+
+        _dialogShown = true;
 
         try
         {
