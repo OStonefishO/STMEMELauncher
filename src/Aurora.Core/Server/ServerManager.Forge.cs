@@ -72,12 +72,46 @@ public sealed partial class ServerManager
             }
         }
 
-        progress?.Report(new Net.InstallProgress { Stage = "安装器", Message = "运行 --installServer（可能要几分钟）…" });
+        // 先把依赖从 BMCLAPI 预下载到 libraries/，这样安装器不用直连国外 maven
+        progress?.Report(new Net.InstallProgress { Stage = "依赖", Message = "读取安装器依赖清单…" });
+        var prefetched = await PrefetchInstallerLibrariesAsync(installerPath, targetDirectory, progress, ct)
+            .ConfigureAwait(false);
 
+        progress?.Report(new Net.InstallProgress
+        {
+            Stage = "安装器",
+            Message = prefetched > 0
+                ? $"依赖已预下载（{prefetched} 个），运行 --installServer --offline…"
+                : "运行 --installServer（可能要几分钟）…",
+        });
+
+        var exitCode = await RunInstallerAsync(javaPath, targetDirectory, installerPath,
+            prefetched > 0, ct).ConfigureAwait(false);
+
+        if (exitCode != 0 && prefetched > 0)
+        {
+            // 离线模式不认，回退到在线安装（依赖已在本地，安装器会跳过大部分下载）
+            progress?.Report(new Net.InstallProgress { Stage = "安装器", Message = "离线安装失败，改用在线模式重试…" });
+            exitCode = await RunInstallerAsync(javaPath, targetDirectory, installerPath, false, ct)
+                .ConfigureAwait(false);
+        }
+
+        if (exitCode != 0)
+        {
+            throw new InvalidOperationException($"安装器退出码 {exitCode}，看服务端目录里的 installer.jar.log");
+        }
+
+        progress?.Report(new Net.InstallProgress { Stage = "安装器", Message = "安装完成，查找启动方式…" });
+        return LocateLayout(targetDirectory);
+    }
+
+    private async Task<int> RunInstallerAsync(string javaPath, string directory, string installerPath,
+        bool offline, CancellationToken ct)
+    {
         var psi = new ProcessStartInfo
         {
             FileName = javaPath,
-            WorkingDirectory = targetDirectory,
+            WorkingDirectory = directory,
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -88,6 +122,10 @@ public sealed partial class ServerManager
         psi.ArgumentList.Add("-jar");
         psi.ArgumentList.Add(installerPath);
         psi.ArgumentList.Add("--installServer");
+        if (offline)
+        {
+            psi.ArgumentList.Add("--offline");
+        }
 
         using var process = new Process { StartInfo = psi, EnableRaisingEvents = true };
         process.OutputDataReceived += (_, e) => Emit(e.Data);
@@ -96,7 +134,7 @@ public sealed partial class ServerManager
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
 
-        var finished = await Task.Run(() => process.WaitForExit(15 * 60 * 1000), ct).ConfigureAwait(false);
+        var finished = await Task.Run(() => process.WaitForExit(20 * 60 * 1000), ct).ConfigureAwait(false);
         if (!finished)
         {
             try
@@ -108,16 +146,10 @@ public sealed partial class ServerManager
                 // 忽略
             }
 
-            throw new InvalidOperationException("安装器超过 15 分钟没结束，已中止");
+            throw new InvalidOperationException("安装器超过 20 分钟没结束，已中止");
         }
 
-        if (process.ExitCode != 0)
-        {
-            throw new InvalidOperationException($"安装器退出码 {process.ExitCode}，看控制台日志");
-        }
-
-        progress?.Report(new Net.InstallProgress { Stage = "安装器", Message = "安装完成，查找启动方式…" });
-        return LocateLayout(targetDirectory);
+        return process.ExitCode;
     }
 
     private static ForgeServerLayout LocateLayout(string directory)
