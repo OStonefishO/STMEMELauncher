@@ -56,7 +56,7 @@ public sealed class LauncherSettings
     public string MirrorBaseUrl { get; set; } = string.Empty;
 
     /// <summary>微软登录用的 Azure 应用 ClientId（没有就只用离线登录）。</summary>
-    public string MicrosoftClientId { get; set; } = string.Empty;
+    public string MicrosoftClientId { get; set; } = "52fb2aba-9fa1-4605-be0d-431776c0880d";
 
     /// <summary>版本隔离：auto（默认，按目录内容判断）/ on / off。</summary>
     public string VersionIsolation { get; set; } = "auto";
