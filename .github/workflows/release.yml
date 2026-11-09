@@ -13,6 +13,10 @@ name: release
 # 没配 SignPath 时 workflow 会失败在 sign 这一步——想先只发未签名版，
 # 用 scripts/publish-release.ps1 在本地发，或者把 sign 任务改成 continue-on-error。
 
+# 没配 SignPath 时会自动跳过签名，直接发未签名版（等申请通过再补上 secret 即可）。
+#
+# 注：SignPath 的 api-token 还没配时，sign 任务会被跳过，publish 照常发未签名版。
+
 on:
   push:
     tags:
@@ -31,6 +35,10 @@ on:
 
 permissions:
   contents: write
+
+# 放在这里，job 的 if 才能读到（secrets 不能直接写在 if 里）
+env:
+  SIGNPATH_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
 
 jobs:
   build:
@@ -101,7 +109,7 @@ jobs:
   sign:
     name: SignPath 签名
     needs: build
-    if: ${{ !inputs.skip_signing }}
+    if: ${{ env.SIGNPATH_TOKEN != '' && !inputs.skip_signing }}
     runs-on: ubuntu-latest
     outputs:
       artifact-name: ${{ steps.sign.outputs.artifact-name }}
@@ -217,11 +225,25 @@ jobs:
           )
           Set-Content -Path notes.md -Value $notes -Encoding UTF8
 
-          gh release create $tag `
-            "${{ steps.pick.outputs.final }}" `
-            "MEME-Launcher-v${{ needs.build.outputs.version }}.sha256.txt" `
-            "使用说明-v${{ needs.build.outputs.version }}.txt" `
-            --title "MEME Launcher $tag" --notes-file notes.md
+          $exe = "${{ steps.pick.outputs.final }}"
+
+          # Release 已经存在（手动发过 / 重跑）就直接覆盖资产，别再 create 一次
+          $exists = $false
+          gh release view $tag --json tagName 2>$null | Out-Null
+          if ($LASTEXITCODE -eq 0) { $exists = $true }
+
+          if ($exists) {
+            Write-Host "Release $tag 已存在，改为覆盖资产"
+            gh release upload $tag $exe `
+              "MEME-Launcher-v${{ needs.build.outputs.version }}.sha256.txt" `
+              "使用说明-v${{ needs.build.outputs.version }}.txt" --clobber
+          }
+          else {
+            gh release create $tag $exe `
+              "MEME-Launcher-v${{ needs.build.outputs.version }}.sha256.txt" `
+              "使用说明-v${{ needs.build.outputs.version }}.txt" `
+              --title "MEME Launcher $tag" --notes-file notes.md
+          }
 
       - name: 上传到 Gitee（可选）
         if: ${{ env.GITEE_TOKEN != '' }}
