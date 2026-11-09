@@ -52,6 +52,8 @@ internal static class SkinImage
         return Render(visual, (int)(frame.PixelWidth * scale), (int)(frame.PixelHeight * scale));
     }
 
+    public static BitmapSource? FromBytes(byte[] bytes) => Decode(bytes);
+
     private static BitmapFrame? Decode(byte[] bytes)
     {
         try

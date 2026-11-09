@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.10.1";
+    private const string AppVersion = "0.10.2";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -3362,6 +3362,23 @@ public partial class MainWindow : Window
         }
     }
 
+    private BitmapSource? _skinBitmap;
+    private bool _skinSlim;
+
+    private void OnSkinModelToggled(object sender, RoutedEventArgs e)
+    {
+        _skinSlim = sender is FrameworkElement { Tag: "true" };
+        if (AccountSkinStatus != null)
+        {
+
+        }
+    }
+
+    private void UpdateSkinModel(BitmapSource? skin)
+    {
+        // 3D 预览暂时关闭，先用平面图
+    }
+
     private async void RefreshCurrentSkinPreview()
     {
         var account = _service.ActiveAccount;
@@ -3373,7 +3390,7 @@ public partial class MainWindow : Window
         AccountSkinName.Text = account.Name + "（" + account.TypeLabel + "）";
         AccountSkinStatus.Text = "读取皮肤…";
         AccountHeadImage.Source = null;
-        AccountSkinImage.Source = null;
+        _skinBitmap = null;
 
         try
         {
@@ -3394,12 +3411,16 @@ public partial class MainWindow : Window
                 AccountSkinStatus.Text = account.Type == "offline"
                     ? "还没有皮肤，可以点下面「导入离线皮肤」"
                     : "这个账号没有设置皮肤";
-                return;
+                        return;
             }
 
             AccountHeadImage.Source = SkinImage.Head(bytes, 88);
-            AccountSkinImage.Source = SkinImage.Full(bytes, 256);
-            AccountSkinStatus.Text = "已加载皮肤";
+            _skinBitmap = SkinImage.FromBytes(bytes);
+            if (AccountSkinImage != null)
+            {
+                AccountSkinImage.Source = SkinImage.Full(bytes, 256);
+            }
+                AccountSkinStatus.Text = "已加载皮肤";
         }
         catch (Exception ex)
         {
