@@ -138,6 +138,10 @@ public sealed class LauncherService
     public LoaderInstaller CreateLoaderInstaller() =>
         new(SharedDownloader, Settings.GameDirectory, major => SelectJava(major, out _)?.JavaPath);
 
+    private readonly DownloadManager _downloads = new();
+
+    public DownloadManager CreateDownloadManager() => _downloads;
+
     public ContentInstaller CreateContentInstaller() => new(SharedDownloader);
 
     public ModpackInstaller CreateModpackInstaller() => new(SharedDownloader, Settings.GameDirectory);

@@ -9,6 +9,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Media.Imaging;
 using System.Windows.Media.Media3D;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using Aurora.Core;
 using Aurora.Core.Accounts;
 using Aurora.Core.Auth;
@@ -29,7 +30,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.7.1";
+    private const string AppVersion = "0.8.0";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -55,6 +56,7 @@ public partial class MainWindow : Window
         _service.MigrateAccounts();
         _service.RestoreYggdrasil();
         InitHero();
+        InitDownloadPanel();
         Loaded += (_, __) => InitParticles();
 
         LoadSettingsToUi();
@@ -72,6 +74,7 @@ public partial class MainWindow : Window
         Loaded += (_, __) =>
         {
             ApplyDarkTitleBar();
+            _ = SplashFadeOutAsync();
             _ = CheckUpdatesAsync(silent: true);
         };
     }
@@ -83,6 +86,32 @@ public partial class MainWindow : Window
         if (sender is Button button && button.Tag is string tag && int.TryParse(tag, out var index))
         {
             SetPage(index);
+        }
+    }
+
+    private void AnimateIn(UIElement element)
+    {
+        try
+        {
+            element.Opacity = 0;
+            var transform = new TranslateTransform(0, 14);
+            element.RenderTransform = transform;
+
+            var fade = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(220))
+            {
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+            };
+            element.BeginAnimation(OpacityProperty, fade);
+
+            var slide = new DoubleAnimation(14, 0, TimeSpan.FromMilliseconds(280))
+            {
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+            };
+            transform.BeginAnimation(TranslateTransform.YProperty, slide);
+        }
+        catch
+        {
+            element.Opacity = 1;
         }
     }
 
@@ -354,6 +383,34 @@ public partial class MainWindow : Window
     }
 
     // ---------------- 内容页的两个分段 ----------------
+
+    private void OnBackToSettings(object sender, RoutedEventArgs e) => SetPage(4);
+
+    private async Task SplashFadeOutAsync()
+    {
+        try
+        {
+            await Task.Delay(650);
+            if (SplashOverlay == null)
+            {
+                return;
+            }
+
+            var fade = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(420))
+            {
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut },
+            };
+            fade.Completed += (_, __) => SplashOverlay.Visibility = Visibility.Collapsed;
+            SplashOverlay.BeginAnimation(OpacityProperty, fade);
+        }
+        catch
+        {
+            if (SplashOverlay != null)
+            {
+                SplashOverlay.Visibility = Visibility.Collapsed;
+            }
+        }
+    }
 
     private void OnTabInstall(object sender, RoutedEventArgs e) => SetPage(1);
 
@@ -677,6 +734,101 @@ public partial class MainWindow : Window
         }
     }
 
+    // ---------------- 下载管理 ----------------
+
+    private void InitDownloadPanel()
+    {
+        if (DownloadList == null)
+        {
+            return;
+        }
+
+        var manager = _service.CreateDownloadManager();
+        DownloadList.ItemsSource = manager.Tasks;
+        manager.Tasks.CollectionChanged += (_, __) => UpdateDownloadHint();
+        UpdateDownloadHint();
+    }
+
+    private void UpdateDownloadHint()
+    {
+        if (DownloadEmptyHint == null)
+        {
+            return;
+        }
+
+        var manager = _service.CreateDownloadManager();
+        var active = manager.Tasks.Count(t => t.State is DownloadState.Queued or DownloadState.Running);
+        DownloadEmptyHint.Text = manager.Tasks.Count == 0
+            ? "还没有下载任务"
+            : active > 0 ? $"{active} 个任务进行中" : "全部结束";
+
+        if (DownloadsButton != null)
+        {
+            DownloadsButton.Content = active > 0 ? $"下载管理 ({active})" : "下载管理";
+        }
+    }
+
+    private void OnToggleDownloads(object sender, RoutedEventArgs e)
+    {
+        if (DownloadPanel == null)
+        {
+            return;
+        }
+
+        DownloadPanel.Visibility = DownloadPanel.Visibility == Visibility.Visible
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+        UpdateDownloadHint();
+    }
+
+    private void OnPauseDownload(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: DownloadItem item })
+        {
+            _service.CreateDownloadManager().Pause(item);
+            UpdateDownloadHint();
+        }
+    }
+
+    private void OnResumeDownload(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: DownloadItem item })
+        {
+            _service.CreateDownloadManager().Resume(item);
+            UpdateDownloadHint();
+        }
+    }
+
+    private void OnCancelDownload(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: DownloadItem item })
+        {
+            _service.CreateDownloadManager().Cancel(item);
+            UpdateDownloadHint();
+        }
+    }
+
+    private void OnClearDownloads(object sender, RoutedEventArgs e)
+    {
+        _service.CreateDownloadManager().ClearFinished();
+        UpdateDownloadHint();
+    }
+
+    private void OnOpenDownloadFolder(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var target = VersionList.SelectedItem as VersionCard;
+            var resolved = target == null ? null : _service.Resolve(target.Summary.Id);
+            var dir = resolved == null ? _settings.GameDirectory : _service.GameDirectoryFor(resolved);
+            Process.Start(new ProcessStartInfo("explorer.exe", $"\"{dir}\"") { UseShellExecute = true });
+        }
+        catch
+        {
+            // 忽略
+        }
+    }
+
     // ---------------- 内容详情 ----------------
 
     private void OnCloseContentDetail(object sender, RoutedEventArgs e)
@@ -692,6 +844,18 @@ public partial class MainWindow : Window
         DetailStatus.Text = "读取版本列表…";
         DetailBody.Children.Clear();
         expanderCount = 0;
+
+        DetailIcon.Source = null;
+        if (!string.IsNullOrEmpty(item.IconUrl))
+        {
+            _ = IconCache.GetAsync(item.IconUrl!).ContinueWith(t =>
+            {
+                if (t.Status == TaskStatus.RanToCompletion && t.Result != null)
+                {
+                    Dispatcher.BeginInvoke(() => DetailIcon.Source = t.Result);
+                }
+            });
+        }
 
         try
         {
@@ -1003,11 +1167,9 @@ public partial class MainWindow : Window
                 Loaders = version.Loaders,
             };
 
-            var progress = new Progress<InstallProgress>(p => DetailStatus.Text = $"{p.Stage} · {p.Message}");
-            var path = await _service.CreateContentInstaller()
-                .InstallFileAsync(file, item.Kind, gameDir, progress);
-
-            DetailStatus.Text = "已安装: " + path;
+            var task = _service.CreateDownloadManager().Enqueue(file, item.Kind, gameDir);
+            DetailStatus.Text = "已加入下载管理: " + task.FileName;
+            UpdateDownloadHint();
             if (button != null)
             {
                 button.IsEnabled = true;
@@ -1047,10 +1209,9 @@ public partial class MainWindow : Window
 
         try
         {
-            var progress = new Progress<InstallProgress>(p => ContentStatus.Text = $" {p.Stage} · {p.Message}");
-            var path = await _service.CreateContentInstaller()
-                .InstallFileAsync(entry.File, _selectedContent.Kind, gameDir, progress);
-            ContentStatus.Text = "已安装: " + path;
+            var task = _service.CreateDownloadManager().Enqueue(entry.File, _selectedContent.Kind, gameDir);
+            ContentStatus.Text = "已加入下载管理: " + task.FileName;
+            UpdateDownloadHint();
         }
         catch (Exception ex)
         {
