@@ -32,6 +32,8 @@ Windows 11 的 **Smart App Control** 会拦掉所有没有数字签名的 exe，
 这不是病毒，是没买代码签名证书。处理办法（关闭 SAC / 换机器 / 等微软审核）写在
 [docs/SMART-APP-CONTROL.md](docs/SMART-APP-CONTROL.md)，每次发版也会附带 `使用说明-<版本>.txt` 和 `SHA256` 校验值。
 
+签名方案与自动发版流程见 [docs/SIGNING.md](docs/SIGNING.md)（SignPath 对开源项目免费）。
+
 ---
 
 ## 现在能做什么

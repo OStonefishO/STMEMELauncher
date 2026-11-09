@@ -1,0 +1,223 @@
+name: release
+
+# push 一个 v* tag（或在 Actions 页面手动跑）→ 构建单文件 exe → 送去 SignPath 签名 → 发 GitHub Release
+#
+# 需要的配置（见 docs/SIGNING.md）：
+#   secrets.SIGNPATH_API_TOKEN        SignPath 个人令牌
+#   secrets.SIGNPATH_ORGANIZATION_ID  SignPath 组织 ID
+#   vars.SIGNPATH_PROJECT_SLUG        项目 slug，例如 meme-launcher
+#   vars.SIGNPATH_SIGNING_POLICY_SLUG 签名策略，例如 release-signing
+#   vars.SIGNPATH_ARTIFACT_CONFIG_SLUG 制品配置，例如 meme-launcher-exe
+#   secrets.GITEE_TOKEN               （可选）Gitee 镜像上传令牌
+#
+# 没配 SignPath 时 workflow 会失败在 sign 这一步——想先只发未签名版，
+# 用 scripts/publish-release.ps1 在本地发，或者把 sign 任务改成 continue-on-error。
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号（不带 v），例如 0.13.4'
+        required: true
+        type: string
+      skip_signing:
+        description: '只构建，不签名（调试用）'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: 构建单文件 exe
+    runs-on: windows-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: 计算版本号
+        id: ver
+        shell: pwsh
+        run: |
+          if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
+            $v = '${{ inputs.version }}'.TrimStart('v')
+          } else {
+            $v = '${{ github.ref_name }}'.TrimStart('v')
+          }
+          if (-not $v) { throw '没有版本号' }
+          "version=$v" >> $env:GITHUB_OUTPUT
+          Write-Host "版本：$v"
+
+      - name: 把版本号写进代码
+        shell: pwsh
+        run: |
+          # 让 tag 说了算，避免 exe 里的版本号和 Release 对不上导致反复提示更新
+          $v = '${{ steps.ver.outputs.version }}'
+          $path = 'src/Aurora.App/MainWindow.xaml.cs'
+          $text = Get-Content $path -Raw
+          $text = [regex]::Replace($text, 'private const string AppVersion = "[\d\.]+";', "private const string AppVersion = `"$v`";")
+          Set-Content -Path $path -Value $text -NoNewline -Encoding utf8
+          Select-String -Path $path -Pattern 'AppVersion ='
+
+      - name: 还原并构建
+        shell: pwsh
+        run: |
+          dotnet publish src/Aurora.App/Aurora.App.csproj -c Release -r win-x64 --self-contained true `
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:EnableCompressionInSingleFile=true -p:DebugType=None -p:DebugSymbols=false `
+            -o out
+
+      - name: 打包成待签名文件
+        id: pack
+        shell: pwsh
+        run: |
+          $v = '${{ steps.ver.outputs.version }}'
+          $asset = "MEME-Launcher-v$v.exe"
+          Copy-Item out/MemeLauncher.exe $asset -Force
+          if (-not (Test-Path $asset)) { throw '构建产物不见了' }
+          $mb = [math]::Round((Get-Item $asset).Length / 1MB, 1)
+          Write-Host "$asset ($mb MB)"
+          "asset=$asset" >> $env:GITHUB_OUTPUT
+
+      - uses: actions/upload-artifact@v4
+        id: upload
+        with:
+          name: unsigned-exe
+          path: MEME-Launcher-v*.exe
+          if-no-files-found: error
+          retention-days: 7
+
+  sign:
+    name: SignPath 签名
+    needs: build
+    if: ${{ !inputs.skip_signing }}
+    runs-on: ubuntu-latest
+    outputs:
+      artifact-name: ${{ steps.sign.outputs.artifact-name }}
+    steps:
+      - name: 提交签名请求
+        id: sign
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          artifact-configuration-slug: ${{ vars.SIGNPATH_ARTIFACT_CONFIG_SLUG }}
+          github-artifact-id: ${{ needs.build.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: signed-exe
+          path: signed/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: 发 Release
+    needs: [build, sign]
+    if: ${{ always() && needs.build.result == 'success' }}
+    runs-on: ubuntu-latest
+    env:
+      # 放在 job 级，step 的 if 才能读到它
+      GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 取回构建产物
+        uses: actions/download-artifact@v4
+        with:
+          name: unsigned-exe
+          path: dist
+
+      - name: 取回签名产物
+        if: ${{ needs.sign.result == 'success' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: signed-exe
+          path: signed
+
+      - name: 解压并挑选最终的 exe
+        id: pick
+        shell: pwsh
+        run: |
+          $v = '${{ needs.build.outputs.version }}'
+          $final = "MEME-Launcher-v$v.exe"
+
+          # 签名产物是个 zip，解开后里层才是 exe
+          if (Test-Path signed) {
+            Get-ChildItem signed -Recurse -Filter *.zip | ForEach-Object {
+              Expand-Archive $_.FullName -DestinationPath signed/unzipped -Force
+            }
+            $exe = Get-ChildItem signed -Recurse -Filter 'MEME-Launcher-*.exe' | Select-Object -First 1
+            if ($exe) {
+              Copy-Item $exe.FullName $final -Force
+              Write-Host "用签名版：$($exe.FullName)"
+            } else {
+              throw '签名产物里没找到 exe'
+            }
+          } else {
+            Copy-Item "dist/$final" $final -Force
+            Write-Warning '没有签名产物，这次发的是未签名版（Windows 11 智能应用控制会拦）'
+          }
+
+          # 校验值 + 使用说明
+          $sha = (Get-FileHash $final -Algorithm SHA256).Hash.ToLower()
+          Set-Content -Path "MEME-Launcher-v$v.sha256.txt" -Value "$sha  $final" -Encoding ascii
+          "final=$final" >> $env:GITHUB_OUTPUT
+
+      - name: 写使用说明
+        shell: pwsh
+        run: |
+          $v = '${{ needs.build.outputs.version }}'
+          $lines = @(
+            "MEME Launcher $v",
+            "========================================",
+            "",
+            "一、双击 MEME 启动器.exe 就能开，不用装 .NET，也不用先配 Java。",
+            "",
+            "二、提示「智能应用控制已阻止可能不安全的应用」？",
+            "  这是 Windows 11 的 Smart App Control，只放行有数字签名的程序。",
+            "  本版本已做代码签名；若仍被拦，删掉旧文件重新下载一次。",
+            "  还不行就关掉它：Windows 安全中心 → 应用和浏览器控制 → 智能应用控制设置 → 关闭。",
+            "",
+            "三、校验完整性",
+            '  certutil -hashfile "MEME 启动器.exe" SHA256',
+            "  与同名 .sha256.txt 里的值对比。"
+          )
+          Set-Content -Path "使用说明-v$v.txt" -Value $lines -Encoding UTF8
+
+      - name: 创建 GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $tag = if ('${{ github.event_name }}' -eq 'workflow_dispatch') { "v${{ needs.build.outputs.version }}" } else { '${{ github.ref_name }}' }
+          gh release create $tag `
+            "${{ steps.pick.outputs.final }}" `
+            "MEME-Launcher-v${{ needs.build.outputs.version }}.sha256.txt" `
+            "使用说明-v${{ needs.build.outputs.version }}.txt" `
+            --title "MEME Launcher $tag" --generate-notes
+
+      - name: 上传到 Gitee（可选）
+        if: ${{ env.GITEE_TOKEN != '' }}
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+        shell: pwsh
+        run: |
+          $tag = if ('${{ github.event_name }}' -eq 'workflow_dispatch') { "v${{ needs.build.outputs.version }}" } else { '${{ github.ref_name }}' }
+          ./scripts/upload-gitee.ps1 -Token $env:GITEE_TOKEN -Owner stonefish8 -Repo STMEMELauncher `
+            -Tag $tag -File "${{ steps.pick.outputs.final }}" -Name "MEME Launcher $tag"
