@@ -166,4 +166,7 @@ public static class Translator
     }
 
     private static bool HasChinese(string text) => Regex.IsMatch(text, "[\u4e00-\u9fa5]");
+
+    /// <summary>给 UI 判断这段文字是不是已经中文了。</summary>
+    public static bool HasChineseText(string text) => !string.IsNullOrWhiteSpace(text) && HasChinese(text);
 }

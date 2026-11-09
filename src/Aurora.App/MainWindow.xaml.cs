@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.11";
+    private const string AppVersion = "0.15.12";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -1074,23 +1074,42 @@ public partial class MainWindow : Window
 
     private async Task TranslateCardsAsync(List<ContentCard> cards)
     {
+        // 并行翻译，最多 4 个同时跑，免得一页 20 个串行等半天
+        var gate = new SemaphoreSlim(4);
+        var jobs = new List<Task>();
+
         foreach (var card in cards)
         {
-            try
+            var summary = card.Item.Summary;
+            if (string.IsNullOrWhiteSpace(summary) || Aurora.Core.Net.Translator.HasChineseText(summary))
             {
-                var zh = await Aurora.Core.Net.Translator.TextAsync(card.Item.Summary);
-                if (!string.IsNullOrWhiteSpace(zh))
-                {
-                    card.SetSummary(zh);
-                }
+                continue;
             }
-            catch
-            {
-                // 翻译失败就保留英文
-            }
-        }
-    }
 
+            jobs.Add(Task.Run(async () =>
+            {
+                await gate.WaitAsync();
+                try
+                {
+                    var zh = await Aurora.Core.Net.Translator.TextAsync(summary);
+                    if (!string.IsNullOrWhiteSpace(zh) && zh != summary)
+                    {
+                        card.SetSummary(zh);
+                    }
+                }
+                catch
+                {
+                    // 失败保留英文
+                }
+                finally
+                {
+                    gate.Release();
+                }
+            }));
+        }
+
+        await Task.WhenAll(jobs);
+    }
     private void OnToggleTranslate(object sender, RoutedEventArgs e)
     {
         _settings.TranslateContent = !_settings.TranslateContent;
@@ -5201,7 +5220,7 @@ public partial class MainWindow : Window
             Item = item;
             _summary = item.Summary;
             Meta = $"{item.Source} · {item.DownloadText} 次下载" +
-                   (item.Categories.Count > 0 ? " · " + string.Join(" / ", item.Categories.Take(3)) : string.Empty);
+                   (item.Categories.Count > 0 ? " · " + Aurora.Core.Net.Translator.TagsText(item.Categories.Take(3)) : string.Empty);
             _ = LoadIconAsync();
         }
 
@@ -5251,6 +5270,7 @@ public partial class MainWindow : Window
 
     private sealed class FileEntry
     {
+        public override string ToString() => Label;
         public FileEntry(ContentFile file) => File = file;
 
         public ContentFile File { get; }

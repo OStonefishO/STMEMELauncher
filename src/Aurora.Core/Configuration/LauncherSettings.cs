@@ -83,7 +83,7 @@ public sealed class LauncherSettings
 
     /// <summary>主页 3D 方块岛的群系：0 主世界 / 1 下界 / 2 末地。</summary>
     /// <summary>内容页要不要把英文简介和标签翻成中文</summary>
-    public bool TranslateContent { get; set; }
+    public bool TranslateContent { get; set; } = true;
 
     public int HeroBiome { get; set; }
 
