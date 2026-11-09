@@ -529,7 +529,10 @@ internal static class Program
         var memory = flags.TryGetValue("memory", out var mm) && int.TryParse(mm, out var mv) ? mv : 1024;
         var timeout = flags.TryGetValue("timeout", out var tt) && int.TryParse(tt, out var tv) ? tv : 60;
 
-        var loader = resolved.Loader == "fabric" ? "fabric" : "vanilla";
+        var isForgeFamily = resolved.Loader is "forge" or "neoforge";
+        var loader = isForgeFamily
+            ? resolved.Loader
+            : resolved.Loader == "fabric" ? "fabric" : "vanilla";
         var java = service.SelectJava(resolved.JavaMajor, out _);
         if (java == null)
         {
@@ -543,18 +546,41 @@ internal static class Program
 
         var progress = new Progress<InstallProgress>(p => Console.WriteLine($"  [{p.Stage}] {p.Message}"));
         Console.WriteLine($"准备 {versionId} ({loader}) 服务端 → {dir}");
-        var jar = await manager.EnsureServerJarAsync(resolved.ClientVersion, loader, dir, progress).ConfigureAwait(false);
-
-        var options = new Aurora.Core.Server.ServerLaunchOptions
+        Aurora.Core.Server.ServerLaunchOptions options;
+        if (isForgeFamily)
         {
-            Directory = dir,
-            JarPath = jar,
-            Port = port,
-            MemoryMb = memory,
-            AcceptEula = true,
-            OnlineMode = false,
-            JavaPath = java.JavaPath,
-        };
+            var layout = await manager.InstallForgeServerAsync(
+                resolved.ClientVersion, loader, resolved.LoaderVersion ?? string.Empty, dir, java.JavaPath, progress)
+                .ConfigureAwait(false);
+            Console.WriteLine($"启动方式: {layout.Mode}");
+            options = new Aurora.Core.Server.ServerLaunchOptions
+            {
+                Directory = dir,
+                Port = port,
+                MemoryMb = memory,
+                AcceptEula = true,
+                OnlineMode = false,
+                JavaPath = java.JavaPath,
+                Mode = layout.Mode,
+                JarPath = layout.JarPath,
+                ArgsFile = layout.ArgsFile,
+                UserJvmArgsFile = layout.UserJvmArgsFile,
+            };
+        }
+        else
+        {
+            var jar = await manager.EnsureServerJarAsync(resolved.ClientVersion, loader, dir, progress).ConfigureAwait(false);
+            options = new Aurora.Core.Server.ServerLaunchOptions
+            {
+                Directory = dir,
+                JarPath = jar,
+                Port = port,
+                MemoryMb = memory,
+                AcceptEula = true,
+                OnlineMode = false,
+                JavaPath = java.JavaPath,
+            };
+        }
         manager.Configure(options);
         manager.Start(options);
         Console.WriteLine($"服务端已启动，等待 {timeout} 秒…");

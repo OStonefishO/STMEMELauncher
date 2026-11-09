@@ -15,13 +15,19 @@ public sealed class ServerLaunchOptions
     public int MemoryMb { get; init; } = 2048;
     public string JavaPath { get; init; } = string.Empty;
     public bool AcceptEula { get; init; }
+
+    /// <summary>jar：直接 -jar；args：Forge/NeoForge 的 @args 方式。</summary>
+    public string Mode { get; init; } = "jar";
+
+    public string ArgsFile { get; init; } = string.Empty;
+    public string UserJvmArgsFile { get; init; } = string.Empty;
 }
 
 /// <summary>
 /// 一键开服：下载服务端核心（原版 / Fabric）、写 eula 与 server.properties、起进程、转发控制台。
 /// Forge / NeoForge 服务端需要跑安装器，暂未接入。
 /// </summary>
-public sealed class ServerManager : IDisposable
+public sealed partial class ServerManager : IDisposable
 {
     private readonly Net.DownloadClient _client;
     private readonly string _gameDirectory;
@@ -224,12 +230,31 @@ public sealed class ServerManager : IDisposable
             StandardErrorEncoding = Encoding.UTF8,
         };
 
-        psi.ArgumentList.Add($"-Xmx{options.MemoryMb}M");
-        psi.ArgumentList.Add("-Xms512M");
         psi.ArgumentList.Add("-Dfile.encoding=UTF-8");
-        psi.ArgumentList.Add("-jar");
-        psi.ArgumentList.Add(options.JarPath);
-        psi.ArgumentList.Add("nogui");
+
+        if (options.Mode == "args")
+        {
+            if (!string.IsNullOrEmpty(options.UserJvmArgsFile))
+            {
+                SetJvmMemory(options.UserJvmArgsFile, options.MemoryMb);
+                psi.ArgumentList.Add("@" + options.UserJvmArgsFile);
+            }
+            else
+            {
+                psi.ArgumentList.Add($"-Xmx{options.MemoryMb}M");
+            }
+
+            psi.ArgumentList.Add("@" + options.ArgsFile);
+            psi.ArgumentList.Add("nogui");
+        }
+        else
+        {
+            psi.ArgumentList.Add($"-Xmx{options.MemoryMb}M");
+            psi.ArgumentList.Add("-Xms512M");
+            psi.ArgumentList.Add("-jar");
+            psi.ArgumentList.Add(options.JarPath);
+            psi.ArgumentList.Add("nogui");
+        }
 
         var process = new Process { StartInfo = psi, EnableRaisingEvents = true };
         process.OutputDataReceived += (_, e) => Emit(e.Data);

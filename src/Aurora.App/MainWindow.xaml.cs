@@ -29,7 +29,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.5.5";
+    private const string AppVersion = "0.5.6";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -1126,6 +1126,108 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnOpenServerGuide(object sender, RoutedEventArgs e) => BuildServerGuideDialog().ShowDialog();
+
+    private Window BuildServerGuideDialog()
+    {
+        var panel = new StackPanel { Margin = new Thickness(26) };
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = "开服教程",
+            FontSize = 22,
+            FontFamily = (FontFamily)FindResource("FontHead"),
+            Foreground = (Brush)FindResource("Ink"),
+        });
+        panel.Children.Add(new TextBlock
+        {
+            Text = "照着做，五分钟能让朋友进你的世界",
+            FontSize = 11.5,
+            Foreground = (Brush)FindResource("InkDim"),
+            Margin = new Thickness(0, 6, 0, 14),
+        });
+
+        void Section(string title, params string[] lines)
+        {
+            panel.Children.Add(new TextBlock
+            {
+                Text = title,
+                FontSize = 13.5,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = (Brush)FindResource("Ink"),
+                Margin = new Thickness(0, 14, 0, 6),
+            });
+
+            foreach (var line in lines)
+            {
+                panel.Children.Add(new TextBlock
+                {
+                    Text = line,
+                    FontSize = 12,
+                    Foreground = (Brush)FindResource("InkDim"),
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 0, 0, 3),
+                    LineHeight = 19,
+                });
+            }
+        }
+
+        Section("① 开服",
+            "在「版本」里选一个已安装的版本 → 填端口（默认 25565）→ 填内存（2048 够 5 个人）",
+            "需要正版服就勾「开启正版验证」；离线玩家一起玩就别勾",
+            "勾选「我已阅读并同意 Minecraft EULA」，点「开服」",
+            "看到控制台出现 Done (x.xxxs)! 就是起来了");
+
+        Section("② 让朋友进来（三选一）",
+            "IPv6 直连：本机地址里有 IPv6 的话，直接发 [你的IPv6]:端口，最省事",
+            "UPnP：点「UPnP 开端口」，成功会给你一个外网 IP:端口",
+            "樱花穿透：natfrp.com 建 TCP 隧道指向 127.0.0.1:端口，填访问密钥和隧道 ID，点「启动隧道」");
+
+        Section("③ 朋友怎么连",
+            "游戏里「多人游戏」→「添加服务器」→ 把地址粘进去 → 加入",
+            "局域网里的朋友也可以直接用 内网IP:端口");
+
+        Section("常见问题",
+            "连不上：先看服务端控制台有没有 Connection 记录，没有就是网络没通（防火墙/端口/映射）",
+            "Windows 防火墙：第一次开服会弹窗，记得点「允许访问」，专用和公用都勾上",
+            "装了 mod 的服：朋友的 mod 必须和服务端一致，否则会报错退回去",
+            "内存不够：看到 Java heap space 就把内存调大，但别超过物理内存的一半",
+            "正版验证：离线账号进正版服会报 Invalid session，要么关掉正版验证，要么让朋友用正版");
+
+        var close = new Button
+        {
+            Content = "知道了",
+            Style = (Style)FindResource("HeroButton"),
+            Width = 120,
+            Height = 38,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 16, 0, 0),
+        };
+        panel.Children.Add(close);
+
+        var scroll = new ScrollViewer
+        {
+            Content = panel,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            MaxHeight = 560,
+        };
+
+        var window = new Window
+        {
+            Owner = this,
+            Title = "开服教程",
+            Width = 600,
+            SizeToContent = SizeToContent.Height,
+            ResizeMode = ResizeMode.NoResize,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = (Brush)FindResource("Bg"),
+            Content = scroll,
+        };
+
+        close.Click += (_, __) => window.Close();
+        return window;
+    }
+
     private async void OnStartServer(object sender, RoutedEventArgs e)
     {
         if (ServerVersionCombo.SelectedIndex < 0 || ServerVersionCombo.SelectedIndex >= _serverVersions.Count)
@@ -1147,12 +1249,10 @@ public partial class MainWindow : Window
             return;
         }
 
-        var loader = summary.Loader.Equals("fabric", StringComparison.OrdinalIgnoreCase) ? "fabric" : "vanilla";
-        if (summary.Loader is "forge" or "neoforge")
-        {
-            ServerStatus.Text = $"{summary.Loader} 服务端还需要跑官方安装器，暂时只支持原版和 Fabric";
-            return;
-        }
+        var isForgeFamily = summary.Loader is "forge" or "neoforge";
+        var loader = isForgeFamily
+            ? summary.Loader
+            : summary.Loader.Equals("fabric", StringComparison.OrdinalIgnoreCase) ? "fabric" : "vanilla";
 
         try
         {
@@ -1164,7 +1264,6 @@ public partial class MainWindow : Window
             Directory.CreateDirectory(_serverDirectory);
 
             var progress = new Progress<InstallProgress>(p => ServerStatus.Text = $"{p.Stage} · {p.Message}");
-            var jar = await _server.EnsureServerJarAsync(summary.ClientVersion, loader, _serverDirectory, progress);
 
             var port = int.TryParse(ServerPortBox.Text, out var p1) ? p1 : 25565;
             var memory = int.TryParse(ServerMemoryBox.Text, out var m1) ? Math.Max(1024, m1) : 2048;
@@ -1179,7 +1278,6 @@ public partial class MainWindow : Window
             var options = new ServerLaunchOptions
             {
                 Directory = _serverDirectory,
-                JarPath = jar,
                 Port = port,
                 MemoryMb = memory,
                 OnlineMode = ServerOnlineMode.IsChecked == true,
@@ -1187,6 +1285,49 @@ public partial class MainWindow : Window
                 JavaPath = java,
                 Motd = "MEME Launcher · 一键开服",
             };
+
+            if (isForgeFamily)
+            {
+                if (string.IsNullOrEmpty(summary.LoaderVersion))
+                {
+                    ServerStatus.Text = "这个版本没记录 Forge/NeoForge 版本号，没法装服务端";
+                    ServerStartButton.IsEnabled = true;
+                    return;
+                }
+
+                var layout = await _server.InstallForgeServerAsync(
+                    summary.ClientVersion, loader, summary.LoaderVersion, _serverDirectory, java, progress);
+
+                options = new ServerLaunchOptions
+                {
+                    Directory = _serverDirectory,
+                    Port = port,
+                    MemoryMb = memory,
+                    OnlineMode = ServerOnlineMode.IsChecked == true,
+                    AcceptEula = true,
+                    JavaPath = java,
+                    Motd = "MEME Launcher · 一键开服",
+                    Mode = layout.Mode,
+                    JarPath = layout.JarPath,
+                    ArgsFile = layout.ArgsFile,
+                    UserJvmArgsFile = layout.UserJvmArgsFile,
+                };
+            }
+            else
+            {
+                var jar = await _server.EnsureServerJarAsync(summary.ClientVersion, loader, _serverDirectory, progress);
+                options = new ServerLaunchOptions
+                {
+                    Directory = _serverDirectory,
+                    JarPath = jar,
+                    Port = port,
+                    MemoryMb = memory,
+                    OnlineMode = ServerOnlineMode.IsChecked == true,
+                    AcceptEula = true,
+                    JavaPath = java,
+                    Motd = "MEME Launcher · 一键开服",
+                };
+            }
 
             _server.Configure(options);
             _server.Start(options);

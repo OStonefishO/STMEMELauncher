@@ -774,8 +774,13 @@
                                     <Border Grid.Column="0" CornerRadius="16" Background="{StaticResource Glass}"
                                             BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16">
                                         <StackPanel>
-                                            <TextBlock Text="一键开服" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
-                                            <TextBlock Text="用已安装的版本起一个服务端；原版和 Fabric 支持，Forge 暂未接入。"
+                                            <Grid>
+                                                <TextBlock Text="一键开服" FontSize="14" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource Ink}" VerticalAlignment="Center"/>
+                                                <Button Content="开服教程" HorizontalAlignment="Right" Style="{StaticResource GlassButton}"
+                                                        Padding="10,4" FontSize="11" Click="OnOpenServerGuide"/>
+                                            </Grid>
+                                            <TextBlock Text="用已安装的版本起服务端：原版 / Fabric / Forge / NeoForge 都行。"
                                                        FontSize="11" Foreground="{StaticResource InkFaint}" Margin="0,5,0,12"
                                                        TextWrapping="Wrap"/>
 
