@@ -91,6 +91,33 @@ public sealed class ContentFile
     public bool IsPrimary { get; init; }
 }
 
+public sealed class ContentDependency
+{
+    public string ProjectId { get; init; } = string.Empty;
+    public string? VersionId { get; init; }
+    public string Type { get; init; } = "required";
+    public bool IsRequired => Type.Equals("required", StringComparison.OrdinalIgnoreCase);
+}
+
+/// <summary>一个具体版本（带适用 MC 版本、加载器、前置依赖）。</summary>
+public sealed class ContentVersion
+{
+    public string Id { get; init; } = string.Empty;
+    public string Number { get; init; } = string.Empty;
+    public string Name { get; init; } = string.Empty;
+    public string Channel { get; init; } = "release";
+    public List<string> GameVersions { get; init; } = new();
+    public List<string> Loaders { get; init; } = new();
+    public string Url { get; init; } = string.Empty;
+    public string FileName { get; init; } = string.Empty;
+    public long Size { get; init; }
+    public DateTimeOffset Published { get; init; }
+    public List<ContentDependency> Dependencies { get; init; } = new();
+
+    public string LoaderText => Loaders.Count == 0 ? "任意" : string.Join(" / ", Loaders);
+    public string SizeText => Size <= 0 ? "" : Size >= 1024 * 1024 ? $"{Size / 1024.0 / 1024.0:0.#} MB" : $"{Size / 1024.0:0.#} KB";
+}
+
 public sealed class ContentQuery
 {
     public ContentKind Kind { get; init; }
@@ -276,6 +303,108 @@ public sealed class ModrinthClient : IContentSource
         }
 
         return files.OrderByDescending(f => f.IsPrimary).ToList();
+    }
+
+    /// <summary>拉取一个项目下所有版本（不过滤），用于「选择版本」界面。</summary>
+    public async Task<List<ContentVersion>> GetVersionsAsync(ContentItem item, CancellationToken ct = default)
+    {
+        var id = string.IsNullOrEmpty(item.Id) ? item.Slug : item.Id;
+        var json = await _client.GetStringAsync($"{Api}/project/{id}/version", ct).ConfigureAwait(false);
+        using var doc = JsonDocument.Parse(json);
+
+        var result = new List<ContentVersion>();
+        foreach (var version in doc.RootElement.EnumerateArray())
+        {
+            string url = string.Empty, fileName = string.Empty;
+            long size = 0;
+
+            if (version.TryGetProperty("files", out var files) && files.ValueKind == JsonValueKind.Array)
+            {
+                JsonElement? chosen = null;
+                foreach (var file in files.EnumerateArray())
+                {
+                    var primary = file.TryGetProperty("primary", out var p) && p.ValueKind == JsonValueKind.True;
+                    chosen ??= file;
+                    if (primary)
+                    {
+                        chosen = file;
+                        break;
+                    }
+                }
+
+                if (chosen is { } f)
+                {
+                    url = GetString(f, "url") ?? string.Empty;
+                    fileName = GetString(f, "filename") ?? string.Empty;
+                    size = f.TryGetProperty("size", out var fs) ? fs.GetInt64() : 0;
+                }
+            }
+
+            var deps = new List<ContentDependency>();
+            if (version.TryGetProperty("dependencies", out var dependencyArray) &&
+                dependencyArray.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var d in dependencyArray.EnumerateArray())
+                {
+                    var projectId = GetString(d, "project_id");
+                    if (string.IsNullOrEmpty(projectId))
+                    {
+                        continue;
+                    }
+
+                    deps.Add(new ContentDependency
+                    {
+                        ProjectId = projectId!,
+                        VersionId = GetString(d, "version_id"),
+                        Type = GetString(d, "dependency_type") ?? "required",
+                    });
+                }
+            }
+
+            result.Add(new ContentVersion
+            {
+                Id = GetString(version, "id") ?? string.Empty,
+                Number = GetString(version, "version_number") ?? string.Empty,
+                Name = GetString(version, "name") ?? string.Empty,
+                Channel = GetString(version, "version_type") ?? "release",
+                GameVersions = StringList(version, "game_versions"),
+                Loaders = StringList(version, "loaders"),
+                Url = url,
+                FileName = fileName,
+                Size = size,
+                Published = DateTimeOffset.TryParse(GetString(version, "date_published"), out var dt) ? dt : default,
+                Dependencies = deps,
+            });
+        }
+
+        return result.OrderByDescending(v => v.Published).ToList();
+    }
+
+    /// <summary>按 id / slug 取项目信息（用于解析前置模组的名字）。</summary>
+    public async Task<ContentItem?> GetProjectAsync(string idOrSlug, CancellationToken ct = default)
+    {
+        try
+        {
+            var json = await _client.GetStringAsync($"{Api}/project/{idOrSlug}", ct).ConfigureAwait(false);
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            return new ContentItem
+            {
+                Source = "Modrinth",
+                Kind = ContentKind.Mod,
+                Id = GetString(root, "id") ?? idOrSlug,
+                Slug = GetString(root, "slug") ?? string.Empty,
+                Title = GetString(root, "title") ?? idOrSlug,
+                Summary = GetString(root, "description") ?? string.Empty,
+                IconUrl = GetString(root, "icon_url"),
+                Downloads = root.TryGetProperty("downloads", out var d) ? d.GetInt64() : 0,
+                Categories = StringList(root, "categories"),
+            };
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     internal static string? GetString(JsonElement element, string name) =>

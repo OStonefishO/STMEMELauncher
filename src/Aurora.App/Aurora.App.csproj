@@ -11,6 +11,7 @@
     <AssemblyName>MemeLauncher</AssemblyName>
     <RootNamespace>Aurora.App</RootNamespace>
 
+    <ApplicationIcon>app.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>

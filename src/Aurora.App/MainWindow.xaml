@@ -386,12 +386,6 @@
                             <TextBlock Text="启动" FontSize="10.5" HorizontalAlignment="Center" Margin="0,4,0,0"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="NavInstall" Style="{StaticResource RailButton}" Tag="1" Click="OnNavClick" Margin="0,6,0,0">
-                        <StackPanel>
-                            <TextBlock Text="↓" FontSize="18" HorizontalAlignment="Center"/>
-                            <TextBlock Text="安装" FontSize="10.5" HorizontalAlignment="Center" Margin="0,4,0,0"/>
-                        </StackPanel>
-                    </Button>
                     <Button x:Name="NavContent" Style="{StaticResource RailButton}" Tag="2" Click="OnNavClick" Margin="0,6,0,0">
                         <StackPanel>
                             <TextBlock Text="▦" FontSize="17" HorizontalAlignment="Center"/>
@@ -414,12 +408,6 @@
                         <StackPanel>
                             <TextBlock Text="⚙" FontSize="17" HorizontalAlignment="Center"/>
                             <TextBlock Text="设置" FontSize="10.5" HorizontalAlignment="Center" Margin="0,4,0,0"/>
-                        </StackPanel>
-                    </Button>
-                    <Button x:Name="NavUpdates" Style="{StaticResource RailButton}" Tag="5" Click="OnNavClick" Margin="0,6,0,0">
-                        <StackPanel>
-                            <TextBlock Text="✧" FontSize="17" HorizontalAlignment="Center"/>
-                            <TextBlock Text="日志" FontSize="10.5" HorizontalAlignment="Center" Margin="0,4,0,0"/>
                         </StackPanel>
                     </Button>
                 </StackPanel>
@@ -564,9 +552,12 @@
                         </Grid.RowDefinitions>
 
                         <StackPanel Grid.Row="0" Margin="26,6,0,14">
-                            <TextBlock Text="安装" FontSize="32" FontFamily="{StaticResource FontHead}" Foreground="{StaticResource TitleGrad}"/>
-                            <TextBlock Text="原版 + Fabric / NeoForge / Forge，一条链路装完" FontSize="12.5"
-                                       Foreground="{StaticResource InkDim}" Margin="0,6,0,0"/>
+                            <TextBlock Text="内容" FontSize="32" FontFamily="{StaticResource FontHead}" Foreground="{StaticResource TitleGrad}"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                <Button Content="安装版本" Style="{StaticResource HeroButton}" Height="32" Width="110" Click="OnTabInstall"/>
+                                <Button Content="内容下载" Style="{StaticResource GlassButton}" Height="32" Width="110" Margin="10,0,0,0"
+                                        Click="OnTabContent"/>
+                            </StackPanel>
                         </StackPanel>
 
                         <Grid Grid.Row="1" Margin="26,0,0,0">
@@ -578,8 +569,12 @@
                             <Border Grid.Column="0" CornerRadius="16" Background="{StaticResource Glass}"
                                     BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="6">
                                 <DockPanel>
-                                    <TextBlock DockPanel.Dock="Top" Text="Minecraft 正式版" FontSize="11.5"
-                                               Foreground="{StaticResource InkFaint}" Margin="12,10,10,8"/>
+                                    <StackPanel DockPanel.Dock="Top" Margin="12,10,10,8">
+                                        <TextBlock Text="Minecraft 正式版" FontSize="11.5" Foreground="{StaticResource InkFaint}"/>
+                                        <TextBox x:Name="VersionSearchBox" Height="30" Margin="0,8,0,0"
+                                                 ToolTip="输入版本号筛选，例如 1.21 / 26.2"
+                                                 TextChanged="OnVersionSearch"/>
+                                    </StackPanel>
                                     <ListBox x:Name="McVersionList" Background="Transparent" BorderThickness="0"
                                              Foreground="{StaticResource Ink}" SelectionChanged="OnMcVersionSelected">
                                         <ListBox.ItemTemplate>
@@ -642,8 +637,11 @@
 
                         <StackPanel Grid.Row="0" Margin="26,6,0,14">
                             <TextBlock Text="内容" FontSize="32" FontFamily="{StaticResource FontHead}" Foreground="{StaticResource TitleGrad}"/>
-                            <TextBlock Text="模组 / 整合包 / 光影 / 资源包，搜完直接装进当前版本" FontSize="12.5"
-                                       Foreground="{StaticResource InkDim}" Margin="0,6,0,0"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                <Button Content="安装版本" Style="{StaticResource GlassButton}" Height="32" Width="110" Click="OnTabInstall"/>
+                                <Button Content="内容下载" Style="{StaticResource HeroButton}" Height="32" Width="110" Margin="10,0,0,0"
+                                        Click="OnTabContent"/>
+                            </StackPanel>
                         </StackPanel>
 
                         <Grid Grid.Row="1" Margin="26,0,0,0">
@@ -748,6 +746,33 @@
                         </Grid>
                     </Grid>
 
+                        <!-- 内容详情浮层 -->
+                        <Grid x:Name="ContentDetailPanel" Grid.RowSpan="3" Visibility="Collapsed"
+                              Background="#F20B0E13">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <Grid Grid.Row="0" Margin="26,16,0,10">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button Content="‹ 返回" Style="{StaticResource GlassButton}" Click="OnCloseContentDetail"/>
+                                    <TextBlock x:Name="DetailTitle" Text="" FontSize="22" FontFamily="{StaticResource FontHead}"
+                                               Foreground="{StaticResource Ink}" Margin="16,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <ScrollViewer Grid.Row="1" Margin="26,0,0,0" VerticalScrollBarVisibility="Auto">
+                                <StackPanel MaxWidth="900" HorizontalAlignment="Left" Margin="0,0,0,24">
+                                    <TextBlock x:Name="DetailSummary" Text="" FontSize="12.5"
+                                               Foreground="{StaticResource InkDim}" TextWrapping="Wrap"/>
+                                    <TextBlock x:Name="DetailStatus" Text="" FontSize="11.5" Margin="0,8,0,0"
+                                               Foreground="{StaticResource InkFaint}" TextWrapping="Wrap"/>
+                                    <StackPanel x:Name="DetailBody" Margin="0,12,0,0"/>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Grid>
+
                     <!-- ========== 联机页 ========== -->
                     <Grid x:Name="OnlinePage" Visibility="Collapsed">
                         <Grid.RowDefinitions>
@@ -785,7 +810,7 @@
                                                        TextWrapping="Wrap"/>
 
                                             <TextBlock Text="版本" FontSize="11" Foreground="{StaticResource InkDim}"/>
-                                            <ComboBox x:Name="ServerVersionCombo" Margin="0,6,0,10" Height="34" DisplayMemberPath="Id"/>
+                                            <ComboBox x:Name="ServerVersionCombo" Margin="0,6,0,10" Height="34"/>
 
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
@@ -1052,6 +1077,16 @@
                                         <TextBlock Text="CurseForge API key（可选，填了才能搜 CurseForge）"
                                                    Foreground="{StaticResource InkFaint}" FontSize="11" Margin="0,14,0,0"/>
                                         <TextBox x:Name="SettingsCfKey" Margin="0,6,0,0"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border CornerRadius="16" Background="{StaticResource Glass}"
+                                        BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16" Margin="0,12,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="更新日志" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
+                                        <TextBlock Text="每个版本改了什么，带截图" FontSize="11.5" Foreground="{StaticResource InkDim}" Margin="0,6,0,10"/>
+                                        <Button Content="查看更新日志" Style="{StaticResource GlassButton}" Width="150"
+                                                Click="OnOpenUpdatesPage"/>
                                     </StackPanel>
                                 </Border>
 

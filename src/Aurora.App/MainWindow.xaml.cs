@@ -29,7 +29,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.6.0";
+    private const string AppVersion = "0.7.0";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -99,12 +99,10 @@ public partial class MainWindow : Window
         var active = (Brush)FindResource("TextMain");
         var inactive = (Brush)FindResource("TextDim");
         NavLaunch.Foreground = index == 0 ? active : inactive;
-        NavInstall.Foreground = index == 1 ? active : inactive;
-        NavContent.Foreground = index == 2 ? active : inactive;
+        NavContent.Foreground = index is 1 or 2 ? active : inactive;
         NavOnline.Foreground = index == 6 ? active : inactive;
         NavAccount.Foreground = index == 3 ? active : inactive;
-        NavSettings.Foreground = index == 4 ? active : inactive;
-        NavUpdates.Foreground = index == 5 ? active : inactive;
+        NavSettings.Foreground = index is 4 or 5 ? active : inactive;
 
         if (index == 1 && _mcVersions.Count == 0)
         {
@@ -287,14 +285,28 @@ public partial class MainWindow : Window
         }
     }
 
-    private void OnMcVersionSelected(object sender, SelectionChangedEventArgs e)
+    private async void OnMcVersionSelected(object sender, SelectionChangedEventArgs e)
     {
-        if (McVersionList.SelectedItem is RemoteVersion v)
+        if (McVersionList.SelectedItem is not RemoteVersion v)
         {
-            InstallMcText.Text = "Minecraft " + v.Id;
-            InstallButton.IsEnabled = !_busy;
-            InstallText.Text = "可以选加载器了";
+            return;
         }
+
+        InstallMcText.Text = "Minecraft " + v.Id;
+        InstallButton.IsEnabled = !_busy;
+        InstallText.Text = "可以选加载器了";
+
+        // 切版本必须重拉加载器版本，否则右边还停在上一个 MC 的列表
+        LoaderVersionCombo.ItemsSource = null;
+        LoaderVersionCombo.IsEnabled = false;
+
+        if (SelectedLoader() == "vanilla")
+        {
+            LoaderHint.Text = "原版：直接装 Minecraft 本身";
+            return;
+        }
+
+        await ReloadLoaderVersionsAsync(v.Id, SelectedLoader());
     }
 
     private async void OnLoaderChanged(object sender, SelectionChangedEventArgs e)
@@ -315,10 +327,15 @@ public partial class MainWindow : Window
             return;
         }
 
+        await ReloadLoaderVersionsAsync(mc.Id, loader);
+    }
+
+    private async Task ReloadLoaderVersionsAsync(string mcId, string loader)
+    {
         try
         {
             LoaderHint.Text = $"正在拉取 {loader} 版本列表…";
-            var list = await _service.CreateLoaderInstaller().ListAsync(loader, mc.Id);
+            var list = await _service.CreateLoaderInstaller().ListAsync(loader, mcId);
             LoaderVersionCombo.ItemsSource = list;
             LoaderVersionCombo.IsEnabled = list.Count > 0;
             if (list.Count > 0)
@@ -327,12 +344,37 @@ public partial class MainWindow : Window
             }
 
             LoaderHint.Text = list.Count == 0
-                ? $"{loader} 没有支持 {mc.Id} 的版本"
+                ? $"{loader} 没有支持 {mcId} 的版本"
                 : $"共 {list.Count} 个，最新 {list[0].Version}";
         }
         catch (Exception ex)
         {
             LoaderHint.Text = "拉取失败: " + ex.Message;
+        }
+    }
+
+    // ---------------- 内容页的两个分段 ----------------
+
+    private void OnTabInstall(object sender, RoutedEventArgs e) => SetPage(1);
+
+    private void OnTabContent(object sender, RoutedEventArgs e) => SetPage(2);
+
+    private void OnVersionSearch(object sender, TextChangedEventArgs e)
+    {
+        if (McVersionList == null || _mcVersions == null)
+        {
+            return;
+        }
+
+        var keyword = VersionSearchBox?.Text?.Trim() ?? string.Empty;
+        var filtered = string.IsNullOrEmpty(keyword)
+            ? _mcVersions
+            : _mcVersions.Where(v => v.Id.Contains(keyword, StringComparison.OrdinalIgnoreCase)).ToList();
+
+        McVersionList.ItemsSource = filtered;
+        if (filtered.Count > 0)
+        {
+            McVersionList.SelectedIndex = 0;
         }
     }
 
@@ -588,6 +630,7 @@ public partial class MainWindow : Window
         }
 
         _selectedContent = card.Item;
+        _ = ShowContentDetailAsync(card.Item);
         ContentInstallButton.IsEnabled = false;
         FileCombo.ItemsSource = null;
 
@@ -614,6 +657,329 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             ContentStatus.Text = "读取文件失败: " + ex.Message;
+        }
+    }
+
+    // ---------------- 内容详情 ----------------
+
+    private void OnCloseContentDetail(object sender, RoutedEventArgs e)
+    {
+        ContentDetailPanel.Visibility = Visibility.Collapsed;
+    }
+
+    private async Task ShowContentDetailAsync(ContentItem item)
+    {
+        ContentDetailPanel.Visibility = Visibility.Visible;
+        DetailTitle.Text = item.Title;
+        DetailSummary.Text = item.Summary;
+        DetailStatus.Text = "读取版本列表…";
+        DetailBody.Children.Clear();
+        expanderCount = 0;
+
+        try
+        {
+            List<ContentVersion> versions;
+            if (item.Source == "CurseForge")
+            {
+                var cf = _service.CreateCurseForge();
+                var files = await cf.GetFilesAsync(item, null, null);
+                versions = files.Select(f => new ContentVersion
+                {
+                    Id = f.Id,
+                    Number = f.DisplayName,
+                    Name = f.DisplayName,
+                    GameVersions = f.GameVersions,
+                    Loaders = f.Loaders,
+                    Url = f.Url,
+                    FileName = f.FileName,
+                    Size = f.Size,
+                }).ToList();
+            }
+            else
+            {
+                versions = await _service.CreateModrinth().GetVersionsAsync(item);
+            }
+
+            DetailStatus.Text = versions.Count == 0
+                ? "这个项目没有可用版本"
+                : $"共 {versions.Count} 个版本，按适用 Minecraft 版本分组";
+
+            BuildVersionGroups(item, versions);
+            await AddDependenciesAsync(item, versions);
+        }
+        catch (Exception ex)
+        {
+            DetailStatus.Text = "读取失败: " + ex.Message;
+        }
+    }
+
+    private void BuildVersionGroups(ContentItem item, List<ContentVersion> versions)
+    {
+        var currentMc = EffectiveVersion();
+        var currentLoader = EffectiveLoader();
+
+        // 按 MC 版本分组；当前版本排最前
+        var groups = versions
+            .SelectMany(v => (v.GameVersions.Count == 0 ? new List<string> { "未知" } : v.GameVersions)
+                .Select(mc => new { Mc = mc, Version = v }))
+            .GroupBy(x => x.Mc)
+            .OrderByDescending(g => g.Key == currentMc)
+            .ThenByDescending(g => g.Key, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        foreach (var group in groups)
+        {
+            var items = group.Select(x => x.Version)
+                .GroupBy(v => v.Id)
+                .Select(g => g.First())
+                .OrderByDescending(v => v.Published)
+                .ToList();
+
+            var expander = new Expander
+            {
+                Header = $"Minecraft {group.Key} · {items.Count} 个版本",
+                Foreground = (Brush)FindResource("Ink"),
+                Margin = new Thickness(0, 2, 0, 6),
+                IsExpanded = group.Key == currentMc || (currentMc == null && expanderCount == 0),
+            };
+
+            var list = new StackPanel { Margin = new Thickness(6, 6, 0, 0) };
+            foreach (var version in items.Take(30))
+            {
+                list.Children.Add(BuildVersionRow(item, version, currentLoader));
+            }
+
+            expander.Content = list;
+            DetailBody.Children.Add(expander);
+            expanderCount++;
+        }
+    }
+
+    /// <summary>把「前置模组」放在最上面：按当前 MC 版本挑一个最合适的版本，列它需要的依赖。</summary>
+    private async Task AddDependenciesAsync(ContentItem item, List<ContentVersion> versions)
+    {
+        var currentMc = EffectiveVersion();
+        var currentLoader = EffectiveLoader();
+
+        var candidate = versions
+            .Where(v => currentMc == null || v.GameVersions.Contains(currentMc))
+            .Where(v => currentLoader == null || v.Loaders.Count == 0 ||
+                        v.Loaders.Contains(currentLoader, StringComparer.OrdinalIgnoreCase))
+            .OrderByDescending(v => v.Published)
+            .FirstOrDefault()
+            ?? versions.FirstOrDefault(v => string.IsNullOrEmpty(currentMc) || v.GameVersions.Contains(currentMc));
+
+        if (candidate == null || candidate.Dependencies.Count == 0)
+        {
+            return;
+        }
+
+        var required = candidate.Dependencies
+            .Where(d => d.IsRequired)
+            .GroupBy(d => d.ProjectId)
+            .Select(g => g.First())
+            .ToList();
+
+        if (required.Count == 0)
+        {
+            return;
+        }
+
+        var card = new Border
+        {
+            CornerRadius = new CornerRadius(12),
+            Background = new SolidColorBrush(Color.FromArgb(0x1A, 0xFF, 0xB4, 0x4A)),
+            Padding = new Thickness(14, 12, 14, 12),
+            Margin = new Thickness(0, 0, 8, 12),
+        };
+
+        var panel = new StackPanel();
+        panel.Children.Add(new TextBlock
+        {
+            Text = $"前置模组（{required.Count} 个，不装会启动失败）",
+            FontSize = 12.5,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = new SolidColorBrush(Color.FromRgb(0xFF, 0xC8, 0x7A)),
+        });
+
+        foreach (var dependency in required)
+        {
+            var row = new Grid { Margin = new Thickness(0, 8, 0, 0) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var name = new TextBlock
+            {
+                Text = "读取中…",
+                FontSize = 12,
+                Foreground = (Brush)FindResource("Ink"),
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            };
+            row.Children.Add(name);
+
+            var install = new Button
+            {
+                Content = "安装前置",
+                Style = (Style)FindResource("GlassButton"),
+                Padding = new Thickness(12, 5, 12, 5),
+                FontSize = 11.5,
+                Margin = new Thickness(8, 0, 0, 0),
+            };
+            Grid.SetColumn(install, 1);
+            row.Children.Add(install);
+
+            panel.Children.Add(row);
+
+            var projectId = dependency.ProjectId;
+            var depItem = await _service.CreateModrinth().GetProjectAsync(projectId);
+            name.Text = depItem?.Title ?? projectId;
+
+            install.Click += async (_, __) =>
+            {
+                install.IsEnabled = false;
+                try
+                {
+                    var target = depItem ?? new ContentItem { Id = projectId, Kind = ContentKind.Mod, Source = "Modrinth" };
+                    var depVersions = await _service.CreateModrinth().GetVersionsAsync(target);
+                    var pick = depVersions
+                        .Where(v => currentMc == null || v.GameVersions.Contains(currentMc))
+                        .Where(v => currentLoader == null || v.Loaders.Count == 0 ||
+                                    v.Loaders.Contains(currentLoader, StringComparer.OrdinalIgnoreCase))
+                        .OrderByDescending(v => v.Published)
+                        .FirstOrDefault() ?? depVersions.FirstOrDefault();
+
+                    if (pick == null)
+                    {
+                        DetailStatus.Text = $"{name.Text} 没有适配当前版本的构建";
+                        install.IsEnabled = true;
+                        return;
+                    }
+
+                    await InstallVersionAsync(depItem ?? target, pick, install);
+                    install.Content = "已装";
+                }
+                catch (Exception ex)
+                {
+                    DetailStatus.Text = "安装前置失败: " + ex.Message;
+                    install.IsEnabled = true;
+                }
+            };
+        }
+
+        card.Child = panel;
+        DetailBody.Children.Insert(0, card);
+    }
+
+    private int expanderCount;
+
+    private Border BuildVersionRow(ContentItem item, ContentVersion version, string? currentLoader)
+    {
+        var grid = new Grid { Margin = new Thickness(0, 0, 0, 6) };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        text.Children.Add(new TextBlock
+        {
+            Text = string.IsNullOrEmpty(version.Number) ? version.Name : version.Number,
+            FontSize = 12.5,
+            Foreground = (Brush)FindResource("Ink"),
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        });
+
+        var bits = new List<string>();
+        if (version.Loaders.Count > 0)
+        {
+            bits.Add(version.LoaderText);
+        }
+
+        if (version.Size > 0)
+        {
+            bits.Add(version.SizeText);
+        }
+
+        if (version.Published != default)
+        {
+            bits.Add(version.Published.ToLocalTime().ToString("yyyy-MM-dd"));
+        }
+
+        if (version.Channel != "release")
+        {
+            bits.Add(version.Channel);
+        }
+
+        text.Children.Add(new TextBlock
+        {
+            Text = string.Join(" · ", bits),
+            FontSize = 10.5,
+            Foreground = (Brush)FindResource("InkFaint"),
+            Margin = new Thickness(0, 2, 0, 0),
+        });
+        grid.Children.Add(text);
+
+        var install = new Button
+        {
+            Content = "安装",
+            Style = (Style)FindResource("GlassButton"),
+            Padding = new Thickness(14, 5, 14, 5),
+            FontSize = 11.5,
+        };
+        install.Click += async (_, __) =>
+        {
+            install.IsEnabled = false;
+            await InstallVersionAsync(item, version, install);
+        };
+        Grid.SetColumn(install, 1);
+        grid.Children.Add(install);
+
+        return new Border
+        {
+            CornerRadius = new CornerRadius(9),
+            Background = new SolidColorBrush(Color.FromArgb(0x10, 0xFF, 0xFF, 0xFF)),
+            Padding = new Thickness(12, 8, 10, 8),
+            Margin = new Thickness(0, 0, 8, 0),
+            Child = grid,
+        };
+    }
+
+    private async Task InstallVersionAsync(ContentItem item, ContentVersion version, Button? button)
+    {
+        try
+        {
+            DetailStatus.Text = $"安装 {version.Number}…";
+            var target = VersionList.SelectedItem as VersionCard;
+            var resolved = target == null ? null : _service.Resolve(target.Summary.Id);
+            var gameDir = resolved == null ? _settings.GameDirectory : _service.GameDirectoryFor(resolved);
+
+            var file = new ContentFile
+            {
+                Id = version.Id,
+                FileName = version.FileName,
+                DisplayName = version.Number,
+                Url = version.Url,
+                Size = version.Size,
+                GameVersions = version.GameVersions,
+                Loaders = version.Loaders,
+            };
+
+            var progress = new Progress<InstallProgress>(p => DetailStatus.Text = $"{p.Stage} · {p.Message}");
+            var path = await _service.CreateContentInstaller()
+                .InstallFileAsync(file, item.Kind, gameDir, progress);
+
+            DetailStatus.Text = "已安装: " + path;
+            if (button != null)
+            {
+                button.IsEnabled = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            DetailStatus.Text = "安装失败: " + ex.Message;
+            if (button != null)
+            {
+                button.IsEnabled = true;
+            }
         }
     }
 
