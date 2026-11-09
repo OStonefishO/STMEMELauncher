@@ -546,6 +546,86 @@ public sealed class CurseForgeClient : IContentSource
         return result;
     }
 
+    /// <summary>CurseForge 版本列表（带前置依赖），用于详情页。</summary>
+    public async Task<List<ContentVersion>> GetVersionsAsync(ContentItem item, CancellationToken ct = default)
+    {
+        if (!IsAvailable || string.IsNullOrEmpty(item.Id))
+        {
+            return new List<ContentVersion>();
+        }
+
+        var result = new List<ContentVersion>();
+        var index = 0;
+        const int pageSize = 50;
+
+        while (index < 200)
+        {
+            var url = $"{Api}/mods/{item.Id}/files?pageSize={pageSize}&index={index}";
+            var json = await GetStringAsync(url, ct).ConfigureAwait(false);
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array)
+            {
+                break;
+            }
+
+            foreach (var file in data.EnumerateArray())
+            {
+                var deps = new List<ContentDependency>();
+                if (file.TryGetProperty("dependencies", out var dependencyArray) &&
+                    dependencyArray.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var d in dependencyArray.EnumerateArray())
+                    {
+                        var modId = d.TryGetProperty("modId", out var m) ? m.GetInt64().ToString() : null;
+                        if (string.IsNullOrEmpty(modId))
+                        {
+                            continue;
+                        }
+
+                        var relation = d.TryGetProperty("relationType", out var rt) ? rt.GetInt32() : 3;
+                        deps.Add(new ContentDependency
+                        {
+                            ProjectId = modId!,
+                            Type = relation == 3 ? "required" : "optional",
+                        });
+                    }
+                }
+
+                result.Add(new ContentVersion
+                {
+                    Id = file.TryGetProperty("id", out var id) ? id.GetInt64().ToString() : string.Empty,
+                    Number = ModrinthClient.GetString(file, "displayName") ?? string.Empty,
+                    Name = ModrinthClient.GetString(file, "fileName") ?? string.Empty,
+                    Channel = file.TryGetProperty("releaseType", out var rt2) ? rt2.GetInt32() switch
+                    {
+                        1 => "release",
+                        2 => "beta",
+                        _ => "alpha",
+                    } : "release",
+                    GameVersions = ModrinthClient.StringList(file, "gameVersions"),
+                    Loaders = ModrinthClient.StringList(file, "gameVersions")
+                        .Where(v => v is "Fabric" or "Forge" or "NeoForge" or "Quilt")
+                        .Select(v => v.ToLowerInvariant())
+                        .ToList(),
+                    Url = ModrinthClient.GetString(file, "downloadUrl") ?? string.Empty,
+                    FileName = ModrinthClient.GetString(file, "fileName") ?? string.Empty,
+                    Size = file.TryGetProperty("fileLength", out var fl) ? fl.GetInt64() : 0,
+                    Published = DateTimeOffset.TryParse(ModrinthClient.GetString(file, "fileDate"), out var dt) ? dt : default,
+                    Dependencies = deps,
+                });
+            }
+
+            if (data.GetArrayLength() < pageSize)
+            {
+                break;
+            }
+
+            index += pageSize;
+        }
+
+        return result;
+    }
+
     public async Task<List<ContentTag>> GetCategoriesAsync(ContentKind kind, CancellationToken ct = default)
     {
         if (!IsAvailable)

@@ -571,9 +571,14 @@
                                 <DockPanel>
                                     <StackPanel DockPanel.Dock="Top" Margin="12,10,10,8">
                                         <TextBlock Text="Minecraft 正式版" FontSize="11.5" Foreground="{StaticResource InkFaint}"/>
-                                        <TextBox x:Name="VersionSearchBox" Height="30" Margin="0,8,0,0"
-                                                 ToolTip="输入版本号筛选，例如 1.21 / 26.2"
-                                                 TextChanged="OnVersionSearch"/>
+                                        <Grid Margin="0,8,0,0">
+                                            <TextBox x:Name="VersionSearchBox" Height="30" Padding="9,6,9,6"
+                                                     TextChanged="OnVersionSearch"/>
+                                            <TextBlock x:Name="VersionSearchHint" Text="搜索版本号，如 1.21 / 26.2"
+                                                       IsHitTestVisible="False" Margin="10,0,0,0"
+                                                       VerticalAlignment="Center" FontSize="11.5"
+                                                       Foreground="{StaticResource InkFaint}"/>
+                                        </Grid>
                                     </StackPanel>
                                     <ListBox x:Name="McVersionList" Background="Transparent" BorderThickness="0"
                                              Foreground="{StaticResource Ink}" SelectionChanged="OnMcVersionSelected">
@@ -675,7 +680,14 @@
                                 </StackPanel>
 
                                 <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                                    <TextBox x:Name="QueryBox" Width="300" VerticalContentAlignment="Center"/>
+                                    <Grid Width="300">
+                                        <TextBox x:Name="QueryBox" VerticalContentAlignment="Center" Padding="9,6,9,6"
+                                                 TextChanged="OnQueryTextChanged"/>
+                                        <TextBlock x:Name="QueryHint" Text="搜索模组 / 整合包 / 光影 / 资源包"
+                                                   IsHitTestVisible="False" Margin="10,0,0,0"
+                                                   VerticalAlignment="Center" FontSize="11.5"
+                                                   Foreground="{StaticResource InkFaint}"/>
+                                    </Grid>
                                     <Button Content="搜索" Style="{StaticResource GlassButton}" Margin="8,0,0,0" Click="OnSearch"/>
 
                                     <TextBlock x:Name="PageText" Text="" FontSize="11.5" Margin="18,0,0,0"

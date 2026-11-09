@@ -29,7 +29,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.7.0";
+    private const string AppVersion = "0.7.1";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -359,8 +359,25 @@ public partial class MainWindow : Window
 
     private void OnTabContent(object sender, RoutedEventArgs e) => SetPage(2);
 
+    private void OnQueryTextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (QueryHint != null && QueryBox != null)
+        {
+            QueryHint.Visibility = string.IsNullOrEmpty(QueryBox.Text)
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+        }
+    }
+
     private void OnVersionSearch(object sender, TextChangedEventArgs e)
     {
+        if (VersionSearchHint != null)
+        {
+            VersionSearchHint.Visibility = string.IsNullOrEmpty(VersionSearchBox?.Text)
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+        }
+
         if (McVersionList == null || _mcVersions == null)
         {
             return;
@@ -682,18 +699,13 @@ public partial class MainWindow : Window
             if (item.Source == "CurseForge")
             {
                 var cf = _service.CreateCurseForge();
-                var files = await cf.GetFilesAsync(item, null, null);
-                versions = files.Select(f => new ContentVersion
+                if (!cf.IsAvailable)
                 {
-                    Id = f.Id,
-                    Number = f.DisplayName,
-                    Name = f.DisplayName,
-                    GameVersions = f.GameVersions,
-                    Loaders = f.Loaders,
-                    Url = f.Url,
-                    FileName = f.FileName,
-                    Size = f.Size,
-                }).ToList();
+                    DetailStatus.Text = "CurseForge 需要 API Key（在设置里填，免费且不会过期）";
+                    return;
+                }
+
+                versions = await cf.GetVersionsAsync(item);
             }
             else
             {
@@ -832,16 +844,42 @@ public partial class MainWindow : Window
             panel.Children.Add(row);
 
             var projectId = dependency.ProjectId;
-            var depItem = await _service.CreateModrinth().GetProjectAsync(projectId);
-            name.Text = depItem?.Title ?? projectId;
+            ContentItem? depItem = null;
+            if (item.Source == "CurseForge")
+            {
+                name.Text = "CurseForge 项目 #" + projectId;
+            }
+            else
+            {
+                depItem = await _service.CreateModrinth().GetProjectAsync(projectId);
+                name.Text = depItem?.Title ?? projectId;
+            }
 
             install.Click += async (_, __) =>
             {
                 install.IsEnabled = false;
                 try
                 {
-                    var target = depItem ?? new ContentItem { Id = projectId, Kind = ContentKind.Mod, Source = "Modrinth" };
-                    var depVersions = await _service.CreateModrinth().GetVersionsAsync(target);
+                    var source = item.Source == "CurseForge"
+                        ? (IContentSource)_service.CreateCurseForge()
+                        : _service.CreateModrinth();
+
+                    List<ContentVersion> depVersions;
+                    if (source is CurseForgeClient cfSource)
+                    {
+                        depVersions = await cfSource.GetVersionsAsync(
+                            new ContentItem { Id = projectId, Kind = ContentKind.Mod, Source = "CurseForge" });
+                    }
+                    else
+                    {
+                        var target = depItem ?? new ContentItem
+                        {
+                            Id = projectId,
+                            Kind = ContentKind.Mod,
+                            Source = "Modrinth",
+                        };
+                        depVersions = await _service.CreateModrinth().GetVersionsAsync(target);
+                    }
                     var pick = depVersions
                         .Where(v => currentMc == null || v.GameVersions.Contains(currentMc))
                         .Where(v => currentLoader == null || v.Loaders.Count == 0 ||
@@ -856,7 +894,9 @@ public partial class MainWindow : Window
                         return;
                     }
 
-                    await InstallVersionAsync(depItem ?? target, pick, install);
+                    await InstallVersionAsync(
+                        depItem ?? new ContentItem { Id = projectId, Kind = ContentKind.Mod, Source = item.Source },
+                        pick, install);
                     install.Content = "已装";
                 }
                 catch (Exception ex)
