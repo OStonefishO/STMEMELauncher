@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.14.0";
+    private const string AppVersion = "0.14.1";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -106,6 +106,12 @@ public partial class MainWindow : Window
             if (argv.Contains("--scroll-bottom"))
             {
                 _ = Task.Delay(600).ContinueWith(_ => Dispatcher.BeginInvoke(() => ScrollSettingsToBottom()));
+            }
+
+            // 调试用：--demo-detail，自动打开内容页第一个项目的详情（看加载器分类）
+            if (argv.Contains("--demo-detail"))
+            {
+                _ = OpenFirstContentDetailAsync();
             }
         };
     }
@@ -1222,7 +1228,9 @@ public partial class MainWindow : Window
         IsolationButton.Padding = new Thickness(16, 6, 16, 6);
 
         IsolationHint.Text = forced == null
-            ? "现在跟随「设置 → 版本隔离」的全局设置，点按钮让这个版本单独决定。"
+            ? (_settings.VersionIsolation == "on"
+                ? "全局设置是「总是隔离」，这个版本就在自己的目录里；点按钮可以单独改成共用。"
+                : "现在跟随「设置 → 版本隔离」的全局设置，点按钮让这个版本单独决定。")
             : isolated
                 ? "已隔离：这个版本的 mods / config / saves 在 " + resolved.Directory + " 里，不跟别的版本共用。"
                 : "已设成共用：mod 从游戏目录的 mods 读，和别的版本一起用。";
@@ -1884,7 +1892,9 @@ public partial class MainWindow : Window
                 ? "这个项目没有可用版本"
                 : $"共 {versions.Count} 个版本，按适用 Minecraft 版本分组";
 
-            BuildVersionGroups(item, versions);
+            _detailVersions = versions;
+            _detailLoader = string.Empty;
+            RenderDetail(item);
             await AddDependenciesAsync(item, versions);
         }
         catch (Exception ex)
@@ -1892,6 +1902,104 @@ public partial class MainWindow : Window
             DetailStatus.Text = "读取失败: " + ex.Message;
         }
     }
+
+    /// <summary>重新画详情页：加载器小分类 + 按 MC 版本分组。</summary>
+    private void RenderDetail(ContentItem item)
+    {
+        DetailBody.Children.Clear();
+        expanderCount = 0;
+        DetailBody.Children.Add(BuildLoaderFilter(item));
+
+        var filtered = string.IsNullOrEmpty(_detailLoader)
+            ? _detailVersions
+            : _detailVersions
+                .Where(v => v.Loaders.Contains(_detailLoader, StringComparer.OrdinalIgnoreCase))
+                .ToList();
+
+        if (filtered.Count == 0)
+        {
+            DetailBody.Children.Add(new TextBlock
+            {
+                Text = "这个加载器下没有版本，点「全部」看看",
+                FontSize = 11.5,
+                Foreground = (Brush)FindResource("InkFaint"),
+                Margin = new Thickness(2, 10, 0, 0),
+            });
+            return;
+        }
+
+        BuildVersionGroups(item, filtered);
+    }
+
+    /// <summary>mod 详情页顶上的「全部 / Fabric / NeoForge / Forge …」小按钮。</summary>
+    private WrapPanel BuildLoaderFilter(ContentItem item)
+    {
+        var panel = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
+
+        var loaders = new List<string> { string.Empty };
+        foreach (var name in new[] { "fabric", "neoforge", "forge", "quilt", "optifine" })
+        {
+            if (_detailVersions.Any(v => v.Loaders.Contains(name, StringComparer.OrdinalIgnoreCase)))
+            {
+                loaders.Add(name);
+            }
+        }
+
+        foreach (var extra in _detailVersions.SelectMany(v => v.Loaders).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            if (!loaders.Contains(extra, StringComparer.OrdinalIgnoreCase))
+            {
+                loaders.Add(extra);
+            }
+        }
+
+        foreach (var loader in loaders)
+        {
+            var count = string.IsNullOrEmpty(loader)
+                ? _detailVersions.Count
+                : _detailVersions.Count(v => v.Loaders.Contains(loader, StringComparer.OrdinalIgnoreCase));
+
+            var active = string.Equals(_detailLoader, loader, StringComparison.OrdinalIgnoreCase);
+            var label = string.IsNullOrEmpty(loader) ? "全部" : LoaderLabel(loader);
+
+            var button = new Button
+            {
+                Content = label + " · " + count,
+                Style = (Style)FindResource(active ? "HeroButton" : "GlassButton"),
+                Padding = new Thickness(12, 5, 12, 5),
+                FontSize = 10.5,
+                Margin = new Thickness(0, 0, 6, 6),
+                Tag = loader,
+            };
+            button.Click += (_, __) =>
+            {
+                if (_detailCurrent == null)
+                {
+                    return;
+                }
+
+                _detailLoader = loader;
+                RenderDetail(item);
+                _ = AddDependenciesAsync(item, _detailVersions);
+            };
+
+            panel.Children.Add(button);
+        }
+
+        return panel;
+    }
+
+    private static string LoaderLabel(string loader) => loader.ToLowerInvariant() switch
+    {
+        "fabric" => "Fabric",
+        "forge" => "Forge",
+        "neoforge" => "NeoForge",
+        "quilt" => "Quilt",
+        "optifine" => "OptiFine",
+        "iris" => "Iris",
+        "vanilla" => "原版",
+        _ => loader,
+    };
 
     private void BuildVersionGroups(ContentItem item, List<ContentVersion> versions)
     {
@@ -2062,6 +2170,8 @@ public partial class MainWindow : Window
 
     private int expanderCount;
     private readonly Stack<ContentItem> _detailStack = new();
+    private List<ContentVersion> _detailVersions = new();
+    private string _detailLoader = string.Empty;
     private GameLauncher? _gameLauncher;
     private bool _killedByUser;
 
@@ -3175,38 +3285,6 @@ public partial class MainWindow : Window
         return window;
     }
 
-    private void OnImportOfficial(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            var accounts = OfficialLauncherImport.Read();
-            if (accounts.Count == 0)
-            {
-                AccountPageStatus.Text = OfficialLauncherImport.Explain();
-                ShowToast("导入失败", "官方启动器的账号读不出来，看下面的说明", "⚠", 5200);
-                return;
-            }
-
-            var first = accounts[0];
-            var account = new SavedAccount
-            {
-                Type = "microsoft",
-                Name = first.PlayerName,
-                Uuid = first.Uuid,
-                AccessToken = first.AccessToken,
-            };
-            _service.UpsertAccount(account);
-            RefreshAccounts();
-            AccountPageStatus.Text = $"已导入官方启动器账号：{first.PlayerName}（token 约 24 小时）";
-            RefreshCurrentSkinPreview();
-            ShowToast("已导入账号", first.PlayerName, "✓", 3600);
-        }
-        catch (Exception ex)
-        {
-            AccountStatus.Text = "导入失败: " + ex.Message;
-        }
-    }
-
     private Window BuildLoginDialog(DeviceCodeFlow flow)
     {
         var panel = new StackPanel { Margin = new Thickness(26) };
@@ -3962,8 +4040,8 @@ public partial class MainWindow : Window
         SettingsCfKey.Text = _settings.CurseForgeApiKey;
         SettingsIsolation.SelectedIndex = _settings.VersionIsolation?.ToLowerInvariant() switch
         {
-            "on" => 1,
             "off" => 2,
+            "auto" => 1,
             _ => 0,
         };
 
@@ -3992,9 +4070,9 @@ public partial class MainWindow : Window
             _settings.CurseForgeApiKey = SettingsCfKey.Text?.Trim() ?? string.Empty;
             _settings.VersionIsolation = SettingsIsolation.SelectedIndex switch
             {
-                1 => "on",
                 2 => "off",
-                _ => "auto",
+                1 => "auto",
+                _ => "on",
             };
 
             ConfigStore.Save(_settings);

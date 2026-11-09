@@ -34,6 +34,23 @@ public partial class MainWindow
             DateTimeOffset.Now.AddMinutes(-3));
     }
 
+    /// <summary>调试：内容页自动打开第一个项目的详情（截图用）。</summary>
+    private async Task OpenFirstContentDetailAsync()
+    {
+        try
+        {
+            await Task.Delay(2500);
+            if (ContentList?.Items.Count > 0 && ContentList.Items[0] is ContentCard card)
+            {
+                await ShowContentDetailAsync(card.Item);
+            }
+        }
+        catch
+        {
+            // 忽略
+        }
+    }
+
     /// <summary>调试：把设置页滚到底，方便截图看水印那块。</summary>
     private void ScrollSettingsToBottom()
     {

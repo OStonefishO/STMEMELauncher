@@ -73,8 +73,8 @@ public sealed class LauncherSettings
     /// <summary>微软登录用的 Azure 应用 ClientId（没有就只用离线登录）。</summary>
     public string MicrosoftClientId { get; set; } = "52fb2aba-9fa1-4605-be0d-431776c0880d";
 
-    /// <summary>版本隔离：auto（默认，按目录内容判断）/ on / off。</summary>
-    public string VersionIsolation { get; set; } = "auto";
+    /// <summary>版本隔离：on（默认，总是隔离，新装的版本自动隔离）/ auto（按目录内容判断）/ off（共用根目录）。</summary>
+    public string VersionIsolation { get; set; } = "on";
 
     /// <summary>单个版本的隔离开关（true=强制隔离，false=强制共用全局），没记录的跟随上面的全局设置。</summary>
     public Dictionary<string, bool> IsolatedVersions { get; set; } = new();

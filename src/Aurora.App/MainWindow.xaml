@@ -990,7 +990,10 @@
 
                         <!-- 内容详情浮层 -->
                         <Grid x:Name="ContentDetailPanel" Grid.RowSpan="3" Visibility="Collapsed"
-                              Background="#F20B0E13">
+                              Background="#FF0B0E13">
+                            <Grid.Effect>
+                                <DropShadowEffect Color="#000000" BlurRadius="24" ShadowDepth="0" Opacity="0.5"/>
+                            </Grid.Effect>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
@@ -1076,7 +1079,7 @@
                                                        Foreground="{StaticResource InkFaint}" TextWrapping="Wrap"/>
 
                                             <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
-                                                <TextBlock Text="运行内存 (MB)" FontSize="11.5" VerticalAlignment="Center"
+                                                <TextBlock Text="运行内存 (MB) · 全局" FontSize="11.5" VerticalAlignment="Center"
                                                            Foreground="{StaticResource InkDim}"/>
                                                 <TextBox x:Name="VmMemoryBox" Width="110" Margin="10,0,0,0"
                                                          HorizontalContentAlignment="Center"/>
@@ -1383,8 +1386,6 @@
                                         <TextBlock Text="登录已有账号" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
                                         <Button Content="外置登录（LittleSkin）" Style="{StaticResource HeroButton}" Margin="0,12,0,0"
                                                 Height="40" Click="OnYggdrasilLogin"/>
-                                        <Button Content="导入官方启动器账号" Style="{StaticResource GlassButton}" Margin="0,10,0,0"
-                                                Click="OnImportOfficial"/>
                                         <Button x:Name="LoginButton" Content="微软账号登录（等待白名单）" Style="{StaticResource GlassButton}"
                                                 Margin="0,10,0,0" Click="OnLogin"/>
                                         <Expander Header="高级：Azure ClientId" Margin="0,12,0,0" Foreground="{StaticResource InkFaint}">
@@ -1485,12 +1486,15 @@
                                         <TextBlock Text="Java 路径（留空自动匹配）" Foreground="{StaticResource InkFaint}" FontSize="11" Margin="0,14,0,0"/>
                                         <TextBox x:Name="SettingsJava" Margin="0,6,0,0"/>
 
-                                        <TextBlock Text="版本隔离" Foreground="{StaticResource InkFaint}" FontSize="11" Margin="0,14,0,0"/>
+                                        <TextBlock Text="版本隔离（全局）" Foreground="{StaticResource InkFaint}" FontSize="11" Margin="0,14,0,0"/>
                                         <ComboBox x:Name="SettingsIsolation" Margin="0,6,0,0" SelectedIndex="0">
-                                            <ComboBoxItem Content="auto（推荐）"/>
-                                            <ComboBoxItem Content="on（总是隔离）"/>
-                                            <ComboBoxItem Content="off（共用根目录）"/>
+                                            <ComboBoxItem Content="总是隔离（推荐，新装的版本也自动隔离）"/>
+                                            <ComboBoxItem Content="自动（按目录里有没有 mods 判断）"/>
+                                            <ComboBoxItem Content="共用根目录（不隔离）"/>
                                         </ComboBox>
+                                        <TextBlock Text="总是隔离：每个版本用 versions\&lt;版本名&gt;\ 里的 mods，装什么都不影响别的版本。"
+                                                   Foreground="{StaticResource InkFaint}" FontSize="10.5" Margin="0,6,0,0"
+                                                   TextWrapping="Wrap"/>
                                     </StackPanel>
                                 </Border>
 

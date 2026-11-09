@@ -5,9 +5,10 @@ public static class VersionIsolation
     /// <summary>判断某个版本是否应该使用自己的目录作为游戏目录（版本隔离）。</summary>
     public static bool ShouldIsolate(string versionDirectory, string mode)
     {
-        switch ((mode ?? "auto").Trim().ToLowerInvariant())
+        switch ((mode ?? "on").Trim().ToLowerInvariant())
         {
             case "on":
+            case "always":
             case "true":
                 return true;
             case "off":
