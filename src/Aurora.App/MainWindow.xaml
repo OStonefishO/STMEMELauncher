@@ -430,11 +430,27 @@
                     <!-- ========== 主页 ========== -->
                     <Grid x:Name="LaunchPage">
                         <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <Grid Grid.Row="0">
+                        <Border x:Name="UpdateBanner" Grid.Row="0" Visibility="Collapsed" CornerRadius="12"
+                                Background="#1E2A44" BorderBrush="#505B8CFF" BorderThickness="1"
+                                Padding="14,10" Margin="26,0,0,12">
+                            <Grid>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="⇪" FontSize="15" Foreground="#FF8AB4FF" VerticalAlignment="Center"
+                                               Margin="0,0,10,0"/>
+                                    <TextBlock x:Name="UpdateBannerText" Text="发现新版本" FontSize="12.5"
+                                               Foreground="{StaticResource Ink}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <Button Content="查看更新" HorizontalAlignment="Right" Style="{StaticResource GlassButton}"
+                                        Padding="12,5" FontSize="11.5" Click="OnOpenUpdate"/>
+                            </Grid>
+                        </Border>
+
+                        <Grid Grid.Row="1">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="1.05*"/>
                                 <ColumnDefinition Width="*"/>
@@ -507,7 +523,7 @@
                         </Grid>
 
                         <!-- 版本轮播 -->
-                        <StackPanel Grid.Row="1" Margin="26,0,0,6">
+                        <StackPanel Grid.Row="2" Margin="26,0,0,6">
                             <TextBlock Text="全部版本" FontSize="10.5" Foreground="{StaticResource InkFaint}"
                                        FontWeight="SemiBold" Margin="0,0,0,8"/>
                             <ListBox x:Name="VersionList" Background="Transparent" BorderThickness="0" Height="88" PreviewMouseWheel="OnVersionWheel"
@@ -941,6 +957,22 @@
                                         <TextBlock Text="CurseForge API key（可选，填了才能搜 CurseForge）"
                                                    Foreground="{StaticResource InkFaint}" FontSize="11" Margin="0,14,0,0"/>
                                         <TextBox x:Name="SettingsCfKey" Margin="0,6,0,0"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border CornerRadius="16" Background="{StaticResource Glass}"
+                                        BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16" Margin="0,12,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="关于与更新" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
+                                        <TextBlock x:Name="VersionText" Text="当前版本 v0.5.1" FontSize="11.5"
+                                                   Foreground="{StaticResource InkDim}" Margin="0,6,0,10"/>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Content="检查更新" Style="{StaticResource GlassButton}" Click="OnCheckUpdates"/>
+                                            <Button Content="查看更新日志" Style="{StaticResource GlassButton}" Margin="8,0,0,0"
+                                                    Click="OnOpenUpdatesPage"/>
+                                        </StackPanel>
+                                        <TextBlock x:Name="UpdateStatus" Text="" FontSize="11" Margin="0,8,0,0"
+                                                   Foreground="{StaticResource InkFaint}" TextWrapping="Wrap"/>
                                     </StackPanel>
                                 </Border>
 

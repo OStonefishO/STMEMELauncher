@@ -146,6 +146,8 @@ public sealed class LauncherService
 
     public UpdateFeed CreateUpdateFeed() => new(SharedDownloader);
 
+    public UpdateChecker CreateUpdateChecker() => new(SharedDownloader);
+
     public CurseForgeClient CreateCurseForge() => new(Settings.CurseForgeApiKey);
 
     public IReadOnlyList<JavaRuntime> ScanJava()

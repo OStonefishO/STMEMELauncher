@@ -28,7 +28,9 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
+    private const string AppVersion = "0.5.1";
     private bool _updatesLoaded;
+    private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
     private bool _onlineLoaded;
 
@@ -61,7 +63,11 @@ public partial class MainWindow : Window
         {
             SetPage(Math.Clamp(pageIndex, 0, 6));
         }
-        Loaded += (_, __) => ApplyDarkTitleBar();
+        Loaded += (_, __) =>
+        {
+            ApplyDarkTitleBar();
+            _ = CheckUpdatesAsync(silent: true);
+        };
     }
 
     // ---------------- 导航 ----------------
@@ -642,6 +648,165 @@ public partial class MainWindow : Window
             _busy = false;
             ContentInstallButton.IsEnabled = true;
         }
+    }
+
+    // ---------------- 更新检查 ----------------
+
+    private async Task CheckUpdatesAsync(bool silent)
+    {
+        try
+        {
+            if (!silent && UpdateStatus != null)
+            {
+                UpdateStatus.Text = "正在检查…";
+            }
+
+            var checker = _service.CreateUpdateChecker();
+            var release = await checker.GetLatestAsync();
+            if (release == null)
+            {
+                if (!silent && UpdateStatus != null)
+                {
+                    UpdateStatus.Text = "检查失败（网络或 GitHub API 不可达）";
+                }
+                return;
+            }
+
+            _pendingRelease = release;
+            if (UpdateChecker.IsNewer(release.Tag, AppVersion))
+            {
+                if (UpdateBanner != null)
+                {
+                    UpdateBanner.Visibility = Visibility.Visible;
+                    UpdateBannerText.Text = $"发现新版本 {release.Tag}（当前 v{AppVersion}）";
+                }
+
+                if (UpdateStatus != null)
+                {
+                    UpdateStatus.Text = $"有新版本 {release.Tag}";
+                }
+            }
+            else
+            {
+                if (UpdateBanner != null)
+                {
+                    UpdateBanner.Visibility = Visibility.Collapsed;
+                }
+
+                if (UpdateStatus != null)
+                {
+                    UpdateStatus.Text = $"已是最新版本（v{AppVersion}）";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            if (!silent && UpdateStatus != null)
+            {
+                UpdateStatus.Text = "检查失败: " + ex.Message;
+            }
+        }
+    }
+
+    private async void OnCheckUpdates(object sender, RoutedEventArgs e) => await CheckUpdatesAsync(silent: false);
+
+    private void OnOpenUpdatesPage(object sender, RoutedEventArgs e) => SetPage(5);
+
+    private void OnOpenUpdate(object sender, RoutedEventArgs e)
+    {
+        if (_pendingRelease == null)
+        {
+            return;
+        }
+
+        BuildUpdateDialog(_pendingRelease).ShowDialog();
+    }
+
+    private Window BuildUpdateDialog(ReleaseInfo release)
+    {
+        var panel = new StackPanel { Margin = new Thickness(26) };
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = release.Tag + " · " + release.PublishedAt.ToLocalTime().ToString("yyyy-MM-dd"),
+            FontSize = 12,
+            Foreground = (Brush)FindResource("InkDim"),
+        });
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = string.IsNullOrWhiteSpace(release.Name) ? release.Tag : release.Name,
+            FontSize = 20,
+            FontFamily = (FontFamily)FindResource("FontHead"),
+            Foreground = (Brush)FindResource("Ink"),
+            Margin = new Thickness(0, 8, 0, 12),
+            TextWrapping = TextWrapping.Wrap,
+        });
+
+        var notes = new TextBox
+        {
+            Text = release.Body ?? string.Empty,
+            IsReadOnly = true,
+            AcceptsReturn = true,
+            TextWrapping = TextWrapping.Wrap,
+            Height = 260,
+            Background = new SolidColorBrush(Color.FromRgb(0x0B, 0x0E, 0x13)),
+            Foreground = new SolidColorBrush(Color.FromRgb(0x9A, 0xA6, 0xBA)),
+            BorderThickness = new Thickness(0),
+            Padding = new Thickness(12),
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            FontSize = 12,
+        };
+        panel.Children.Add(notes);
+
+        var buttons = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 14, 0, 0),
+        };
+
+        var download = new Button
+        {
+            Content = "打开下载页",
+            Style = (Style)FindResource("HeroButton"),
+            Width = 140,
+            Height = 38,
+        };
+        download.Click += (_, __) =>
+        {
+            var url = string.IsNullOrEmpty(release.HtmlUrl)
+                ? "https://github.com/OStonefishO/STMEMELauncher/releases"
+                : release.HtmlUrl;
+            OpenBrowser(url);
+        };
+
+        var later = new Button
+        {
+            Content = "稍后",
+            Style = (Style)FindResource("GlassButton"),
+            Width = 90,
+            Margin = new Thickness(8, 0, 0, 0),
+        };
+
+        buttons.Children.Add(download);
+        buttons.Children.Add(later);
+        panel.Children.Add(buttons);
+
+        var window = new Window
+        {
+            Owner = this,
+            Title = "检查更新",
+            Width = 560,
+            SizeToContent = SizeToContent.Height,
+            ResizeMode = ResizeMode.NoResize,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = (Brush)FindResource("Bg"),
+            Content = panel,
+        };
+
+        later.Click += (_, __) => window.Close();
+        return window;
     }
 
     // ---------------- 联机 ----------------
@@ -1316,6 +1481,11 @@ public partial class MainWindow : Window
 
     private void LoadSettingsToUi()
     {
+        if (VersionText != null)
+        {
+            VersionText.Text = $"当前版本 v{AppVersion}";
+        }
+
         SettingsGameDir.Text = _settings.GameDirectory;
         SettingsPlayer.Text = _settings.PlayerName;
         SettingsMemory.Text = _settings.MaxMemoryMb.ToString();
