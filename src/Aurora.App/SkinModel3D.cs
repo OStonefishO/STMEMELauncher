@@ -6,174 +6,194 @@ using System.Windows.Media.Media3D;
 namespace Aurora.App;
 
 /// <summary>
-/// 用 WPF 3D 拼一个方块小人来预览皮肤（Steve 粗胳膊 / Alex 细胳膊）。
-/// 没有皮肤时就是一个白色模型。
+/// WPF 3D 皮肤小人：Steve / Alex 两种体型，支持拖拽 360 度旋转。
 /// </summary>
-internal static class SkinModel3D
+internal sealed class SkinModel3D
 {
+    private const double HeadSize = 8;
+    private const double BodyWidth = 8;
+    private const double BodyHeight = 12;
+    private const double LimbDepth = 4;
+
     public static Model3DGroup Build(BitmapSource? skin, bool slim)
     {
         var group = new Model3DGroup();
-        var material = skin == null ? WhiteMaterial() : SkinMaterial(skin);
+        var material = MaterialFor(skin);
 
-        // 头 8x8x8（中心在 y=28..36）
-        group.Children.Add(Box(8, 8, 8, 0, 0, material, new[]
-        {
-            Rect(8, 8, 8, 8),   // front
-            Rect(16, 8, 8, 8),  // left
-            Rect(24, 8, 8, 8),  // back
-            Rect(0, 8, 8, 8),   // right
-            Rect(8, 0, 8, 8),   // top
-            Rect(16, 0, 8, 8),  // bottom
-        }));
-
-        // 身体 8x12x4
-        group.Children.Add(Box(8, 12, 4, 0, -10, material, new[]
-        {
-            Rect(20, 20, 8, 12),
-            Rect(28, 20, 8, 12),
-            Rect(32, 20, 8, 12),
-            Rect(16, 20, 4, 12),
-            Rect(20, 16, 8, 4),
-            Rect(28, 16, 8, 4),
-        }));
+        // 关键：整体下移，让模型以 (0,0,0) 为中心
+        group.Children.Add(Box(new Rect3(0, 4, 0, HeadSize, HeadSize, HeadSize), material, HeadFaces));
+        group.Children.Add(Box(new Rect3(0, -6, 0, BodyWidth, BodyHeight, LimbDepth), material, BodyFaces));
 
         var armWidth = slim ? 3.0 : 4.0;
-        var armU = slim ? 44.0 : 44.0;
+        group.Children.Add(Box(new Rect3(-(BodyWidth / 2 + armWidth / 2), -6, 0, armWidth, BodyHeight, LimbDepth),
+            material, ArmFaces));
+        group.Children.Add(Box(new Rect3(BodyWidth / 2 + armWidth / 2, -6, 0, armWidth, BodyHeight, LimbDepth),
+            material, ArmFaces));
 
-        // 右臂
-        group.Children.Add(Box(armWidth, 12, 4, -4 - armWidth / 2, -10, material, new[]
-        {
-            Rect(armU, 20, armWidth, 12),
-            Rect(armU + armWidth, 20, 4, 12),
-            Rect(56, 20, armWidth, 12),
-            Rect(40, 20, 4, 12),
-            Rect(armU, 16, armWidth, 4),
-            Rect(armU + armWidth, 16, armWidth, 4),
-        }));
-
-        // 左臂（镜像，复用右臂贴图）
-        group.Children.Add(Box(armWidth, 12, 4, 4 + armWidth / 2, -10, material, new[]
-        {
-            Rect(armU, 20, armWidth, 12),
-            Rect(armU + armWidth, 20, 4, 12),
-            Rect(56, 20, armWidth, 12),
-            Rect(40, 20, 4, 12),
-            Rect(armU, 16, armWidth, 4),
-            Rect(armU + armWidth, 16, armWidth, 4),
-        }));
-
-        // 右腿
-        group.Children.Add(Box(4, 12, 4, -2, -22, material, new[]
-        {
-            Rect(4, 20, 4, 12),
-            Rect(8, 20, 4, 12),
-            Rect(12, 20, 4, 12),
-            Rect(0, 20, 4, 12),
-            Rect(4, 16, 4, 4),
-            Rect(8, 16, 4, 4),
-        }));
-
-        // 左腿
-        group.Children.Add(Box(4, 12, 4, 2, -22, material, new[]
-        {
-            Rect(20, 52, 4, 12),
-            Rect(24, 52, 4, 12),
-            Rect(28, 52, 4, 12),
-            Rect(16, 52, 4, 12),
-            Rect(20, 48, 4, 4),
-            Rect(24, 48, 4, 4),
-        }));
+        group.Children.Add(Box(new Rect3(-2, -18, 0, 4, BodyHeight, LimbDepth), material, RightLegFaces));
+        group.Children.Add(Box(new Rect3(2, -18, 0, 4, BodyHeight, LimbDepth), material, LeftLegFaces));
 
         return group;
     }
 
     public static PerspectiveCamera Camera() => new()
     {
-        Position = new Point3D(0, -12, 78),
-        LookDirection = new Vector3D(0, 0, -78),
+        Position = new Point3D(0, -8, 104),
+        LookDirection = new Vector3D(0, 0, -104),
         UpDirection = new Vector3D(0, 1, 0),
-        FieldOfView = 30,
+        FieldOfView = 40,
     };
 
     public static Model3DGroup Lights()
     {
         var group = new Model3DGroup();
-        group.Children.Add(new AmbientLight(Color.FromRgb(0x8A, 0x8A, 0x8A)));
-        group.Children.Add(new DirectionalLight(Color.FromRgb(0xFF, 0xFF, 0xFF), new Vector3D(-0.5, -0.6, -1)));
-        group.Children.Add(new DirectionalLight(Color.FromRgb(0x60, 0x60, 0x70), new Vector3D(0.7, 0.2, -0.4)));
+        group.Children.Add(new AmbientLight(Color.FromRgb(0xAA, 0xAA, 0xAA)));
+        group.Children.Add(new DirectionalLight(Color.FromRgb(0xFF, 0xFF, 0xFF), new Vector3D(-0.4, -0.6, -1)));
+        group.Children.Add(new DirectionalLight(Color.FromRgb(0x55, 0x60, 0x70), new Vector3D(0.8, 0.3, -0.6)));
         return group;
     }
 
-    private static Material WhiteMaterial()
+    // ---- 皮肤 UV 区域（64x64 皮肤）----
+    private static readonly Rect[] HeadFaces =
     {
-        var group = new MaterialGroup();
-        group.Children.Add(new DiffuseMaterial(new SolidColorBrush(Color.FromRgb(0xE8, 0xE8, 0xEE))));
-        return group;
-    }
+        new(8, 8, 8, 8),    // front
+        new(16, 8, 8, 8),   // left
+        new(24, 8, 8, 8),   // back
+        new(0, 8, 8, 8),    // right
+        new(8, 0, 8, 8),    // top
+        new(16, 0, 8, 8),   // bottom
+    };
 
-    private static MaterialGroup SkinMaterial(BitmapSource skin)
+    private static readonly Rect[] BodyFaces =
     {
+        new(20, 20, 8, 12),
+        new(28, 20, 4, 12),
+        new(32, 20, 8, 12),
+        new(16, 20, 4, 12),
+        new(20, 16, 8, 4),
+        new(28, 16, 8, 4),
+    };
+
+    private static readonly Rect[] ArmFaces =
+    {
+        new(44, 20, 4, 12),
+        new(48, 20, 4, 12),
+        new(56, 20, 4, 12),
+        new(40, 20, 4, 12),
+        new(44, 16, 4, 4),
+        new(48, 16, 4, 4),
+    };
+
+    private static readonly Rect[] RightLegFaces =
+    {
+        new(4, 20, 4, 12),
+        new(8, 20, 4, 12),
+        new(12, 20, 4, 12),
+        new(0, 20, 4, 12),
+        new(4, 16, 4, 4),
+        new(8, 16, 4, 4),
+    };
+
+    private static readonly Rect[] LeftLegFaces =
+    {
+        new(20, 52, 4, 12),
+        new(24, 52, 4, 12),
+        new(28, 52, 4, 12),
+        new(16, 52, 4, 12),
+        new(20, 48, 4, 4),
+        new(24, 48, 4, 4),
+    };
+
+    private static Material MaterialFor(BitmapSource? skin)
+    {
+        if (skin == null)
+        {
+            return new DiffuseMaterial(new SolidColorBrush(Color.FromRgb(0xEE, 0xEE, 0xF2)));
+        }
+
+        // 用绝对像素坐标取皮肤区域
         var brush = new ImageBrush(skin)
         {
-            Stretch = Stretch.Fill,
             ViewboxUnits = BrushMappingMode.Absolute,
+            Viewbox = new Rect(0, 0, skin.PixelWidth, skin.PixelHeight),
+            Stretch = Stretch.Fill,
+            AlignmentX = AlignmentX.Left,
+            AlignmentY = AlignmentY.Top,
         };
         brush.Freeze();
-
-        var group = new MaterialGroup();
-        group.Children.Add(new DiffuseMaterial(brush));
-        return group;
+        return new DiffuseMaterial(brush);
     }
 
-    private static Rect Rect(double x, double y, double w, double h) => new(x, y, w, h);
+    private readonly record struct Rect3(double X, double Y, double Z, double W, double H, double D);
 
-    /// <summary>一个长方体，faces 依次是 front/left/back/right/top/bottom 的皮肤区域（像素坐标）。</summary>
-    private static GeometryModel3D Box(double width, double height, double depth, double centerX, double centerY,
-        Material material, Rect[] faces)
+    /// <summary>建一个长方体；faces 顺序为 front/left/back/right/top/bottom。</summary>
+    private static GeometryModel3D Box(Rect3 box, Material material, Rect[] faces)
     {
         var mesh = new MeshGeometry3D();
-        var hw = width / 2;
-        var hh = height / 2;
-        var hd = depth / 2;
+        var hw = box.W / 2;
+        var hh = box.H / 2;
+        var hd = box.D / 2;
 
-        // 顶点顺序：0-3 前面，4-7 左面，8-11 后面，12-15 右面，16-19 顶面，20-23 底面
-        AddFace(mesh, new Point3D(-hw, hh, hd), new Point3D(hw, hh, hd), new Point3D(hw, -hh, hd), new Point3D(-hw, -hh, hd), faces[0]);
-        AddFace(mesh, new Point3D(-hw, hh, -hd), new Point3D(-hw, hh, hd), new Point3D(-hw, -hh, hd), new Point3D(-hw, -hh, -hd), faces[1]);
-        AddFace(mesh, new Point3D(hw, hh, -hd), new Point3D(-hw, hh, -hd), new Point3D(-hw, -hh, -hd), new Point3D(hw, -hh, -hd), faces[2]);
-        AddFace(mesh, new Point3D(hw, hh, hd), new Point3D(hw, hh, -hd), new Point3D(hw, -hh, -hd), new Point3D(hw, -hh, hd), faces[3]);
-        AddFace(mesh, new Point3D(-hw, hh, -hd), new Point3D(hw, hh, -hd), new Point3D(hw, hh, hd), new Point3D(-hw, hh, hd), faces[4]);
-        AddFace(mesh, new Point3D(-hw, -hh, hd), new Point3D(hw, -hh, hd), new Point3D(hw, -hh, -hd), new Point3D(-hw, -hh, -hd), faces[5]);
+        // 局部坐标，最后整体平移
+        AddQuad(mesh, 0, faces[0],
+            new Point3D(-hw, hh, hd), new Point3D(hw, hh, hd), new Point3D(hw, -hh, hd), new Point3D(-hw, -hh, hd),
+            new Vector3D(0, 0, 1));
+        AddQuad(mesh, 0, faces[1],
+            new Point3D(-hw, hh, -hd), new Point3D(-hw, hh, hd), new Point3D(-hw, -hh, hd), new Point3D(-hw, -hh, -hd),
+            new Vector3D(-1, 0, 0));
+        AddQuad(mesh, 0, faces[2],
+            new Point3D(hw, hh, -hd), new Point3D(-hw, hh, -hd), new Point3D(-hw, -hh, -hd), new Point3D(hw, -hh, -hd),
+            new Vector3D(0, 0, -1));
+        AddQuad(mesh, 0, faces[3],
+            new Point3D(hw, hh, hd), new Point3D(hw, hh, -hd), new Point3D(hw, -hh, -hd), new Point3D(hw, -hh, hd),
+            new Vector3D(1, 0, 0));
+        AddQuad(mesh, 0, faces[4],
+            new Point3D(-hw, hh, -hd), new Point3D(hw, hh, -hd), new Point3D(hw, hh, hd), new Point3D(-hw, hh, hd),
+            new Vector3D(0, 1, 0));
+        AddQuad(mesh, 0, faces[5],
+            new Point3D(-hw, -hh, hd), new Point3D(hw, -hh, hd), new Point3D(hw, -hh, -hd), new Point3D(-hw, -hh, -hd),
+            new Vector3D(0, -1, 0));
 
-        mesh.Freeze();
-
-        var model = new GeometryModel3D(mesh, material);
-        var transform = new Transform3DGroup();
-        transform.Children.Add(new TranslateTransform3D(centerX, centerY, 0));
-        model.Transform = transform;
+        var model = new GeometryModel3D(mesh, material)
+        {
+            Transform = new TranslateTransform3D(box.X, box.Y, box.Z),
+        };
 
         return model;
     }
 
-    private static void AddFace(MeshGeometry3D mesh, Point3D a, Point3D b, Point3D c, Point3D d, Rect uv)
+    private static void AddQuad(MeshGeometry3D mesh, int _ , Rect uv, Point3D a, Point3D b, Point3D c, Point3D d,
+        Vector3D normal)
     {
-        var index = mesh.Positions.Count;
+        var start = mesh.Positions.Count;
+
         mesh.Positions.Add(a);
         mesh.Positions.Add(b);
         mesh.Positions.Add(c);
         mesh.Positions.Add(d);
 
-        mesh.TextureCoordinates.Add(new Point(uv.Left, uv.Top));
-        mesh.TextureCoordinates.Add(new Point(uv.Right, uv.Top));
-        mesh.TextureCoordinates.Add(new Point(uv.Right, uv.Bottom));
-        mesh.TextureCoordinates.Add(new Point(uv.Left, uv.Bottom));
+        mesh.Normals.Add(normal);
+        mesh.Normals.Add(normal);
+        mesh.Normals.Add(normal);
+        mesh.Normals.Add(normal);
 
-        // WPF 默认剔除背面，顶点顺序必须是逆时针
-        mesh.TriangleIndices.Add(index);
-        mesh.TriangleIndices.Add(index + 2);
-        mesh.TriangleIndices.Add(index + 1);
-        mesh.TriangleIndices.Add(index);
-        mesh.TriangleIndices.Add(index + 3);
-        mesh.TriangleIndices.Add(index + 2);
+        // 纹理坐标按 uv 归一化到 64x64 皮肤
+        var u0 = uv.Left / 64.0;
+        var v0 = uv.Top / 64.0;
+        var u1 = uv.Right / 64.0;
+        var v1 = uv.Bottom / 64.0;
+
+        mesh.TextureCoordinates.Add(new Point(u0, v0));
+        mesh.TextureCoordinates.Add(new Point(u1, v0));
+        mesh.TextureCoordinates.Add(new Point(u1, v1));
+        mesh.TextureCoordinates.Add(new Point(u0, v1));
+
+        // 逆时针（从外面看）
+        mesh.TriangleIndices.Add(start);
+        mesh.TriangleIndices.Add(start + 1);
+        mesh.TriangleIndices.Add(start + 2);
+        mesh.TriangleIndices.Add(start);
+        mesh.TriangleIndices.Add(start + 2);
+        mesh.TriangleIndices.Add(start + 3);
     }
 }

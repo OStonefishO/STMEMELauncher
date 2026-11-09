@@ -570,6 +570,19 @@
                                                    VerticalAlignment="Center" Margin="8,0,0,0"/>
                                     </StackPanel>
                                 </Button>
+                                <Popup x:Name="VersionPopover" PlacementTarget="{Binding ElementName=VersionPickerButton}"
+                                       Placement="Top" StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade">
+                                    <Border CornerRadius="14" Background="#F2141A24" BorderBrush="#3A5B8CFF"
+                                            BorderThickness="1" Padding="6" Margin="0,0,0,8" Width="380">
+                                        <Border.Effect>
+                                            <DropShadowEffect Color="#000000" BlurRadius="24" ShadowDepth="6" Opacity="0.55"/>
+                                        </Border.Effect>
+                                        <ScrollViewer MaxHeight="300" VerticalScrollBarVisibility="Auto">
+                                            <StackPanel x:Name="VersionPopoverList"/>
+                                        </ScrollViewer>
+                                    </Border>
+                                </Popup>
+
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                                     <Button Content="版本管理" Style="{StaticResource GlassButton}" Padding="12,4" FontSize="11"
                                             Click="OnOpenVersionManager"/>
@@ -1065,16 +1078,16 @@
                                        Foreground="{StaticResource InkDim}" Margin="0,6,0,0"/>
                         </StackPanel>
 
-                        <ScrollViewer Grid.Row="1" Margin="26,0,0,0" VerticalScrollBarVisibility="Auto">
-                            <StackPanel MaxWidth="1180" HorizontalAlignment="Left">
+                        <Grid Grid.Row="1" Margin="26,0,16,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1.05*"/>
+                                <ColumnDefinition Width="1*"/>
+                                <ColumnDefinition Width="16"/>
+                            </Grid.ColumnDefinitions>
 
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="1.05*"/>
-                                        <ColumnDefinition Width="1*"/>
-                                    </Grid.ColumnDefinitions>
-
-                                    <Border Grid.Column="0" CornerRadius="16" Background="{StaticResource Glass}"
+                            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
+                                <StackPanel>
+                                    <Border CornerRadius="16" Background="{StaticResource Glass}"
                                             BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16">
                                         <StackPanel>
                                             <Grid>
@@ -1125,9 +1138,57 @@
                                         </StackPanel>
                                     </Border>
 
-                                    <Border Grid.Column="1" CornerRadius="16" Background="{StaticResource Glass}"
+                                    <Border CornerRadius="16" Background="{StaticResource Glass}"
                                             BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16"
-                                            Margin="14,0,0,0">
+                                            Margin="0,14,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="樱花穿透" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
+                                            <TextBlock Text="在 natfrp.com 建一个 TCP 隧道指向本机端口，然后填访问密钥和隧道 ID。"
+                                                       FontSize="11" Foreground="{StaticResource InkFaint}" Margin="0,5,0,12" TextWrapping="Wrap"/>
+
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="12"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0">
+                                                    <TextBlock Text="访问密钥" FontSize="11" Foreground="{StaticResource InkDim}"/>
+                                                    <TextBox x:Name="TunnelTokenBox" Height="32" Margin="0,6,0,0"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2">
+                                                    <TextBlock Text="隧道 ID（多个用逗号分隔）" FontSize="11" Foreground="{StaticResource InkDim}"/>
+                                                    <TextBox x:Name="TunnelIdBox" Height="32" Margin="0,6,0,0"/>
+                                                </StackPanel>
+                                            </Grid>
+
+                                            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                                <Button x:Name="TunnelStartButton" Content="启动隧道" Style="{StaticResource GlassButton}"
+                                                        Click="OnStartTunnel"/>
+                                                <Button x:Name="TunnelStopButton" Content="停止" Style="{StaticResource GlassButton}"
+                                                        Margin="10,0,0,0" Click="OnStopTunnel" IsEnabled="False"/>
+                                                <Button Content="下载 frpc" Style="{StaticResource GlassButton}" Margin="10,0,0,0"
+                                                        Click="OnEnsureFrpc"/>
+                                            </StackPanel>
+
+                                            <TextBlock x:Name="TunnelStatus" Text="未启动" FontSize="11.5" Margin="0,10,0,0"
+                                                       Foreground="{StaticResource InkFaint}" TextWrapping="Wrap"/>
+
+                                            <Border CornerRadius="10" Background="#0B0E13" Margin="0,10,0,0" Padding="10" Height="150">
+                                                <TextBox x:Name="TunnelLog" Background="Transparent" BorderThickness="0"
+                                                         Foreground="#FF9AA6BA" FontFamily="Consolas" FontSize="11"
+                                                         IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap"
+                                                         VerticalScrollBarVisibility="Auto"/>
+                                            </Border>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </ScrollViewer>
+
+                            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+                                <StackPanel>
+                                    <Border CornerRadius="16" Background="{StaticResource Glass}"
+                                            BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16">
                                         <StackPanel>
                                             <TextBlock Text="本机地址" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
                                             <TextBlock Text="IPv6 是公网地址，朋友可以直接连；IPv4 一般需要穿透或同一局域网。"
@@ -1152,69 +1213,25 @@
                                             <StackPanel x:Name="AddressList" Margin="0,14,0,0"/>
                                         </StackPanel>
                                     </Border>
-                                </Grid>
 
-                                <Border CornerRadius="16" Background="{StaticResource Glass}"
-                                        BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16"
-                                        Margin="0,14,0,0">
-                                    <StackPanel>
-                                        <TextBlock Text="樱花穿透" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
-                                        <TextBlock Text="在 natfrp.com 建一个 TCP 隧道指向本机端口，然后填访问密钥和隧道 ID。"
-                                                   FontSize="11" Foreground="{StaticResource InkFaint}" Margin="0,5,0,12" TextWrapping="Wrap"/>
-
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="12"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <StackPanel Grid.Column="0">
-                                                <TextBlock Text="访问密钥" FontSize="11" Foreground="{StaticResource InkDim}"/>
-                                                <TextBox x:Name="TunnelTokenBox" Height="32" Margin="0,6,0,0"/>
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="2">
-                                                <TextBlock Text="隧道 ID（多个用逗号分隔）" FontSize="11" Foreground="{StaticResource InkDim}"/>
-                                                <TextBox x:Name="TunnelIdBox" Height="32" Margin="0,6,0,0"/>
-                                            </StackPanel>
-                                        </Grid>
-
-                                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                                            <Button x:Name="TunnelStartButton" Content="启动隧道" Style="{StaticResource GlassButton}"
-                                                    Click="OnStartTunnel"/>
-                                            <Button x:Name="TunnelStopButton" Content="停止" Style="{StaticResource GlassButton}"
-                                                    Margin="10,0,0,0" Click="OnStopTunnel" IsEnabled="False"/>
-                                            <Button Content="下载 frpc" Style="{StaticResource GlassButton}" Margin="10,0,0,0"
-                                                    Click="OnEnsureFrpc"/>
+                                    <Border CornerRadius="16" Background="{StaticResource Glass}"
+                                            BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16"
+                                            Margin="0,14,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="服务端控制台" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
+                                            <Border CornerRadius="10" Background="#0B0E13" Margin="0,10,0,0" Padding="10" Height="280">
+                                                <TextBox x:Name="ServerLog" Background="Transparent" BorderThickness="0"
+                                                         Foreground="#FF9AA6BA" FontFamily="Consolas" FontSize="11"
+                                                         IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap"
+                                                         VerticalScrollBarVisibility="Auto"/>
+                                            </Border>
                                         </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Grid>
 
-                                        <TextBlock x:Name="TunnelStatus" Text="未启动" FontSize="11.5" Margin="0,10,0,0"
-                                                   Foreground="{StaticResource InkFaint}" TextWrapping="Wrap"/>
-
-                                        <Border CornerRadius="10" Background="#0B0E13" Margin="0,10,0,0" Padding="10" Height="130">
-                                            <TextBox x:Name="TunnelLog" Background="Transparent" BorderThickness="0"
-                                                     Foreground="#FF9AA6BA" FontFamily="Consolas" FontSize="11"
-                                                     IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap"
-                                                     VerticalScrollBarVisibility="Auto"/>
-                                        </Border>
-                                    </StackPanel>
-                                </Border>
-
-                                <Border CornerRadius="16" Background="{StaticResource Glass}"
-                                        BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16"
-                                        Margin="0,14,0,0">
-                                    <StackPanel>
-                                        <TextBlock Text="服务端控制台" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
-                                        <Border CornerRadius="10" Background="#0B0E13" Margin="0,10,0,0" Padding="10" Height="180">
-                                            <TextBox x:Name="ServerLog" Background="Transparent" BorderThickness="0"
-                                                     Foreground="#FF9AA6BA" FontFamily="Consolas" FontSize="11"
-                                                     IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap"
-                                                     VerticalScrollBarVisibility="Auto"/>
-                                        </Border>
-                                    </StackPanel>
-                                </Border>
-                            </StackPanel>
-                        </ScrollViewer>
-                    </Grid>
+</Grid>
 
                     <!-- ========== 账号页 ========== -->
                     <Grid x:Name="AccountPage" Visibility="Collapsed">
@@ -1280,8 +1297,16 @@
                                                            TextWrapping="Wrap"/>
                                             </StackPanel>
                                         </Grid>
-                                        <Border CornerRadius="10" Background="#0B0E13" Padding="8" Margin="0,12,0,0" Height="200">
-                                            <Image x:Name="AccountSkinImage" Stretch="Uniform"/>
+                                        <Border CornerRadius="10" Background="#0B0E13" Margin="0,12,0,0" Height="220"
+                                                ClipToBounds="True">
+                                            <Grid>
+                                                <Image x:Name="AccountSkinImage" Stretch="Uniform" Visibility="Collapsed"/>
+                                                <Viewport3D x:Name="AccountSkinViewport" ClipToBounds="True"
+                                                            MouseLeftButtonDown="OnSkinViewportDown"
+                                                            MouseLeftButtonUp="OnSkinViewportUp"
+                                                            MouseMove="OnSkinViewportMove"
+                                                            Cursor="SizeAll"/>
+                                            </Grid>
                                         </Border>
                                         <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                                             <Button Content="Steve（粗胳膊）" Visibility="Collapsed" Style="{StaticResource GlassButton}"

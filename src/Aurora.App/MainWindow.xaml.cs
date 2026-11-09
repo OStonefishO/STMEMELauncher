@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.10.2";
+    private const string AppVersion = "0.10.3";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -3374,9 +3374,55 @@ public partial class MainWindow : Window
         }
     }
 
+    private AxisAngleRotation3D? _skinRotation;
+    private Point _dragStart;
+    private bool _dragging;
+
     private void UpdateSkinModel(BitmapSource? skin)
     {
-        // 3D 预览暂时关闭，先用平面图
+        if (AccountSkinViewport == null)
+        {
+            return;
+        }
+
+        AccountSkinViewport.Children.Clear();
+        AccountSkinViewport.Camera = SkinModel3D.Camera();
+        AccountSkinViewport.Children.Add(new ModelVisual3D { Content = SkinModel3D.Lights() });
+
+        var model = SkinModel3D.Build(skin, _skinSlim);
+        _skinRotation = new AxisAngleRotation3D(new Vector3D(0, 1, 0), -20);
+        var transform = new Transform3DGroup();
+        transform.Children.Add(new RotateTransform3D(_skinRotation));
+        model.Transform = transform;
+
+        AccountSkinViewport.Children.Add(new ModelVisual3D { Content = model });
+    }
+
+    private void OnSkinViewportDown(object sender, MouseButtonEventArgs e)
+    {
+        _dragging = true;
+        _dragStart = e.GetPosition(AccountSkinViewport);
+        AccountSkinViewport.CaptureMouse();
+        e.Handled = true;
+    }
+
+    private void OnSkinViewportUp(object sender, MouseButtonEventArgs e)
+    {
+        _dragging = false;
+        AccountSkinViewport.ReleaseMouseCapture();
+    }
+
+    private void OnSkinViewportMove(object sender, MouseEventArgs e)
+    {
+        if (!_dragging || _skinRotation == null)
+        {
+            return;
+        }
+
+        var point = e.GetPosition(AccountSkinViewport);
+        var dx = point.X - _dragStart.X;
+        _dragStart = point;
+        _skinRotation.Angle += dx * 0.8;
     }
 
     private async void RefreshCurrentSkinPreview()
@@ -3390,6 +3436,7 @@ public partial class MainWindow : Window
         AccountSkinName.Text = account.Name + "（" + account.TypeLabel + "）";
         AccountSkinStatus.Text = "读取皮肤…";
         AccountHeadImage.Source = null;
+        UpdateSkinModel(null);
         _skinBitmap = null;
 
         try
@@ -3416,6 +3463,7 @@ public partial class MainWindow : Window
 
             AccountHeadImage.Source = SkinImage.Head(bytes, 88);
             _skinBitmap = SkinImage.FromBytes(bytes);
+            UpdateSkinModel(_skinBitmap);
             if (AccountSkinImage != null)
             {
                 AccountSkinImage.Source = SkinImage.Full(bytes, 256);
@@ -3757,65 +3805,92 @@ public partial class MainWindow : Window
             return;
         }
 
-        var panel = new StackPanel { Margin = new Thickness(20) };
-        var box = new ListBox
-        {
-            Height = 320,
-            Background = new SolidColorBrush(Color.FromRgb(0x0B, 0x0E, 0x13)),
-            BorderThickness = new Thickness(0),
-            Foreground = (Brush)FindResource("Ink"),
-            ItemsSource = list.Select(c => c.Summary.Id).ToList(),
-        };
+        BuildVersionPopover(list);
+        VersionPopover.IsOpen = !VersionPopover.IsOpen;
+    }
 
-        box.SelectedItem = (VersionList.SelectedItem as VersionCard)?.Summary.Id;
-        panel.Children.Add(box);
+    private void BuildVersionPopover(List<VersionCard> versions)
+    {
+        if (VersionPopoverList == null)
+        {
+            return;
+        }
 
-        var buttons = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Margin = new Thickness(0, 14, 0, 0),
-        };
-        var ok = new Button { Content = "用这个版本", Style = (Style)FindResource("HeroButton"), Width = 130, Height = 36 };
-        var cancel = new Button
-        {
-            Content = "取消",
-            Style = (Style)FindResource("GlassButton"),
-            Width = 80,
-            Margin = new Thickness(8, 0, 0, 0),
-        };
-        buttons.Children.Add(ok);
-        buttons.Children.Add(cancel);
-        panel.Children.Add(buttons);
+        VersionPopoverList.Children.Clear();
+        var current = (VersionList.SelectedItem as VersionCard)?.Summary.Id;
 
-        var window = new Window
+        foreach (var card in versions)
         {
-            Owner = this,
-            Title = "选择版本",
-            Width = 460,
-            SizeToContent = SizeToContent.Height,
-            ResizeMode = ResizeMode.NoResize,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Background = (Brush)FindResource("Bg"),
-            Content = panel,
-        };
+            var isCurrent = string.Equals(card.Summary.Id, current, StringComparison.OrdinalIgnoreCase);
 
-        ok.Click += (_, __) =>
-        {
-            if (box.SelectedItem is string id)
+            var row = new Grid { Margin = new Thickness(0, 0, 0, 2) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var text = new StackPanel { Margin = new Thickness(12, 8, 8, 8) };
+            text.Children.Add(new TextBlock
             {
-                var target = list.FirstOrDefault(c => c.Summary.Id == id);
-                if (target != null)
+                Text = card.Summary.Id,
+                FontSize = 12.5,
+                FontWeight = isCurrent ? FontWeights.SemiBold : FontWeights.Normal,
+                Foreground = (Brush)FindResource(isCurrent ? "Ink" : "InkDim"),
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            });
+            text.Children.Add(new TextBlock
+            {
+                Text = $"MC {card.Summary.ClientVersion} · {card.Summary.Loader} · {card.Summary.ModCount} mods",
+                FontSize = 10,
+                Foreground = (Brush)FindResource("InkFaint"),
+                Margin = new Thickness(0, 3, 0, 0),
+            });
+            row.Children.Add(text);
+
+            if (isCurrent)
+            {
+                var badge = new TextBlock
                 {
-                    VersionList.SelectedItem = target;
-                }
+                    Text = "✓",
+                    FontSize = 13,
+                    Foreground = new SolidColorBrush(Color.FromRgb(0x86, 0xEF, 0xAC)),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 0, 10, 0),
+                };
+                Grid.SetColumn(badge, 1);
+                row.Children.Add(badge);
             }
 
-            window.Close();
-        };
-        cancel.Click += (_, __) => window.Close();
+            var border = new Border
+            {
+                CornerRadius = new CornerRadius(9),
+                Background = isCurrent
+                    ? new SolidColorBrush(Color.FromArgb(0x33, 0x5B, 0x8C, 0xFF))
+                    : Brushes.Transparent,
+                Child = row,
+                Cursor = System.Windows.Input.Cursors.Hand,
+            };
 
-        window.ShowDialog();
+            border.MouseEnter += (_, __) =>
+            {
+                if (!isCurrent)
+                {
+                    border.Background = new SolidColorBrush(Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF));
+                }
+            };
+            border.MouseLeave += (_, __) =>
+            {
+                if (!isCurrent)
+                {
+                    border.Background = Brushes.Transparent;
+                }
+            };
+            border.MouseLeftButtonUp += (_, __) =>
+            {
+                VersionList.SelectedItem = card;
+                VersionPopover.IsOpen = false;
+            };
+
+            VersionPopoverList.Children.Add(border);
+        }
     }
 
     private void OnVersionWheel(object sender, MouseWheelEventArgs e)
