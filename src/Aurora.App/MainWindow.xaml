@@ -132,7 +132,7 @@
         <Style x:Key="GlassButton" TargetType="Button">
             <Setter Property="Foreground" Value="{StaticResource Ink}"/>
             <Setter Property="Background" Value="#14FFFFFF"/>
-            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="Padding" Value="16,6"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -716,9 +716,9 @@
                         <StackPanel Grid.Row="0" Margin="26,6,0,14">
                             <TextBlock Text="内容" FontSize="32" FontFamily="{StaticResource FontHead}" Foreground="{StaticResource TitleGrad}"/>
                             <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                                <Button Content="安装版本" Style="{StaticResource HeroButton}" Height="32" Width="110" Click="OnTabInstall"/>
-                                <Button Content="内容下载" Style="{StaticResource GlassButton}" Height="32" Width="110" Margin="10,0,0,0"
-                                        Click="OnTabContent"/>
+                                <Button Content="安装版本" Style="{StaticResource HeroButton}" Height="34" Width="110" Padding="0" Click="OnTabInstall"/>
+                                <Button Content="内容下载" Style="{StaticResource GlassButton}" Height="34" Width="110" Padding="0"
+                                        Margin="10,0,0,0" Click="OnTabContent"/>
                             </StackPanel>
                         </StackPanel>
 
@@ -806,12 +806,13 @@
                             <TextBlock Text="内容" FontSize="32" FontFamily="{StaticResource FontHead}" Foreground="{StaticResource TitleGrad}"/>
                             <Grid Margin="0,10,0,0">
                                 <StackPanel Orientation="Horizontal">
-                                    <Button Content="安装版本" Style="{StaticResource GlassButton}" Height="32" Width="110" Click="OnTabInstall"/>
-                                    <Button Content="内容下载" Style="{StaticResource HeroButton}" Height="32" Width="110" Margin="10,0,0,0"
-                                            Click="OnTabContent"/>
+                                    <Button Content="安装版本" Style="{StaticResource GlassButton}" Height="34" Width="110"
+                                            Padding="0" Click="OnTabInstall"/>
+                                    <Button Content="内容下载" Style="{StaticResource HeroButton}" Height="34" Width="110"
+                                            Padding="0" Margin="10,0,0,0" Click="OnTabContent"/>
                                 </StackPanel>
                                 <Button x:Name="DownloadsButton" Content="下载管理" HorizontalAlignment="Right"
-                                        Style="{StaticResource GlassButton}" Height="32" Click="OnToggleDownloads"/>
+                                        Style="{StaticResource GlassButton}" Height="34" Click="OnToggleDownloads"/>
                             </Grid>
                         </StackPanel>
 
@@ -1540,10 +1541,27 @@
                                         Margin="0,12,0,0">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <StackPanel>
+
+                                        <Border Width="78" Height="78" CornerRadius="39" Background="{StaticResource AccentGrad}"
+                                                VerticalAlignment="Center">
+                                            <Border.Effect>
+                                                <DropShadowEffect Color="#5B8CFF" BlurRadius="22" ShadowDepth="0" Opacity="0.45"/>
+                                            </Border.Effect>
+                                            <Border CornerRadius="36" Margin="3" Background="#FF0B0E13">
+                                                <Image Source="/Assets/brand/avatar.jpg" Stretch="UniformToFill"
+                                                       RenderOptions.BitmapScalingMode="HighQuality">
+                                                    <Image.Clip>
+                                                        <EllipseGeometry Center="36,36" RadiusX="36" RadiusY="36"/>
+                                                    </Image.Clip>
+                                                </Image>
+                                            </Border>
+                                        </Border>
+
+                                        <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
                                             <TextBlock Text="FOR STONEFISH8" FontSize="21" FontWeight="Bold"
                                                        FontFamily="{StaticResource FontHead}"
                                                        Foreground="{StaticResource TitleGrad}"/>
@@ -1552,7 +1570,8 @@
                                             <TextBlock Text="MAKE WITH LOVE" FontSize="10" Foreground="{StaticResource InkFaint}"
                                                        Margin="0,12,0,0"/>
                                         </StackPanel>
-                                        <Button Grid.Column="1" Content="我的 B 站主页 ↗" Style="{StaticResource GlassButton}"
+
+                                        <Button Grid.Column="2" Content="我的 B 站主页 ↗" Style="{StaticResource GlassButton}"
                                                 VerticalAlignment="Center" Margin="16,0,0,0" Click="OnOpenBiliSpace"/>
                                     </Grid>
                                 </Border>
@@ -1594,9 +1613,9 @@
                             <Grid Margin="0,10,0,0">
                                 <StackPanel Orientation="Horizontal">
                                     <Button x:Name="FunTabBili" Content="哔哩哔哩" Style="{StaticResource HeroButton}"
-                                            Height="32" Width="104" Click="OnFunTab"/>
+                                            Height="34" Width="104" Padding="0" Click="OnFunTab"/>
                                     <Button x:Name="FunTabMusic" Content="音乐" Style="{StaticResource GlassButton}"
-                                            Height="32" Width="104" Margin="10,0,0,0" Click="OnFunTab"/>
+                                            Height="34" Width="104" Padding="0" Margin="10,0,0,0" Click="OnFunTab"/>
                                 </StackPanel>
                                 <TextBlock x:Name="FunStatus" HorizontalAlignment="Right" VerticalAlignment="Center"
                                            FontSize="11.5" Foreground="{StaticResource InkFaint}"
@@ -1615,7 +1634,7 @@
                                 </Grid.RowDefinitions>
 
                                 <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
-                                    <Button Content="←" Style="{StaticResource GlassButton}" Width="36" Height="28"
+                                    <Button Content="←" Style="{StaticResource GlassButton}" Width="38" Height="30"
                                             Padding="0" FontSize="12" Click="OnBiliBack" ToolTip="后退"/>
                                     <Button Content="→" Style="{StaticResource GlassButton}" Width="36" Height="28"
                                             Padding="0" FontSize="12" Margin="6,0,0,0" Click="OnBiliForward" ToolTip="前进"/>
