@@ -1311,8 +1311,8 @@
                                                 <ColumnDefinition Width="Auto"/>
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
-                                            <Border Width="88" Height="88" CornerRadius="16" Background="#1AFFFFFF">
-                                                <Image x:Name="AccountHeadImage" Stretch="UniformToFill"/>
+                                            <Border Width="88" Height="88" CornerRadius="16" Background="#1AFFFFFF" ClipToBounds="True">
+                                                <Image x:Name="AccountHeadImage" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="NearestNeighbor"/>
                                             </Border>
                                             <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center">
                                                 <TextBlock x:Name="AccountSkinName" Text="当前账号" FontSize="12.5"

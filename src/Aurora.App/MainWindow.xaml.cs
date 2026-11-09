@@ -3446,7 +3446,7 @@ public partial class MainWindow : Window
                 }
             };
 
-            var page = Path.Combine(AppContext.BaseDirectory, "Assets", "skinview", "viewer.html");
+            var page = EnsureSkinViewerAssets();
             AccountSkinWeb.Source = new Uri(page);
             _skinWebReady = true;
 
@@ -3464,6 +3464,37 @@ public partial class MainWindow : Window
             // WebView2 不可用时静默降级（只显示头像）
             AccountSkinStatus.Text = "3D 预览不可用: " + ex.Message;
         }
+    }
+
+    /// <summary>把内嵌的 viewer.html / bundle 释放到本地目录，单文件 exe 也能用。</summary>
+    private static string EnsureSkinViewerAssets()
+    {
+        var dir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "MEMELauncher", "skinview");
+        Directory.CreateDirectory(dir);
+
+        foreach (var name in new[] { "viewer.html", "skinview3d.bundle.js" })
+        {
+            var target = Path.Combine(dir, name);
+            if (File.Exists(target) && new FileInfo(target).Length > 0)
+            {
+                continue;
+            }
+
+            var resource = "Aurora.App.Assets.skinview." + name;
+            using var stream = System.Reflection.Assembly.GetExecutingAssembly()
+                .GetManifestResourceStream(resource);
+            if (stream == null)
+            {
+                continue;
+            }
+
+            using var file = File.Create(target);
+            stream.CopyTo(file);
+        }
+
+        return Path.Combine(dir, "viewer.html");
     }
 
     private async Task ShowSkinInWeb(byte[]? bytes, byte[]? capeBytes = null)
@@ -3531,7 +3562,7 @@ public partial class MainWindow : Window
                         return;
             }
 
-            AccountHeadImage.Source = SkinImage.Head(bytes, 88);
+            AccountHeadImage.Source = SkinImage.Head(bytes, 176);
             _skinBitmap = SkinImage.FromBytes(bytes);
 
             byte[]? capeBytes = null;
