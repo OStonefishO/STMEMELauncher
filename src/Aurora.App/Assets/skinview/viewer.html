@@ -13,6 +13,12 @@
 <body>
 <canvas id="skin"></canvas>
 <div class="hint">拖动可以旋转</div>
+<div id="diag" style="position:fixed;left:6px;top:6px;right:6px;font:10px monospace;color:#ff8080;white-space:pre-wrap"></div>
+<script>
+  window.onerror = function (msg, src, line, col) {
+    document.getElementById('diag').textContent = 'JS 错误: ' + msg + ' @' + line + ':' + col;
+  };
+</script>
 <script>
 (function () {
   var params = new URLSearchParams(location.search);
@@ -28,6 +34,11 @@
   }
 
   var skinUrl = params.get('skin') || whiteSkin();
+
+  if (typeof skinview3d === 'undefined') {
+    document.getElementById('diag').textContent = 'skinview3d 没加载（bundle 路径不对？）';
+    return;
+  }
 
   var viewer = new skinview3d.SkinViewer({
     canvas: canvas,

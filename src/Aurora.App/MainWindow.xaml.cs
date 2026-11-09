@@ -3447,9 +3447,12 @@ public partial class MainWindow : Window
             };
 
             var page = Path.Combine(AppContext.BaseDirectory, "Assets", "skinview", "viewer.html");
-            AccountSkinWeb.Visibility = Visibility.Collapsed;
             AccountSkinWeb.Source = new Uri(page);
             _skinWebReady = true;
+
+            // 兜底：就算 NavigationCompleted 没触发，1.5 秒后也把控件露出来
+            await Task.Delay(1500);
+            AccountSkinWeb.Visibility = Visibility.Visible;
 
             if (_pendingSkinBytes != null)
             {
