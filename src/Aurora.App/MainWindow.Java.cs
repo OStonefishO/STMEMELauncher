@@ -180,6 +180,45 @@ public partial class MainWindow
         return (chosen, null);
     }
 
+    /// <summary>没有能跑这个版本的 Java 时，问一句要不要自动装。</summary>
+    private async Task<JavaRuntime?> OfferJavaInstallAsync(int needed)
+    {
+        var question =
+            $"这台电脑上没有能跑这个版本的 Java {needed}。\n\n" +
+            $"要现在自动下载安装吗？（Eclipse Temurin JRE {needed}，约 45 MB，装到启动器自己的目录里，不会动你已有的 Java）";
+
+        if (!Confirm("缺少 Java " + needed, question, "下载安装", "先不装"))
+        {
+            return null;
+        }
+
+        try
+        {
+            var installer = _service.CreateJavaInstaller();
+            var progress = new Progress<Aurora.Core.Net.InstallProgress>(p =>
+                SetStatus($"[{p.Stage}] {p.Message}"));
+
+            var java = await installer.EnsureAsync(needed, progress);
+            if (java == null)
+            {
+                SetStatus("Java 安装失败，可以手动装一个再回来选");
+                ShowToast("安装失败", "网络问题或者下载被拦了，去设置里手动选 java.exe", "⚠", 6000);
+                return null;
+            }
+
+            await RefreshJavaOptionsAsync(java.JavaPath);
+            UpdateHomeJavaUi();
+            SetStatus($"Java {needed} 装好了：{java.JavaPath}");
+            ShowToast("Java 已安装", java.VersionText, "✓", 4000);
+            return java;
+        }
+        catch (Exception ex)
+        {
+            SetStatus("Java 安装失败: " + ex.Message);
+            return null;
+        }
+    }
+
     /// <summary>主页那几个 Java 控件：自动 / 手动、扫描、选 java.exe。</summary>
     private void UpdateHomeJavaUi()
     {

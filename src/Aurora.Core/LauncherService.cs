@@ -130,6 +130,12 @@ public sealed partial class LauncherService
 
     public AuthlibInjectorInstaller CreateInjectorInstaller() => new();
 
+    /// <summary>启动器自己装 Java 的位置（和游戏的 runtime 分开，删游戏不会把 Java 弄没）。</summary>
+    public static string JavaRoot => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MEMELauncher", "runtime");
+
+    public Aurora.Core.Java.JavaInstaller CreateJavaInstaller() => new(SharedDownloader, JavaRoot);
+
     /// <summary>
     /// 启动前补齐这个版本缺的库文件（Forge/NeoForge 的 bootstraplauncher、securejarhandler 这些）。
     /// 返回补不上的文件列表，空表示齐了。
@@ -289,6 +295,7 @@ public sealed partial class LauncherService
         roots.AddRange(Settings.ExtraJavaPaths);
         roots.Add(Path.Combine(Settings.GameDirectory, "runtime"));
         roots.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), ".minecraft", "runtime"));
+        roots.Add(JavaRoot);
         return new JavaLocator(roots).Scan();
     }
 
@@ -303,6 +310,7 @@ public sealed partial class LauncherService
         roots.AddRange(Settings.ExtraJavaPaths);
         roots.Add(Path.Combine(Settings.GameDirectory, "runtime"));
         roots.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), ".minecraft", "runtime"));
+        roots.Add(JavaRoot);
 
         var locator = new JavaLocator(roots);
         all = locator.Scan();

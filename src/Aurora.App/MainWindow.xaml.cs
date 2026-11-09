@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.2";
+    private const string AppVersion = "0.15.3";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -380,7 +380,30 @@ public partial class MainWindow : Window
                 ShowToast("库文件不全", "建议在「内容 → 安装版本」里重装这个版本", "⚠", 5200);
             }
 
-            // Java 先挑一遍：没有就提示去设置，版本不对就问一句再启动
+            // Java 先挑一遍：一台都没有、或者没有正好的版本，就先问要不要自动装
+            var needed = versionInfo.JavaMajor;
+            var hasExact = _service.ScanJava().Any(j => j.Major == needed);
+            if (!hasExact)
+            {
+                var installed = await OfferJavaInstallAsync(needed);
+                if (installed == null)
+                {
+                    var (javaFallback, warningFallback) = ResolveJavaForLaunch(versionInfo);
+                    if (javaFallback == null)
+                    {
+                        SetStatus("一个 Java 都没找到，去「设置 → 启动游戏用的 Java」点重新扫描");
+                        ShowToast("缺少 Java", "去设置里扫描 Java，或者手动添加目录", "⚠", 6000);
+                        return;
+                    }
+
+                    if (warningFallback != null && !Confirm("Java 版本不对", warningFallback, "仍然启动", "先不启动"))
+                    {
+                        SetStatus("已取消启动，去设置里换一个 Java 再试");
+                        return;
+                    }
+                }
+            }
+
             var (javaForLaunch, javaWarning) = ResolveJavaForLaunch(versionInfo);
             if (javaForLaunch == null)
             {
