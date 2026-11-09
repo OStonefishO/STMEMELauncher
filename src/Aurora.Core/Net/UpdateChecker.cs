@@ -38,13 +38,17 @@ public sealed class UpdateChecker
 
     public async Task<ReleaseInfo?> GetLatestAsync(CancellationToken ct = default)
     {
-        var fromGithub = await GetFromGithubAsync(ct).ConfigureAwait(false);
-        if (fromGithub != null || string.IsNullOrEmpty(_giteeRepository))
+        // 国内优先：先问 Gitee，拿不到再问 GitHub
+        if (!string.IsNullOrEmpty(_giteeRepository))
         {
-            return fromGithub;
+            var gitee = await GetFromGiteeAsync(ct).ConfigureAwait(false);
+            if (gitee != null)
+            {
+                return gitee;
+            }
         }
 
-        return await GetFromGiteeAsync(ct).ConfigureAwait(false);
+        return await GetFromGithubAsync(ct).ConfigureAwait(false);
     }
 
     /// <summary>GitHub 不通时用 Gitee 的镜像 Release 拿版本信息。</summary>

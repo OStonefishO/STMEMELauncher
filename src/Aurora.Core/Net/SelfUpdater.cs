@@ -47,7 +47,7 @@ public sealed class SelfUpdater
 
     /// <summary>下载新版本到临时目录，返回文件路径。</summary>
     public async Task<string> DownloadAsync(ReleaseInfo release, IProgress<double>? progress = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default, Action<string>? onSource = null)
     {
         var asset = PickAsset(release)
                     ?? throw new InvalidOperationException("这个版本没有附带 exe，请到 Release 页面手动下载");
@@ -55,22 +55,36 @@ public sealed class SelfUpdater
         var target = Path.Combine(Path.GetTempPath(), $"MemeLauncher-{release.VersionText}.exe");
 
         // 依次尝试：Gitee 镜像 → GitHub 直连 → 几个加速代理
-        var candidates = new List<string>();
+        var candidates = new List<(string Url, string Label)>();
+
         if (!string.IsNullOrEmpty(_giteeRepo))
         {
-            candidates.Add($"https://gitee.com/{_giteeRepo}/releases/download/{release.Tag}/{asset.Name}");
+            // 资产名可能和 GitHub 不完全一致，多试几个
+            var version = release.Tag.TrimStart('v', 'V');
+            foreach (var name in new[]
+                     {
+                         asset.Name,
+                         $"MEME-Launcher-v{version}.exe",
+                         $"MEME-Launcher-{version}.exe",
+                         "MEME-Launcher.exe",
+                     }.Distinct())
+            {
+                candidates.Add(($"https://gitee.com/{_giteeRepo}/releases/download/{release.Tag}/{name}",
+                    "Gitee 国内镜像"));
+            }
         }
 
-        candidates.Add(asset.Url);
-        candidates.Add("https://gh-proxy.com/" + asset.Url);
-        candidates.Add("https://ghfast.top/" + asset.Url);
-        candidates.Add("https://ghproxy.net/" + asset.Url);
+        candidates.Add((asset.Url, "GitHub"));
+        candidates.Add(("https://gh-proxy.com/" + asset.Url, "gh-proxy 加速"));
+        candidates.Add(("https://ghfast.top/" + asset.Url, "ghfast 加速"));
+        candidates.Add(("https://ghproxy.net/" + asset.Url, "ghproxy 加速"));
 
         Exception? last = null;
-        foreach (var url in candidates)
+        foreach (var (url, label) in candidates)
         {
             try
             {
+                onSource?.Invoke(label);
                 await DownloadToAsync(url, target, progress, ct).ConfigureAwait(false);
                 var size = new FileInfo(target).Length;
                 if (size < 20 * 1024 * 1024)

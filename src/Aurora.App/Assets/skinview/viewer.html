@@ -54,8 +54,15 @@
     if (viewer.camera.position.y === 0) { viewer.camera.position.y = 8; }
   } catch (e) { console.error(e); }
 
-  window.setSkin = function (dataUrl) {
+  window.setSkin = function (dataUrl, capeUrl) {
     viewer.loadSkin(dataUrl).catch(function (e) { console.error(e); });
+    try {
+      if (capeUrl) {
+        viewer.loadCape(capeUrl).catch(function (e) { console.error(e); });
+      } else if (viewer.resetCape) {
+        viewer.resetCape();
+      }
+    } catch (e) { console.error(e); }
   };
 
   window.setAnimation = function (name) {

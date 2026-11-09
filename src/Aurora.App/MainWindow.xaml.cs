@@ -2191,7 +2191,8 @@ public partial class MainWindow : Window
                 var progress = new Progress<double>(p =>
                     status.Text = $"下载中 {p * 100:0}%");
 
-                var file = await updater.DownloadAsync(release, progress);
+                var file = await updater.DownloadAsync(release, progress, default,
+                    source => Dispatcher.BeginInvoke(() => status.Text = "正在从 " + source + " 下载…"));
                 status.Text = "下载完成，正在重启并替换…";
 
                 SelfUpdater.ApplyAndRestart(file);
@@ -3408,6 +3409,7 @@ public partial class MainWindow : Window
 
     private bool _skinWebReady;
     private byte[]? _pendingSkinBytes;
+    private byte[]? _pendingCapeBytes;
 
     private async Task InitSkinWebAsync()
     {
@@ -3425,13 +3427,20 @@ public partial class MainWindow : Window
 
             AccountSkinWeb.NavigationCompleted += async (_, args) =>
             {
-                if (args.IsSuccess && _pendingSkinBytes != null)
+                if (!args.IsSuccess)
                 {
-                    await ShowSkinInWeb(_pendingSkinBytes);
+                    return;
+                }
+
+                AccountSkinWeb.Visibility = Visibility.Visible;
+                if (_pendingSkinBytes != null || _pendingCapeBytes != null)
+                {
+                    await ShowSkinInWeb(_pendingSkinBytes, _pendingCapeBytes);
                 }
             };
 
             var page = Path.Combine(AppContext.BaseDirectory, "Assets", "skinview", "viewer.html");
+            AccountSkinWeb.Visibility = Visibility.Collapsed;
             AccountSkinWeb.Source = new Uri(page);
             _skinWebReady = true;
 
@@ -3447,9 +3456,10 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task ShowSkinInWeb(byte[]? bytes)
+    private async Task ShowSkinInWeb(byte[]? bytes, byte[]? capeBytes = null)
     {
         _pendingSkinBytes = bytes;
+        _pendingCapeBytes = capeBytes;
 
         if (!_skinWebReady || AccountSkinWeb?.CoreWebView2 == null)
         {
@@ -3458,16 +3468,17 @@ public partial class MainWindow : Window
 
         try
         {
-            var dataUrl = bytes == null || bytes.Length == 0
-                ? "null"
-                : "'data:image/png;base64," + Convert.ToBase64String(bytes) + "'";
-
-            if (dataUrl == "null")
+            if (bytes == null || bytes.Length == 0)
             {
                 return;
             }
 
-            await AccountSkinWeb.CoreWebView2.ExecuteScriptAsync($"setSkin({dataUrl})");
+            var skinUrl = "'data:image/png;base64," + Convert.ToBase64String(bytes) + "'";
+            var capeUrl = capeBytes is { Length: > 0 }
+                ? "'data:image/png;base64," + Convert.ToBase64String(capeBytes) + "'"
+                : "null";
+
+            await AccountSkinWeb.CoreWebView2.ExecuteScriptAsync($"setSkin({skinUrl}, {capeUrl})");
         }
         catch
         {
@@ -3512,7 +3523,24 @@ public partial class MainWindow : Window
 
             AccountHeadImage.Source = SkinImage.Head(bytes, 88);
             _skinBitmap = SkinImage.FromBytes(bytes);
-            _ = ShowSkinInWeb(bytes);
+
+            byte[]? capeBytes = null;
+            try
+            {
+                var textures = await SkinResolver.GetTexturesAsync(
+                    account.Type, account.Uuid, account.ApiRoot);
+                if (!string.IsNullOrEmpty(textures.Cape))
+                {
+                    using var http = new System.Net.Http.HttpClient();
+                    capeBytes = await http.GetByteArrayAsync(textures.Cape);
+                }
+            }
+            catch
+            {
+                // 没披风就算了
+            }
+
+            _ = ShowSkinInWeb(bytes, capeBytes);
             if (AccountSkinImage != null)
             {
                 AccountSkinImage.Source = SkinImage.Full(bytes, 256);
