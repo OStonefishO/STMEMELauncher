@@ -30,6 +30,12 @@ public sealed class LauncherSettings
     /// <summary>下载时走国内镜像（BMCLAPI）。</summary>
     public bool UseMirror { get; set; } = true;
 
+    /// <summary>保存的账号列表。</summary>
+    public List<Accounts.SavedAccount> Accounts { get; set; } = new();
+
+    /// <summary>当前使用的账号 Id。</summary>
+    public string ActiveAccountId { get; set; } = string.Empty;
+
     /// <summary>外置登录（Yggdrasil）服务器地址，默认 LittleSkin。</summary>
     public string YggdrasilApiRoot { get; set; } = "https://littleskin.cn/api/yggdrasil";
 

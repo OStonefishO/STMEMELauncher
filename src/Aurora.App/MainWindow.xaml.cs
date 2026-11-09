@@ -10,6 +10,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Media.Media3D;
 using System.Windows.Media;
 using Aurora.Core;
+using Aurora.Core.Accounts;
 using Aurora.Core.Auth;
 using Aurora.Core.Configuration;
 using Aurora.Core.Launch;
@@ -40,6 +41,7 @@ public partial class MainWindow : Window
         _settings = ConfigStore.Load();
         _service = new LauncherService(_settings);
 
+        _service.MigrateAccounts();
         _service.RestoreYggdrasil();
         InitHero();
         Loaded += (_, __) => InitParticles();
@@ -54,7 +56,7 @@ public partial class MainWindow : Window
         var flag = Array.IndexOf(argv, "--page");
         if (flag >= 0 && flag + 1 < argv.Length && int.TryParse(argv[flag + 1], out var pageIndex))
         {
-            SetPage(Math.Clamp(pageIndex, 0, 4));
+            SetPage(Math.Clamp(pageIndex, 0, 5));
         }
         Loaded += (_, __) => ApplyDarkTitleBar();
     }
@@ -74,23 +76,30 @@ public partial class MainWindow : Window
         LaunchPage.Visibility = index == 0 ? Visibility.Visible : Visibility.Collapsed;
         InstallPage.Visibility = index == 1 ? Visibility.Visible : Visibility.Collapsed;
         ContentPage.Visibility = index == 2 ? Visibility.Visible : Visibility.Collapsed;
-        SettingsPage.Visibility = index == 3 ? Visibility.Visible : Visibility.Collapsed;
-        UpdatesPage.Visibility = index == 4 ? Visibility.Visible : Visibility.Collapsed;
+        AccountPage.Visibility = index == 3 ? Visibility.Visible : Visibility.Collapsed;
+        SettingsPage.Visibility = index == 4 ? Visibility.Visible : Visibility.Collapsed;
+        UpdatesPage.Visibility = index == 5 ? Visibility.Visible : Visibility.Collapsed;
 
         var active = (Brush)FindResource("TextMain");
         var inactive = (Brush)FindResource("TextDim");
         NavLaunch.Foreground = index == 0 ? active : inactive;
         NavInstall.Foreground = index == 1 ? active : inactive;
         NavContent.Foreground = index == 2 ? active : inactive;
-        NavSettings.Foreground = index == 3 ? active : inactive;
-        NavUpdates.Foreground = index == 4 ? active : inactive;
+        NavAccount.Foreground = index == 3 ? active : inactive;
+        NavSettings.Foreground = index == 4 ? active : inactive;
+        NavUpdates.Foreground = index == 5 ? active : inactive;
 
         if (index == 1 && _mcVersions.Count == 0)
         {
             _ = LoadMcVersionsAsync();
         }
 
-        if (index == 4 && !_updatesLoaded)
+        if (index == 3)
+        {
+            RefreshAccounts();
+        }
+
+        if (index == 5 && !_updatesLoaded)
         {
             _ = LoadUpdatesAsync();
         }
@@ -666,9 +675,16 @@ public partial class MainWindow : Window
         {
             var session = await poll;
             dialog.Close();
-            _service.Account = session;
-            UpdateAccountChip();
-            AccountStatus.Text = $"已登录：{session.PlayerName}（{session.Uuid}）";
+            var account = new SavedAccount
+            {
+                Type = "microsoft",
+                Name = session.PlayerName,
+                Uuid = session.Uuid,
+                AccessToken = session.AccessToken,
+            };
+            _service.UpsertAccount(account);
+            RefreshAccounts();
+            AccountPageStatus.Text = $"微软登录成功：{session.PlayerName}";
         }
         catch (Exception ex)
         {
@@ -679,10 +695,13 @@ public partial class MainWindow : Window
 
     private void OnLogout(object sender, RoutedEventArgs e)
     {
-        _service.Account = null;
-        _service.SaveYggdrasil(null);
-        UpdateAccountChip();
-        AccountStatus.Text = "已退出，使用离线账号";
+        var offline = _service.Settings.Accounts.FirstOrDefault(a => a.Type == "offline");
+        if (offline != null)
+        {
+            _service.SwitchAccount(offline.Id);
+            RefreshAccounts();
+            AccountPageStatus.Text = "已切回离线账号";
+        }
     }
 
     // ---------------- 外置登录 / 导入 ----------------
@@ -715,11 +734,22 @@ public partial class MainWindow : Window
             var installer = _service.CreateInjectorInstaller();
             await installer.EnsureAsync(_settings.GameDirectory, new Progress<string>(t => AccountStatus.Text = t));
 
+            var account = new SavedAccount
+            {
+                Type = "yggdrasil",
+                Name = session.PlayerName,
+                Uuid = session.Uuid,
+                AccessToken = session.AccessToken,
+                ClientToken = session.ClientToken,
+                ApiRoot = session.ApiRoot,
+                Email = email,
+            };
             _service.SaveYggdrasil(session);
+            _service.UpsertAccount(account);
             _settings.YggdrasilEmail = email;
             ConfigStore.Save(_settings);
-            UpdateAccountChip();
-            AccountStatus.Text = $"外置登录成功：{session.PlayerName}";
+            RefreshAccounts();
+            AccountPageStatus.Text = $"外置登录成功：{session.PlayerName}";
         }
         catch (Exception ex)
         {
@@ -789,16 +819,16 @@ public partial class MainWindow : Window
             }
 
             var first = accounts[0];
-            _service.Yggdrasil = null;
-            _service.SaveYggdrasil(null);
-            _service.Account = new AuthSession
+            var account = new SavedAccount
             {
-                PlayerName = first.PlayerName,
+                Type = "microsoft",
+                Name = first.PlayerName,
                 Uuid = first.Uuid,
                 AccessToken = first.AccessToken,
             };
-            UpdateAccountChip();
-            AccountStatus.Text = $"已从官方启动器导入：{first.PlayerName}（token 有效期约 24 小时）";
+            _service.UpsertAccount(account);
+            RefreshAccounts();
+            AccountPageStatus.Text = $"已导入官方启动器账号：{first.PlayerName}（token 约 24 小时）";
         }
         catch (Exception ex)
         {
@@ -919,25 +949,191 @@ public partial class MainWindow : Window
     }
     private void UpdateAccountChip()
     {
-        var ygg = _service.Yggdrasil;
-        var account = _service.Account;
-
-        if (ygg is { IsValid: true })
+        var account = _service.ActiveAccount;
+        if (account == null)
         {
-            AccountChip.Text = "外置：" + ygg.PlayerName;
-            AccountStatus.Text = $"外置登录：{ygg.PlayerName}（{ygg.Uuid}）· {ygg.ApiRoot}";
+            AccountChip.Text = "离线：" + _settings.PlayerName;
+            AccountStatus.Text = "还没有账号，去「账号」页建一个";
             return;
         }
 
-        if (account is { IsValid: true })
+        AccountChip.Text = account.TypeLabel + "：" + account.Name;
+        AccountStatus.Text = $"当前账号：{account.Name}（{account.TypeLabel}）";
+        if (AccountPageStatus != null)
         {
-            AccountChip.Text = "正版：" + account.PlayerName;
-            AccountStatus.Text = $"已登录微软账号：{account.PlayerName}（{account.Uuid}）";
+            AccountPageStatus.Text = $"共 {_service.Settings.Accounts.Count} 个账号，点卡片切换";
+        }
+    }
+
+    private void OnOpenAccounts(object sender, RoutedEventArgs e) => SetPage(3);
+
+    private void RefreshAccounts()
+    {
+        if (AccountList == null)
+        {
             return;
         }
 
-        AccountChip.Text = "离线：" + _settings.PlayerName;
-        AccountStatus.Text = $"当前：离线账号 {_settings.PlayerName} · 想用皮肤就外置登录或登录微软账号";
+        AccountList.Children.Clear();
+        var activeId = _service.ActiveAccount?.Id;
+        foreach (var account in _service.Settings.Accounts.OrderByDescending(a => a.LastUsed))
+        {
+            AccountList.Children.Add(BuildAccountCard(account, account.Id == activeId));
+        }
+
+        if (_service.Settings.Accounts.Count == 0)
+        {
+            AccountList.Children.Add(new TextBlock
+            {
+                Text = "还没有保存的账号，右边新建一个离线账号吧",
+                FontSize = 12.5,
+                Foreground = (Brush)FindResource("InkFaint"),
+                Margin = new Thickness(6, 12, 0, 0),
+            });
+        }
+
+        UpdateAccountChip();
+    }
+
+    private Border BuildAccountCard(SavedAccount account, bool isActive)
+    {
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(48) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var initial = string.IsNullOrEmpty(account.Name) ? "?" : account.Name[..1].ToUpperInvariant();
+        var avatar = new Border
+        {
+            Width = 40,
+            Height = 40,
+            CornerRadius = new CornerRadius(20),
+            Background = new SolidColorBrush(Color.FromArgb(0x33, 0x5B, 0x8C, 0xFF)),
+            Child = new TextBlock
+            {
+                Text = initial,
+                FontSize = 16,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = (Brush)FindResource("Ink"),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+            },
+        };
+        grid.Children.Add(avatar);
+
+        var text = new StackPanel { Margin = new Thickness(14, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
+        text.Children.Add(new TextBlock
+        {
+            Text = account.Name,
+            FontSize = 14.5,
+            FontWeight = FontWeights.Medium,
+            Foreground = (Brush)FindResource("Ink"),
+        });
+        text.Children.Add(new TextBlock
+        {
+            Text = account.TypeLabel + " · " + account.Subtitle,
+            FontSize = 11,
+            Margin = new Thickness(0, 3, 0, 0),
+            Foreground = (Brush)FindResource("InkFaint"),
+        });
+        Grid.SetColumn(text, 1);
+        grid.Children.Add(text);
+
+        var right = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        if (isActive)
+        {
+            right.Children.Add(new Border
+            {
+                CornerRadius = new CornerRadius(7),
+                Background = new SolidColorBrush(Color.FromArgb(0x33, 0x4A, 0xDE, 0x80)),
+                Padding = new Thickness(9, 3, 9, 3),
+                Child = new TextBlock
+                {
+                    Text = "当前",
+                    FontSize = 10.5,
+                    Foreground = new SolidColorBrush(Color.FromRgb(0x86, 0xEF, 0xAC)),
+                },
+            });
+        }
+        else
+        {
+            var use = new Button
+            {
+                Content = "使用",
+                Style = (Style)FindResource("GlassButton"),
+                Padding = new Thickness(12, 5, 12, 5),
+                FontSize = 11.5,
+            };
+            use.Click += (_, __) =>
+            {
+                _service.SwitchAccount(account.Id);
+                RefreshAccounts();
+            };
+            right.Children.Add(use);
+        }
+
+        var remove = new Button
+        {
+            Content = "✕",
+            Style = (Style)FindResource("GlassButton"),
+            Padding = new Thickness(8, 4, 8, 4),
+            Margin = new Thickness(8, 0, 0, 0),
+            FontSize = 11,
+        };
+        remove.Click += (_, __) =>
+        {
+            _service.RemoveAccount(account.Id);
+            RefreshAccounts();
+        };
+        right.Children.Add(remove);
+
+        Grid.SetColumn(right, 2);
+        grid.Children.Add(right);
+
+        var card = new Border
+        {
+            CornerRadius = new CornerRadius(14),
+            Background = (Brush)FindResource("Glass"),
+            BorderBrush = (Brush)FindResource("GlassLine"),
+            BorderThickness = new Thickness(isActive ? 1.6 : 1),
+            Padding = new Thickness(16, 13, 14, 13),
+            Margin = new Thickness(0, 0, 0, 10),
+            Child = grid,
+            Cursor = System.Windows.Input.Cursors.Hand,
+        };
+
+        card.MouseLeftButtonUp += (_, __) =>
+        {
+            if (!isActive)
+            {
+                _service.SwitchAccount(account.Id);
+                RefreshAccounts();
+            }
+        };
+
+        return card;
+    }
+
+    private void OnAddOfflineAccount(object sender, RoutedEventArgs e)
+    {
+        var name = OfflineNameBox.Text?.Trim() ?? string.Empty;
+        if (string.IsNullOrEmpty(name))
+        {
+            AccountPageStatus.Text = "先填一个名字";
+            return;
+        }
+
+        var account = new SavedAccount
+        {
+            Type = "offline",
+            Name = name,
+        };
+        account.Uuid = SavedAccount.NewOffline(name);
+
+        _service.UpsertAccount(account);
+        OfflineNameBox.Text = string.Empty;
+        RefreshAccounts();
+        AccountPageStatus.Text = $"已添加离线账号 {name}";
     }
 
     // ---------------- 设置 ----------------

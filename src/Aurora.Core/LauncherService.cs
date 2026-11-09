@@ -1,3 +1,4 @@
+using Aurora.Core.Accounts;
 using Aurora.Core.Auth;
 using Aurora.Core.Configuration;
 using Aurora.Core.Java;
@@ -22,6 +23,71 @@ public sealed class LauncherService
     public LauncherSettings Settings { get; }
 
     public VersionRepository Versions { get; }
+
+    // ---------------- 账号 ----------------
+
+    /// <summary>当前使用的账号。</summary>
+    public SavedAccount? ActiveAccount =>
+        Settings.Accounts.FirstOrDefault(a => a.Id == Settings.ActiveAccountId)
+        ?? Settings.Accounts.FirstOrDefault();
+
+    /// <summary>首次启动时把旧的单一账号迁移成账号列表。</summary>
+    public void MigrateAccounts()
+    {
+        if (Settings.Accounts.Count > 0)
+        {
+            return;
+        }
+
+        var account = new SavedAccount
+        {
+            Type = "offline",
+            Name = string.IsNullOrWhiteSpace(Settings.PlayerName) ? "Steve" : Settings.PlayerName,
+        };
+        account.Uuid = SavedAccount.NewOffline(account.Name);
+        Settings.Accounts.Add(account);
+        Settings.ActiveAccountId = account.Id;
+        ConfigStore.Save(Settings);
+    }
+
+    public void UpsertAccount(SavedAccount account)
+    {
+        var index = Settings.Accounts.FindIndex(a => a.Id == account.Id);
+        account.LastUsed = DateTimeOffset.Now.ToUnixTimeSeconds();
+        if (index >= 0)
+        {
+            Settings.Accounts[index] = account;
+        }
+        else
+        {
+            Settings.Accounts.Add(account);
+        }
+
+        Settings.ActiveAccountId = account.Id;
+        ConfigStore.Save(Settings);
+    }
+
+    public void SwitchAccount(string id)
+    {
+        if (Settings.Accounts.Any(a => a.Id == id))
+        {
+            Settings.ActiveAccountId = id;
+            var account = Settings.Accounts.First(a => a.Id == id);
+            account.LastUsed = DateTimeOffset.Now.ToUnixTimeSeconds();
+            ConfigStore.Save(Settings);
+        }
+    }
+
+    public void RemoveAccount(string id)
+    {
+        Settings.Accounts.RemoveAll(a => a.Id == id);
+        if (Settings.ActiveAccountId == id)
+        {
+            Settings.ActiveAccountId = Settings.Accounts.FirstOrDefault()?.Id ?? string.Empty;
+        }
+
+        ConfigStore.Save(Settings);
+    }
 
     /// <summary>当前登录的正版账号（null 表示离线登录）。</summary>
     public AuthSession? Account { get; set; }
@@ -139,8 +205,7 @@ public sealed class LauncherService
         }
 
         var gameDir = GameDirectoryFor(resolved);
-        var account = Account;
-        var yggdrasil = Yggdrasil;
+        var active = ActiveAccount;
 
         string player;
         string? uuid;
@@ -149,13 +214,13 @@ public sealed class LauncherService
         string? injector = null;
         string? apiRoot = null;
 
-        if (yggdrasil is { IsValid: true })
+        if (active is { Type: "yggdrasil" } && !string.IsNullOrEmpty(active.AccessToken))
         {
-            player = yggdrasil.PlayerName;
-            uuid = yggdrasil.Uuid;
-            token = yggdrasil.AccessToken;
+            player = active.Name;
+            uuid = active.Uuid;
+            token = active.AccessToken;
             userType = "mojang";
-            apiRoot = yggdrasil.ApiRoot;
+            apiRoot = string.IsNullOrEmpty(active.ApiRoot) ? Settings.YggdrasilApiRoot : active.ApiRoot;
             var jar = Path.Combine(Settings.GameDirectory, "authlib-injector.jar");
             if (File.Exists(jar))
             {
@@ -166,17 +231,17 @@ public sealed class LauncherService
                 problems.Add("外置登录需要 authlib-injector.jar，请重新登录以自动下载");
             }
         }
-        else if (account is { IsValid: true })
+        else if (active is { Type: "microsoft" } && !string.IsNullOrEmpty(active.AccessToken))
         {
-            player = account.PlayerName;
-            uuid = account.Uuid;
-            token = account.AccessToken;
-            userType = account.UserType;
+            player = active.Name;
+            uuid = active.Uuid;
+            token = active.AccessToken;
+            userType = "msa";
         }
         else
         {
-            player = playerName ?? Settings.PlayerName;
-            uuid = null;
+            player = playerName ?? active?.Name ?? Settings.PlayerName;
+            uuid = string.IsNullOrEmpty(active?.Uuid) ? SavedAccount.NewOffline(player) : active!.Uuid;
             token = "0";
             userType = "legacy";
         }

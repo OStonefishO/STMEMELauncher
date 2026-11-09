@@ -102,7 +102,7 @@
                                     <BlurEffect Radius="18"/>
                                 </Border.Effect>
                             </Border>
-                            <Border x:Name="b" CornerRadius="30" Background="{StaticResource AccentGrad}">
+                            <Border x:Name="b" CornerRadius="30" Background="{StaticResource AccentGrad}" TextElement.Foreground="{TemplateBinding Foreground}">
                                 <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                         </Grid>
@@ -135,8 +135,10 @@
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="b" Background="{TemplateBinding Background}" CornerRadius="10"
                                 BorderBrush="{StaticResource GlassLine}" BorderThickness="1"
+                                TextElement.Foreground="{TemplateBinding Foreground}"
                                 Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              TextElement.Foreground="{TemplateBinding Foreground}"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
@@ -396,13 +398,19 @@
                             <TextBlock Text="内容" FontSize="10.5" HorizontalAlignment="Center" Margin="0,4,0,0"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="NavSettings" Style="{StaticResource RailButton}" Tag="3" Click="OnNavClick" Margin="0,6,0,0">
+                    <Button x:Name="NavAccount" Style="{StaticResource RailButton}" Tag="3" Click="OnNavClick" Margin="0,6,0,0">
+                        <StackPanel>
+                            <TextBlock Text="👤" FontSize="15" HorizontalAlignment="Center"/>
+                            <TextBlock Text="账号" FontSize="10.5" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="NavSettings" Style="{StaticResource RailButton}" Tag="4" Click="OnNavClick" Margin="0,6,0,0">
                         <StackPanel>
                             <TextBlock Text="⚙" FontSize="17" HorizontalAlignment="Center"/>
                             <TextBlock Text="设置" FontSize="10.5" HorizontalAlignment="Center" Margin="0,4,0,0"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="NavUpdates" Style="{StaticResource RailButton}" Tag="4" Click="OnNavClick" Margin="0,6,0,0">
+                    <Button x:Name="NavUpdates" Style="{StaticResource RailButton}" Tag="5" Click="OnNavClick" Margin="0,6,0,0">
                         <StackPanel>
                             <TextBlock Text="✧" FontSize="17" HorizontalAlignment="Center"/>
                             <TextBlock Text="日志" FontSize="10.5" HorizontalAlignment="Center" Margin="0,4,0,0"/>
@@ -718,6 +726,65 @@
                         </Grid>
                     </Grid>
 
+                    <!-- ========== 账号页 ========== -->
+                    <Grid x:Name="AccountPage" Visibility="Collapsed">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Margin="26,6,0,14">
+                            <TextBlock Text="账号" FontSize="32" FontFamily="{StaticResource FontHead}"
+                                       Foreground="{StaticResource TitleGrad}"/>
+                            <TextBlock Text="保存多个账号，随时切换；离线账号也能存好几个" FontSize="12.5"
+                                       Foreground="{StaticResource InkDim}" Margin="0,6,0,0"/>
+                        </StackPanel>
+
+                        <Grid Grid.Row="1" Margin="26,0,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="380"/>
+                            </Grid.ColumnDefinitions>
+
+                            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
+                                <StackPanel x:Name="AccountList" MaxWidth="620" HorizontalAlignment="Left"/>
+                            </ScrollViewer>
+
+                            <StackPanel Grid.Column="1" Margin="16,0,0,0">
+                                <Border CornerRadius="16" Background="{StaticResource Glass}"
+                                        BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16">
+                                    <StackPanel>
+                                        <TextBlock Text="新建离线账号" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
+                                        <TextBlock Text="只填一个名字就能用，支持中文和数字" FontSize="11" Foreground="{StaticResource InkFaint}"
+                                                   Margin="0,5,0,10" TextWrapping="Wrap"/>
+                                        <TextBox x:Name="OfflineNameBox" Height="34"/>
+                                        <Button Content="保存这个离线账号" Style="{StaticResource GlassButton}" Margin="0,10,0,0"
+                                                Click="OnAddOfflineAccount"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border CornerRadius="16" Background="{StaticResource Glass}"
+                                        BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16" Margin="0,12,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="登录已有账号" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
+                                        <Button Content="外置登录（LittleSkin）" Style="{StaticResource HeroButton}" Margin="0,12,0,0"
+                                                Height="40" Click="OnYggdrasilLogin"/>
+                                        <Button Content="导入官方启动器账号" Style="{StaticResource GlassButton}" Margin="0,10,0,0"
+                                                Click="OnImportOfficial"/>
+                                        <Button x:Name="LoginButton" Content="微软账号登录（需 ClientId）" Style="{StaticResource GlassButton}"
+                                                Margin="0,10,0,0" Click="OnLogin"/>
+                                        <Expander Header="高级：Azure ClientId" Margin="0,12,0,0" Foreground="{StaticResource InkFaint}">
+                                            <TextBox x:Name="ClientIdBox" Margin="0,8,0,0"/>
+                                        </Expander>
+                                    </StackPanel>
+                                </Border>
+
+                                <TextBlock x:Name="AccountPageStatus" Text="" FontSize="11.5" Margin="4,12,0,0"
+                                           Foreground="{StaticResource InkFaint}" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
+
                     <!-- ========== 设置页 ========== -->
                     <Grid x:Name="SettingsPage" Visibility="Collapsed">
                         <Grid.RowDefinitions>
@@ -740,23 +807,8 @@
                                         <TextBlock Text="账号" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
                                         <TextBlock x:Name="AccountStatus" Text="当前：离线账号" FontSize="11.5"
                                                    Foreground="{StaticResource InkDim}" Margin="0,6,0,12" TextWrapping="Wrap"/>
-                                        <StackPanel Orientation="Horizontal">
-                                            <Button x:Name="LoginButton" Content="微软账号登录" Style="{StaticResource HeroButton}"
-                                                    Click="OnLogin" Padding="16,0" Height="38"/>
-                                            <Button Content="外置登录" Style="{StaticResource GlassButton}" Margin="8,0,0,0"
-                                                    Click="OnYggdrasilLogin"/>
-                                            <Button Content="导入官方启动器" Style="{StaticResource GlassButton}" Margin="8,0,0,0"
-                                                    Click="OnImportOfficial"/>
-                                            <Button Content="退出" Style="{StaticResource GlassButton}" Margin="8,0,0,0" Click="OnLogout"/>
-                                        </StackPanel>
-                                        <Expander Header="高级：Azure ClientId（填一次就记住）" Margin="0,12,0,0"
-                                                  Foreground="{StaticResource InkFaint}">
-                                            <StackPanel Margin="0,8,0,0">
-                                                <TextBlock Text="启动器需要它才能走微软登录；玩家自己不用管，作者内置好就行。"
-                                                           FontSize="11" Foreground="{StaticResource InkFaint}" TextWrapping="Wrap"/>
-                                                <TextBox x:Name="ClientIdBox" Margin="0,8,0,0"/>
-                                            </StackPanel>
-                                        </Expander>
+                                        <Button Content="打开账号管理" Style="{StaticResource HeroButton}" Width="150" Height="38"
+                                                Click="OnOpenAccounts"/>
                                     </StackPanel>
                                 </Border>
 
