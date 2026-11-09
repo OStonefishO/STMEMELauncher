@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.11.0";
+    private const string AppVersion = "0.12.6";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -3548,7 +3548,6 @@ public partial class MainWindow : Window
 
         AccountSkinName.Text = account.Name + "（" + account.TypeLabel + "）";
         AccountSkinStatus.Text = "读取皮肤…";
-        AccountHeadImage.Source = null;
         _skinBitmap = null;
 
         try
@@ -3573,7 +3572,6 @@ public partial class MainWindow : Window
                         return;
             }
 
-            AccountHeadImage.Source = SkinImage.Head(bytes, 176);
             _skinBitmap = SkinImage.FromBytes(bytes);
 
             byte[]? capeBytes = null;

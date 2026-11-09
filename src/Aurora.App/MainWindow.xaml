@@ -1306,22 +1306,13 @@
                                         Margin="0,12,0,0">
                                     <StackPanel>
                                         <TextBlock Text="皮肤" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
-                                        <Grid Margin="0,12,0,0">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <Border Width="88" Height="88" CornerRadius="16" Background="#1AFFFFFF" ClipToBounds="True">
-                                                <Image x:Name="AccountHeadImage" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="NearestNeighbor"/>
-                                            </Border>
-                                            <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center">
-                                                <TextBlock x:Name="AccountSkinName" Text="当前账号" FontSize="12.5"
-                                                           Foreground="{StaticResource Ink}" TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock x:Name="AccountSkinStatus" Text="还没有皮肤" FontSize="10.5"
-                                                           Foreground="{StaticResource InkFaint}" Margin="0,4,0,0"
-                                                           TextWrapping="Wrap"/>
-                                            </StackPanel>
-                                        </Grid>
+                                        <StackPanel Margin="0,8,0,0">
+                                            <TextBlock x:Name="AccountSkinName" Text="当前账号" FontSize="12.5"
+                                                       Foreground="{StaticResource Ink}" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock x:Name="AccountSkinStatus" Text="还没有皮肤" FontSize="10.5"
+                                                       Foreground="{StaticResource InkFaint}" Margin="0,3,0,0"
+                                                       TextWrapping="Wrap"/>
+                                        </StackPanel>
                                         <Border CornerRadius="10" Background="#0B0E13" Margin="0,10,0,0" Height="190"
                                                 ClipToBounds="True">
                                             <Grid>
