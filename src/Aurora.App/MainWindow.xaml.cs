@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.7";
+    private const string AppVersion = "0.15.8";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -106,6 +106,15 @@ public partial class MainWindow : Window
             if (argv.Contains("--scroll-bottom"))
             {
                 _ = Task.Delay(600).ContinueWith(_ => Dispatcher.BeginInvoke(() => ScrollSettingsToBottom()));
+            }
+
+            // 调试用：--biome 0/1/2，直接切到某个群系（截图用）
+            var biomeFlag = Array.IndexOf(argv, "--biome");
+            if (biomeFlag >= 0 && biomeFlag + 1 < argv.Length &&
+                int.TryParse(argv[biomeFlag + 1], out var biomeIndex))
+            {
+                _heroBiome = (HeroBiome)Math.Clamp(biomeIndex, 0, 2);
+                ApplyHeroBiome();
             }
 
             // 调试用：--demo-detail，自动打开内容页第一个项目的详情（看加载器分类）
@@ -447,6 +456,9 @@ public partial class MainWindow : Window
             var killedByUser = _killedByUser;
             _killedByUser = false;
 
+            // 每次启动都把日志落一份，玩家发过来就能查
+            var logPath = SaveLaunchLog(result, launcher.RecentOutput, plan);
+
             if (!string.IsNullOrEmpty(result.CrashSummary))
             {
                 SetStatus("崩溃：" + result.CrashSummary);
@@ -454,6 +466,37 @@ public partial class MainWindow : Window
                 {
                     ShowCrashWindow(result.Insight);
                 }
+            }
+            else if (!killedByUser && result.ExitCode == 0 && result.Duration.TotalSeconds < 3)
+            {
+                // 启动即退出：多半是 Java 不对 / 版本文件不全，给玩家一个能看懂的结论
+                var insight = CrashInspector.Analyze(
+                    plan.WorkingDirectory, 1, launcher.RecentOutput, DateTimeOffset.Now.AddSeconds(-result.Duration.TotalSeconds));
+
+                var quick = new CrashInsight
+                {
+                    Headline = "游戏刚启动就退出了（0 秒，还没到主界面）",
+                    Verdict = insight.Causes.Count > 0
+                        ? "看起来是启动阶段就断了，不是进游戏后崩的。"
+                        : "进程启动后立刻正常退出，没有留下报错。常见是 Java 版本不对、版本文件没下全，或者被安全软件拦了。",
+                    Category = insight.Category == "未知" ? "启动" : insight.Category,
+                    Confident = false,
+                    Causes = insight.Causes,
+                    Suggestions = insight.Suggestions.Count > 0
+                        ? insight.Suggestions
+                        : new[]
+                        {
+                            "先看「设置 → 启动游戏用的 Java」，换一个和版本匹配的 Java 再试。",
+                            "在「内容 → 安装版本」里对同一个版本重装一次，补齐文件。",
+                            "把这份报告导出来发给我，日志里有 JVM 的原始输出。",
+                        },
+                    ExitCode = result.ExitCode,
+                    ReportText = insight.ReportText + "\n\n启动器日志：" + logPath,
+                    GameCrashReportPath = insight.GameCrashReportPath,
+                };
+
+                SetStatus("游戏刚启动就退出了（0s），已生成诊断报告");
+                ShowCrashWindow(quick);
             }
             else
             {
@@ -2414,6 +2457,52 @@ public partial class MainWindow : Window
 
     /// <summary>正在跑的安装任务（job id → 取消开关），支持同时装好几个版本。</summary>
     private readonly Dictionary<string, CancellationTokenSource> _installCts = new();
+
+    /// <summary>把这次启动的完整日志写一份到 %APPDATA%\MEMELauncher\logs，方便玩家发过来排查。</summary>
+    private static string SaveLaunchLog(LaunchResult result, IReadOnlyList<string> lines, LaunchPlan plan)
+    {
+        try
+        {
+            var dir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "MEMELauncher", "logs");
+            Directory.CreateDirectory(dir);
+
+            var file = Path.Combine(dir, $"launch-{DateTime.Now:yyyyMMdd-HHmmss}.log");
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("MEME Launcher 启动日志");
+            sb.AppendLine("时间：" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+            sb.AppendLine("版本：" + plan.MainClass + "  ·  " + plan.WorkingDirectory);
+            sb.AppendLine("Java：" + plan.JavaPath);
+            sb.AppendLine($"退出码：{result.ExitCode}  用时：{result.Duration.TotalSeconds:0.0}s");
+            sb.AppendLine(new string('-', 60));
+            foreach (var line in lines)
+            {
+                sb.AppendLine(line);
+            }
+
+            File.WriteAllText(file, sb.ToString(), new System.Text.UTF8Encoding(false));
+
+            // 只留最近 20 份
+            try
+            {
+                foreach (var old in Directory.GetFiles(dir, "launch-*.log")
+                             .OrderByDescending(File.GetLastWriteTime).Skip(20))
+                {
+                    File.Delete(old);
+                }
+            }
+            catch
+            {
+                // 忽略
+            }
+
+            return file;
+        }
+        catch
+        {
+            return "(日志写入失败)";
+        }
+    }
 
     /// <summary>崩溃窗口：看完原因、导出报告。</summary>
     private void ShowCrashWindow(CrashInsight insight, bool modal = true)
@@ -4732,18 +4821,55 @@ public partial class MainWindow : Window
         return null;
     }
 
+    private HeroBiome _heroBiome;
+
     private void InitHero()
     {
         try
         {
+            _heroBiome = (HeroBiome)Math.Clamp(_settings.HeroBiome, 0, 2);
             HeroViewport.Camera = HeroScene.Camera();
-            HeroViewport.Children.Add(new ModelVisual3D { Content = HeroScene.Lights() });
-            HeroViewport.Children.Add(HeroScene.Build());
+            ApplyHeroBiome();
         }
         catch (Exception ex)
         {
             SetStatus("3D 场景初始化失败: " + ex.Message);
         }
+    }
+
+    /// <summary>按当前群系重建方块岛（点一下轮换主世界 / 下界 / 末地）。</summary>
+    private void ApplyHeroBiome()
+    {
+        try
+        {
+            HeroViewport.Children.Clear();
+            HeroViewport.Children.Add(new ModelVisual3D { Content = HeroScene.Lights(_heroBiome) });
+            HeroViewport.Children.Add(HeroScene.Build(_heroBiome));
+
+            if (HeroBiomeText != null)
+            {
+                HeroBiomeText.Text = HeroScene.BiomeName(_heroBiome) + " · 点一下换群系";
+            }
+
+            if (HeroBiomeHint != null)
+            {
+                HeroBiomeHint.Text = HeroScene.BiomeHint(_heroBiome);
+            }
+        }
+        catch (Exception ex)
+        {
+            SetStatus("切换群系失败: " + ex.Message);
+        }
+    }
+
+    private void OnHeroClicked(object sender, MouseButtonEventArgs e)
+    {
+        _heroBiome = (HeroBiome)(((int)_heroBiome + 1) % 3);
+        _settings.HeroBiome = (int)_heroBiome;
+        ConfigStore.Save(_settings);
+        ApplyHeroBiome();
+
+        ShowToast(HeroScene.BiomeName(_heroBiome), HeroScene.BiomeHint(_heroBiome), "✦", 2600);
     }
 
     /// <summary>背景粒子：缓慢上浮的小光点，给静态界面一点生命感。</summary>

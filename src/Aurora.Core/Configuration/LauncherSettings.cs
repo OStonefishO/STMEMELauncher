@@ -79,6 +79,9 @@ public sealed class LauncherSettings
     /// <summary>单个版本的隔离开关（true=强制隔离，false=强制共用全局），没记录的跟随上面的全局设置。</summary>
     public Dictionary<string, bool> IsolatedVersions { get; set; } = new();
 
+    /// <summary>主页 3D 方块岛的群系：0 主世界 / 1 下界 / 2 末地。</summary>
+    public int HeroBiome { get; set; }
+
     /// <summary>每个版本的备注（整合包作者写给玩家看的说明），键是版本 id。</summary>
     public Dictionary<string, string> VersionNotes { get; set; } = new();
 

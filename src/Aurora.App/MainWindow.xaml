@@ -645,12 +645,20 @@
                             </StackPanel>
 
                             <!-- 右：3D -->
-                            <Grid Grid.Column="1" Margin="0,-10,-10,0" IsHitTestVisible="False">
+                            <Grid Grid.Column="1" Margin="0,-10,-10,0" Background="Transparent" Cursor="Hand"
+                                  MouseLeftButtonDown="OnHeroClicked" ToolTip="点一下换群系：主世界 / 下界 / 末地">
                                 <Viewport3D x:Name="HeroViewport" Opacity="0.98">
                                     <Viewport3D.Effect>
                                         <DropShadowEffect Color="#5B8CFF" BlurRadius="60" ShadowDepth="0" Opacity="0.35"/>
                                     </Viewport3D.Effect>
                                 </Viewport3D>
+                                <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,14"
+                                            IsHitTestVisible="False">
+                                    <TextBlock x:Name="HeroBiomeText" Text="主世界 · 点一下换群系" FontSize="10.5"
+                                               Foreground="#8FA0C0" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="HeroBiomeHint" Text="草地、木头、还有两颗小树" FontSize="9.5"
+                                               Foreground="#5F6E8A" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                </StackPanel>
                             </Grid>
                         </Grid>
 
