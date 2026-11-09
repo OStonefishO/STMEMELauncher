@@ -1283,6 +1283,8 @@
                                         <Border CornerRadius="10" Background="#0B0E13" Padding="8" Margin="0,12,0,0" Height="140">
                                             <Image x:Name="AccountSkinImage" Stretch="Uniform"/>
                                         </Border>
+                                        <Button Content="更换这个账号的皮肤" Style="{StaticResource GlassButton}" Margin="0,10,0,0"
+                                                Click="OnChangeSkinForCurrent"/>
                                     </StackPanel>
                                 </Border>
 

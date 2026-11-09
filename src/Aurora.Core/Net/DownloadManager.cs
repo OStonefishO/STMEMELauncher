@@ -25,6 +25,7 @@ public sealed class DownloadItem : INotifyPropertyChanged
     private long _total;
     private string _error = string.Empty;
     private double _speed;
+    private string _message = string.Empty;
 
     public string Id { get; init; } = Guid.NewGuid().ToString("N");
     public string Title { get; init; } = string.Empty;
@@ -119,9 +120,21 @@ public sealed class DownloadItem : INotifyPropertyChanged
         : $"{ReceivedBytes / 1024.0 / 1024.0:0.0} MB";
 
     /// <summary>一行摘要（Run 绑定只读属性会抛异常，统一用这个）。</summary>
+    public string Message
+    {
+        get => _message;
+        set
+        {
+            _message = value;
+            Raise();
+            Raise(nameof(DetailText));
+        }
+    }
+
     public string DetailText => string.Join("  ·  ", new[]
     {
         KindLabel,
+        Message,
         StateText,
         SizeText,
         SpeedText,
@@ -189,6 +202,61 @@ public sealed class DownloadManager
         Ui(() => Tasks.Insert(0, item));
         _ = Task.Run(PumpAsync);
         return item;
+    }
+
+    /// <summary>不是下载、但有进度的任务（比如安装游戏版本），同样显示在下载管理里。</summary>
+    public DownloadItem EnqueueJob(string title, string kindLabel)
+    {
+        var item = new DownloadItem
+        {
+            Title = title,
+            FileName = title,
+            KindLabel = kindLabel,
+            TargetPath = string.Empty,
+        };
+
+        item.TotalBytes = 100;
+        Ui(() =>
+        {
+            Tasks.Insert(0, item);
+            item.State = DownloadState.Running;
+        });
+
+        return item;
+    }
+
+    public void UpdateJob(DownloadItem item, double percent, string? message = null)
+    {
+        Ui(() =>
+        {
+            item.ReceivedBytes = (long)Math.Clamp(percent, 0, 100);
+            if (!string.IsNullOrEmpty(message))
+            {
+                item.Message = message!;
+            }
+        });
+    }
+
+    public void CompleteJob(DownloadItem item, bool success, string? error = null)
+    {
+        Ui(() =>
+        {
+            item.ReceivedBytes = success ? 100 : item.ReceivedBytes;
+            item.State = success ? DownloadState.Completed : DownloadState.Failed;
+            if (!string.IsNullOrEmpty(error))
+            {
+                item.Error = error!;
+            }
+
+            if (success)
+            {
+                TaskCompleted?.Invoke(item);
+            }
+            else
+            {
+                TaskFailed?.Invoke(item);
+            }
+        });
     }
 
     public void Pause(DownloadItem item)

@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.10.0";
+    private const string AppVersion = "0.10.1";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -524,6 +524,10 @@ public partial class MainWindow : Window
         InstallButton.IsEnabled = false;
         InstallBar.Value = 0;
 
+        var manager = _service.CreateDownloadManager();
+        var loaderLabel = loader == "vanilla" ? "原版" : loader;
+        var job = manager.EnqueueJob("安装 Minecraft " + mc.Id + "（" + loaderLabel + "）", "版本");
+
         try
         {
             var progress = new Progress<InstallProgress>(p =>
@@ -532,6 +536,8 @@ public partial class MainWindow : Window
                 InstallText.Text = p.Total > 0
                     ? $"[{p.Stage}] {p.Message} · {p.Percent:0}%"
                     : $"[{p.Stage}] {p.Message}";
+
+                manager.UpdateJob(job, p.Percent, $"[{p.Stage}] {p.Message}");
             });
 
             var installer = _service.CreateInstaller();
@@ -555,10 +561,13 @@ public partial class MainWindow : Window
 
             LoadVersions();
             InstallBar.Value = 100;
+            manager.CompleteJob(job, true);
+            ShowToast("安装完成", "Minecraft " + mc.Id + "（" + loaderLabel + "）", "✓", 4000);
         }
         catch (Exception ex)
         {
             InstallText.Text = "安装失败: " + ex.Message;
+            manager.CompleteJob(job, false, ex.Message);
         }
         finally
         {
@@ -1450,7 +1459,8 @@ public partial class MainWindow : Window
             if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add &&
                 e.NewItems is { Count: > 0 } && e.NewItems[0] is DownloadItem added)
             {
-                ShowToast("开始下载", added.FileName, "⇩", 2400);
+                var verb = added.KindLabel == "版本" ? "开始安装" : "开始下载";
+                ShowToast(verb, added.FileName, "⇩", 2400);
             }
         };
 
@@ -3162,6 +3172,18 @@ public partial class MainWindow : Window
             right.Children.Add(use);
         }
 
+        var skinButton = new Button
+        {
+            Content = "皮肤",
+            Style = (Style)FindResource("GlassButton"),
+            Padding = new Thickness(9, 4, 9, 4),
+            Margin = new Thickness(8, 0, 0, 0),
+            FontSize = 11,
+            Tag = account,
+        };
+        skinButton.Click += OnChangeSkinForAccount;
+        right.Children.Add(skinButton);
+
         var remove = new Button
         {
             Content = "✕",
@@ -3204,12 +3226,41 @@ public partial class MainWindow : Window
         return card;
     }
 
+    private void OnChangeSkinForCurrent(object sender, RoutedEventArgs e)
+    {
+        var account = _service.ActiveAccount;
+        if (account != null)
+        {
+            ImportSkinFor(account);
+        }
+    }
+
+    private void OnChangeSkinForAccount(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: SavedAccount account })
+        {
+            ImportSkinFor(account);
+        }
+    }
+
     private async void OnImportSkin(object sender, RoutedEventArgs e)
     {
         var account = _service.ActiveAccount;
         if (account == null)
         {
             AccountPageStatus.Text = "先选一个账号，皮肤会按账号名写进去";
+            return;
+        }
+
+        ImportSkinFor(account);
+    }
+
+    private async void ImportSkinFor(SavedAccount account)
+    {
+        if (account.Type != "offline")
+        {
+            AccountPageStatus.Text = "外置 / 微软账号的皮肤来自皮肤站或 Mojang 服务器，不能本地覆盖";
+            ShowToast("不能修改", "这个账号的皮肤由服务器决定", "⚠", 3600);
             return;
         }
 
@@ -3245,6 +3296,7 @@ public partial class MainWindow : Window
                 : $"皮肤已应用，并装好了 CustomSkinLoader：{account.Name}.png";
             RefreshAccounts();
             RefreshCurrentSkinPreview();
+            ShowToast("皮肤已更新", $"{account.Name} 的皮肤换成 {Path.GetFileName(dialog.FileName)}", "✓", 4000);
         }
         catch (Exception ex)
         {
