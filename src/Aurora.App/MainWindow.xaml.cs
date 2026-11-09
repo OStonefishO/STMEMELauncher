@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.0";
+    private const string AppVersion = "0.15.1";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -4285,7 +4285,7 @@ public partial class MainWindow : Window
         }
 
         SettingsGameDir.Text = _settings.GameDirectory;
-        SettingsPlayer.Text = _settings.PlayerName;
+        // 离线玩家名统一在「账号」页管理，这里不再单独设置
         SettingsMemory.Text = _settings.MaxMemoryMb.ToString();
         _ = RefreshJavaOptionsAsync(_settings.JavaPath);
         SettingsMirror.IsChecked = _settings.UseMirror;
@@ -4314,7 +4314,7 @@ public partial class MainWindow : Window
                 StringComparison.OrdinalIgnoreCase);
 
             _settings.GameDirectory = SettingsGameDir.Text.Trim();
-            _settings.PlayerName = string.IsNullOrWhiteSpace(SettingsPlayer.Text) ? "Steve" : SettingsPlayer.Text.Trim();
+            // 离线玩家名跟随当前账号，不在这里覆盖
             if (int.TryParse(SettingsMemory.Text, out var memory) && memory >= 512)
             {
                 _settings.MaxMemoryMb = memory;

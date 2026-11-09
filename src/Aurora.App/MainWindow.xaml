@@ -1507,12 +1507,14 @@
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
                                             <StackPanel Grid.Column="0">
-                                                <TextBlock Text="离线玩家名" Foreground="{StaticResource InkFaint}" FontSize="11"/>
-                                                <TextBox x:Name="SettingsPlayer" Margin="0,6,0,0"/>
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="2">
                                                 <TextBlock Text="最大内存 (MB)" Foreground="{StaticResource InkFaint}" FontSize="11"/>
                                                 <TextBox x:Name="SettingsMemory" Margin="0,6,0,0"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="离线玩家名由「账号」页管理" Foreground="{StaticResource InkFaint}"
+                                                           FontSize="11"/>
+                                                <TextBlock Text="在账号页新建或切换离线账号" Foreground="{StaticResource InkDim}"
+                                                           FontSize="10.5" Margin="0,10,0,0" TextWrapping="Wrap"/>
                                             </StackPanel>
                                         </Grid>
 
