@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.12";
+    private const string AppVersion = "0.15.13";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -863,6 +863,7 @@ public partial class MainWindow : Window
         1 => ContentKind.Modpack,
         2 => ContentKind.Shader,
         3 => ContentKind.ResourcePack,
+        4 => ContentKind.World,
         _ => ContentKind.Mod,
     };
 
@@ -1074,39 +1075,31 @@ public partial class MainWindow : Window
 
     private async Task TranslateCardsAsync(List<ContentCard> cards)
     {
-        // 并行翻译，最多 4 个同时跑，免得一页 20 个串行等半天
-        var gate = new SemaphoreSlim(4);
-        var jobs = new List<Task>();
-
-        foreach (var card in cards)
-        {
-            var summary = card.Item.Summary;
-            if (string.IsNullOrWhiteSpace(summary) || Aurora.Core.Net.Translator.HasChineseText(summary))
-            {
-                continue;
-            }
-
-            jobs.Add(Task.Run(async () =>
+        // 一条一条翻，最多 5 条并发；单条失败保留英文，不拖累其它
+        var gate = new SemaphoreSlim(5);
+        var jobs = cards
+            .Where(c => !string.IsNullOrWhiteSpace(c.Item.Summary))
+            .Select(card => Task.Run(async () =>
             {
                 await gate.WaitAsync();
                 try
                 {
-                    var zh = await Aurora.Core.Net.Translator.TextAsync(summary);
-                    if (!string.IsNullOrWhiteSpace(zh) && zh != summary)
+                    var zh = await Aurora.Core.Net.Translator.TextAsync(card.Item.Summary);
+                    if (!string.IsNullOrWhiteSpace(zh) && zh != card.Item.Summary)
                     {
                         card.SetSummary(zh);
                     }
                 }
                 catch
                 {
-                    // 失败保留英文
+                    // 忽略
                 }
                 finally
                 {
                     gate.Release();
                 }
-            }));
-        }
+            }))
+            .ToList();
 
         await Task.WhenAll(jobs);
     }
@@ -2324,7 +2317,8 @@ public partial class MainWindow : Window
     {
         try
         {
-            var target = VersionList.SelectedItem as VersionCard;
+    
+        var target = VersionList.SelectedItem as VersionCard;
             var resolved = target == null ? null : _service.Resolve(target.Summary.Id);
             var dir = resolved == null ? _settings.GameDirectory : _service.GameDirectoryFor(resolved);
             Process.Start(new ProcessStartInfo("explorer.exe", $"\"{dir}\"") { UseShellExecute = true });
@@ -2855,7 +2849,8 @@ public partial class MainWindow : Window
         try
         {
             DetailStatus.Text = $"安装 {version.Number}…";
-            var target = VersionList.SelectedItem as VersionCard;
+    
+        var target = VersionList.SelectedItem as VersionCard;
             var resolved = target == null ? null : _service.Resolve(target.Summary.Id);
             var gameDir = resolved == null ? _settings.GameDirectory : _service.GameDirectoryFor(resolved);
 
@@ -2923,9 +2918,17 @@ public partial class MainWindow : Window
             return;
         }
 
+
         var target = VersionList.SelectedItem as VersionCard;
         var resolved = target == null ? null : _service.Resolve(target.Summary.Id);
         var gameDir = resolved == null ? _settings.GameDirectory : _service.GameDirectoryFor(resolved);
+
+        // 地图是压缩包，解到 saves 里才算装上
+        if (_selectedContent.Kind == ContentKind.World)
+        {
+            await InstallWorldAsync(entry.File, gameDir);
+            return;
+        }
 
         try
         {
@@ -2939,6 +2942,86 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>地图：下 zip，解到 saves\地图名，然后把目录打开给玩家看。</summary>
+    private async Task InstallWorldAsync(ContentFile file, string gameDir)
+    {
+        var saves = Path.Combine(gameDir, "saves");
+        Directory.CreateDirectory(saves);
+
+        var name = System.IO.Path.GetFileNameWithoutExtension(
+            string.IsNullOrWhiteSpace(file.DisplayName) ? file.FileName : file.DisplayName);
+        foreach (var bad in System.IO.Path.GetInvalidFileNameChars())
+        {
+            name = name.Replace(bad, '_');
+        }
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            name = "map-" + DateTime.Now.ToString("MMdd-HHmmss");
+        }
+
+        var target = Path.Combine(saves, name);
+        var temp = Path.Combine(System.IO.Path.GetTempPath(), "meme-map-" + Guid.NewGuid().ToString("N") + ".zip");
+
+        try
+        {
+            ContentStatus.Text = "正在下载地图 " + file.FileName + "…";
+            await _service.SharedDownloader.DownloadFileAsync(file.Url, temp);
+
+            if (Directory.Exists(target))
+            {
+                target += "-" + DateTime.Now.ToString("HHmmss");
+            }
+
+            var staging = temp + ".dir";
+            if (Directory.Exists(staging))
+            {
+                Directory.Delete(staging, true);
+            }
+
+            System.IO.Compression.ZipFile.ExtractToDirectory(temp, staging);
+
+            // 有些地图压缩包里还裹了一层同名文件夹，摊平
+            var entries = Directory.GetFileSystemEntries(staging);
+            var root = staging;
+            if (entries.Length == 1 && Directory.Exists(entries[0]) &&
+                !File.Exists(Path.Combine(staging, "level.dat")))
+            {
+                root = entries[0];
+            }
+
+            CopyDirectory(root, target);
+            Directory.Delete(staging, true);
+
+            ContentStatus.Text = "地图已装到 " + target;
+            ShowToast("地图已安装", name, "✓", 4200);
+            RefreshModList(gameDir);
+
+            try
+            {
+                Process.Start(new ProcessStartInfo("explorer.exe", $"\"{saves}\"") { UseShellExecute = true });
+            }
+            catch
+            {
+                // 忽略
+            }
+        }
+        catch (Exception ex)
+        {
+            ContentStatus.Text = "地图安装失败: " + ex.Message;
+        }
+        finally
+        {
+            try
+            {
+                if (File.Exists(temp)) File.Delete(temp);
+            }
+            catch
+            {
+                // 忽略
+            }
+        }
+    }
     /// <summary>整合包：下载 + 解包 + 建版本，一条龙，进度走下载管理。</summary>
     private async Task InstallContentModpackAsync(ContentFile file)
     {
@@ -4271,6 +4354,7 @@ public partial class MainWindow : Window
         {
             return;
         }
+
 
         var target = VersionList.SelectedItem as VersionCard;
         var resolved = target == null ? null : _service.Resolve(target.Summary.Id);

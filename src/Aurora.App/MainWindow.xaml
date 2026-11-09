@@ -857,7 +857,9 @@
                                         <ComboBoxItem Content="整合包"/>
                                         <ComboBoxItem Content="光影"/>
                                         <ComboBoxItem Content="资源包"/>
-                                    </ComboBox>
+                                    
+                                    <ComboBoxItem Content="地图"/>
+                                </ComboBox>
                                     <ComboBox x:Name="SourceCombo" Width="132" Margin="8,0,0,0" SelectedIndex="0"
                                               SelectionChanged="OnSourceChanged">
                                         <ComboBoxItem Content="Modrinth"/>

@@ -98,8 +98,9 @@ public static class Translator
             return cached;
         }
 
-        var translated = await ViaGoogleAsync(key, ct).ConfigureAwait(false)
-                         ?? await ViaMyMemoryAsync(key, ct).ConfigureAwait(false);
+        // 国内 Google 基本不通，MyMemory 反而稳，顺序反一下
+        var translated = await ViaMyMemoryAsync(key, ct).ConfigureAwait(false)
+                         ?? await ViaGoogleAsync(key, ct).ConfigureAwait(false);
 
         if (string.IsNullOrWhiteSpace(translated))
         {
@@ -110,6 +111,17 @@ public static class Translator
         return translated;
     }
 
+    /// <summary>一次翻好几段：并发跑，单条失败不影响其它。</summary>
+    public static async Task<List<string>> TextBatchAsync(IReadOnlyList<string> texts, CancellationToken ct = default)
+    {
+        var results = new List<string>(texts.Count);
+        foreach (var text in texts)
+        {
+            results.Add(await TextAsync(text, ct).ConfigureAwait(false));
+        }
+
+        return results;
+    }
     private static async Task<string?> ViaGoogleAsync(string text, CancellationToken ct)
     {
         try
