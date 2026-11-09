@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.14.1";
+    private const string AppVersion = "0.15.0";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -323,7 +323,7 @@ public partial class MainWindow : Window
         var java = _service.SelectJava(summary.JavaMajor, out var all);
         DetJava.Text = java == null
             ? $"缺少 Java {summary.JavaMajor}"
-            : $"Java {java.Major} · {java.VersionText}\n{java.JavaPath}";
+            : $"Java {java.Major} · {java.VersionText}";
 
         var resolved = _service.Resolve(summary.Id);
         DetDir.Text = resolved == null ? "—" : _service.GameDirectoryFor(resolved);
@@ -332,6 +332,8 @@ public partial class MainWindow : Window
         StatusText.Text = java == null
             ? $"警告：没有找到 Java {summary.JavaMajor}"
             : $"{summary.Id} · 已识别 {all.Count} 个 Java";
+
+        UpdateHomeJavaUi();
     }
 
     private async void OnLaunch(object sender, RoutedEventArgs e)
@@ -361,7 +363,30 @@ public partial class MainWindow : Window
                 }
             }
 
-            var plan = _service.BuildPlan(card.Summary.Id, out var resolved, out var problems);
+            var versionInfo = _service.Resolve(card.Summary.Id);
+            if (versionInfo == null)
+            {
+                SetStatus("找不到这个版本：" + card.Summary.Id);
+                return;
+            }
+
+            // Java 先挑一遍：没有就提示去设置，版本不对就问一句再启动
+            var (javaForLaunch, javaWarning) = ResolveJavaForLaunch(versionInfo);
+            if (javaForLaunch == null)
+            {
+                SetStatus("一个 Java 都没找到，去「设置 → 启动游戏用的 Java」点重新扫描");
+                ShowToast("缺少 Java", "去设置里扫描 Java，或者手动添加目录", "⚠", 6000);
+                return;
+            }
+
+            if (javaWarning != null && !Confirm("Java 版本不对", javaWarning, "仍然启动", "先不启动"))
+            {
+                SetStatus("已取消启动，去设置里换一个 Java 再试");
+                return;
+            }
+
+            var plan = _service.BuildPlan(card.Summary.Id, out var resolved, out var problems,
+                javaPath: javaForLaunch.JavaPath);
             if (plan == null || resolved == null)
             {
                 SetStatus("启动失败：" + string.Join("；", problems.Take(3)));
@@ -636,7 +661,7 @@ public partial class MainWindow : Window
 
     private async void OnInstall(object sender, RoutedEventArgs e)
     {
-        if (_busy || McVersionList.SelectedItem is not RemoteVersion mc)
+        if (McVersionList.SelectedItem is not RemoteVersion mc)
         {
             return;
         }
@@ -653,22 +678,31 @@ public partial class MainWindow : Window
             }
         }
 
-        _busy = true;
-        InstallButton.IsEnabled = false;
+        // 不再锁 _busy：一个版本还在装的时候，可以继续排别的版本
         InstallBar.Value = 0;
+        CancelInstallButton.Visibility = Visibility.Visible;
 
         var manager = _service.CreateDownloadManager();
         var loaderLabel = loader == "vanilla" ? "原版" : loader;
         var job = manager.EnqueueJob("安装 Minecraft " + mc.Id + "（" + loaderLabel + "）", "版本");
+        var cts = new CancellationTokenSource();
+        _installCts[job.Id] = cts;
+        var stopwatch = Stopwatch.StartNew();
 
         try
         {
             var progress = new Progress<InstallProgress>(p =>
             {
+                // 在「下载管理」里点了取消，也要让安装停下来
+                if (job.State == DownloadState.Canceled && !cts.IsCancellationRequested)
+                {
+                    cts.Cancel();
+                }
+
                 InstallBar.Value = p.Percent;
                 InstallText.Text = p.Total > 0
-                    ? $"[{p.Stage}] {p.Message} · {p.Percent:0}%"
-                    : $"[{p.Stage}] {p.Message}";
+                    ? $"[{p.Stage}] {p.Message} · {p.Percent:0}% · {stopwatch.Elapsed.TotalSeconds:0}s"
+                    : $"[{p.Stage}] {p.Message} · {stopwatch.Elapsed.TotalSeconds:0}s";
 
                 manager.UpdateJob(job, p.Percent, $"[{p.Stage}] {p.Message}");
             });
@@ -678,13 +712,13 @@ public partial class MainWindow : Window
             if (!File.Exists(baseJson))
             {
                 InstallText.Text = "先补齐原版 " + mc.Id + " …";
-                await installer.InstallVanillaAsync(mc.Id, progress, downloadAssets: true);
+                await installer.InstallVanillaAsync(mc.Id, progress, downloadAssets: true, cts.Token);
             }
 
             if (option != null)
             {
                 InstallText.Text = $"安装 {option.Loader} {option.Version} …";
-                var id = await _service.CreateLoaderInstaller().InstallAsync(option, progress);
+                var id = await _service.CreateLoaderInstaller().InstallAsync(option, progress, cts.Token);
                 InstallText.Text = "安装完成: " + id;
             }
             else
@@ -697,6 +731,11 @@ public partial class MainWindow : Window
             manager.CompleteJob(job, true);
             ShowToast("安装完成", "Minecraft " + mc.Id + "（" + loaderLabel + "）", "✓", 4000);
         }
+        catch (OperationCanceledException)
+        {
+            InstallText.Text = "已取消安装: " + mc.Id;
+            manager.CompleteJob(job, false, "已取消");
+        }
         catch (Exception ex)
         {
             InstallText.Text = "安装失败: " + ex.Message;
@@ -704,9 +743,37 @@ public partial class MainWindow : Window
         }
         finally
         {
-            _busy = false;
-            InstallButton.IsEnabled = true;
+            _installCts.Remove(job.Id);
+            cts.Dispose();
+
+            if (_installCts.Count == 0)
+            {
+                CancelInstallButton.Visibility = Visibility.Collapsed;
+            }
         }
+    }
+
+    /// <summary>取消正在跑的安装（可以一次取消全部）。</summary>
+    private void OnCancelInstall(object sender, RoutedEventArgs e)
+    {
+        if (_installCts.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var cts in _installCts.Values.ToList())
+        {
+            try
+            {
+                cts.Cancel();
+            }
+            catch
+            {
+                // 忽略
+            }
+        }
+
+        InstallText.Text = "正在取消…";
     }
 
     // ---------------- 内容页 ----------------
@@ -1176,6 +1243,130 @@ public partial class MainWindow : Window
         RefreshIsolationUi(resolved);
         RefreshModList(dir);
         UpdateModCountLine(dir);
+
+        if (VmNoteBox != null)
+        {
+            VmNoteBox.Text = _service.VersionNote(_vmCurrent.Id) ?? string.Empty;
+        }
+
+        if (VmRenameButton != null)
+        {
+            VmRenameButton.IsEnabled = true;
+        }
+    }
+
+    private void OnVmSaveNote(object sender, RoutedEventArgs e)
+    {
+        if (_vmCurrent == null)
+        {
+            return;
+        }
+
+        _service.SetVersionNote(_vmCurrent.Id, VmNoteBox.Text);
+        VmStatus.Text = string.IsNullOrWhiteSpace(VmNoteBox.Text) ? "备注已清空" : "备注已保存";
+        ReloadVmVersions();
+    }
+
+    private async void OnVmRename(object sender, RoutedEventArgs e)
+    {
+        if (_vmCurrent == null)
+        {
+            return;
+        }
+
+        var resolved = _service.Resolve(_vmCurrent.Id);
+        if (resolved == null)
+        {
+            return;
+        }
+
+        var newName = PromptForText("重命名版本", "新的版本名（文件夹和版本号会一起改）", _vmCurrent.Id);
+        if (string.IsNullOrWhiteSpace(newName) || newName.Trim() == _vmCurrent.Id)
+        {
+            return;
+        }
+
+        var outcome = _service.RenameVersion(resolved, newName.Trim());
+        if (!outcome.Ok || outcome.NewId == null)
+        {
+            VmStatus.Text = outcome.Message;
+            ShowToast("改名失败", outcome.Message, "⚠", 5000);
+            return;
+        }
+
+        var newId = outcome.NewId;
+        ReloadVmVersions();
+
+        var target = VmVersionList.Items.OfType<VmVersionItem>().FirstOrDefault(v => v.RawId == newId);
+        if (target != null)
+        {
+            VmVersionList.SelectedItem = target;
+        }
+
+        VmStatus.Text = outcome.Message;
+        ShowToast("已改名", outcome.Message, "✓", 4600);
+        await Task.CompletedTask;
+    }
+
+    /// <summary>一个简单的输入框（重命名、备注之类的用）。</summary>
+    private string? PromptForText(string title, string label, string initial)
+    {
+        var window = new Window
+        {
+            Title = title,
+            Width = 420,
+            SizeToContent = SizeToContent.Height,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Owner = this,
+            ResizeMode = ResizeMode.NoResize,
+            WindowStyle = WindowStyle.ToolWindow,
+            Background = (Brush)FindResource("Bg"),
+        };
+
+        var panel = new StackPanel { Margin = new Thickness(22, 18, 22, 18) };
+        panel.Children.Add(new TextBlock
+        {
+            Text = label,
+            FontSize = 11.5,
+            Foreground = (Brush)FindResource("InkDim"),
+        });
+
+        var box = new TextBox { Text = initial, Margin = new Thickness(0, 8, 0, 16) };
+        panel.Children.Add(box);
+
+        var buttons = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+        };
+
+        var cancel = new Button
+        {
+            Content = "取消",
+            Style = (Style)FindResource("GlassButton"),
+            Width = 84,
+            Height = 34,
+            IsCancel = true,
+        };
+        var ok = new Button
+        {
+            Content = "确定",
+            Style = (Style)FindResource("HeroButton"),
+            Width = 84,
+            Height = 34,
+            Margin = new Thickness(8, 0, 0, 0),
+            IsDefault = true,
+        };
+        ok.Click += (_, __) => window.DialogResult = true;
+        buttons.Children.Add(cancel);
+        buttons.Children.Add(ok);
+        panel.Children.Add(buttons);
+
+        window.Content = panel;
+        box.Focus();
+        box.SelectAll();
+
+        return window.ShowDialog() == true ? box.Text?.Trim() : null;
     }
 
     /// <summary>mod 数量按“这个版本实际读哪个 mods 文件夹”来数，别用扫描时的旧值。</summary>
@@ -1800,6 +1991,19 @@ public partial class MainWindow : Window
     {
         if (sender is FrameworkElement { DataContext: DownloadItem item })
         {
+            // 安装类任务（KindLabel = 版本 / 整合包）走自己的取消开关
+            if (_installCts.TryGetValue(item.Id, out var cts))
+            {
+                try
+                {
+                    cts.Cancel();
+                }
+                catch
+                {
+                    // 忽略
+                }
+            }
+
             _service.CreateDownloadManager().Cancel(item);
             UpdateDownloadHint();
         }
@@ -2175,6 +2379,9 @@ public partial class MainWindow : Window
     private GameLauncher? _gameLauncher;
     private bool _killedByUser;
 
+    /// <summary>正在跑的安装任务（job id → 取消开关），支持同时装好几个版本。</summary>
+    private readonly Dictionary<string, CancellationTokenSource> _installCts = new();
+
     /// <summary>崩溃窗口：看完原因、导出报告。</summary>
     private void ShowCrashWindow(CrashInsight insight, bool modal = true)
     {
@@ -2353,17 +2560,21 @@ public partial class MainWindow : Window
 
     private async void OnInstallContent(object sender, RoutedEventArgs e)
     {
-        if (_busy || FileCombo.SelectedItem is not FileEntry entry || _selectedContent == null)
+        if (FileCombo.SelectedItem is not FileEntry entry || _selectedContent == null)
         {
+            return;
+        }
+
+        // 整合包：下完直接导入成版本，别只丢一个 mrpack 在下载目录里让玩家自己找
+        if (_selectedContent.Kind == ContentKind.Modpack)
+        {
+            await InstallContentModpackAsync(entry.File);
             return;
         }
 
         var target = VersionList.SelectedItem as VersionCard;
         var resolved = target == null ? null : _service.Resolve(target.Summary.Id);
         var gameDir = resolved == null ? _settings.GameDirectory : _service.GameDirectoryFor(resolved);
-
-        _busy = true;
-        ContentInstallButton.IsEnabled = false;
 
         try
         {
@@ -2375,10 +2586,57 @@ public partial class MainWindow : Window
         {
             ContentStatus.Text = "安装失败: " + ex.Message;
         }
+    }
+
+    /// <summary>整合包：下载 + 解包 + 建版本，一条龙，进度走下载管理。</summary>
+    private async Task InstallContentModpackAsync(ContentFile file)
+    {
+        var manager = _service.CreateDownloadManager();
+        var job = manager.EnqueueJob("整合包 " + file.FileName, "整合包");
+        var cts = new CancellationTokenSource();
+        _installCts[job.Id] = cts;
+        CancelInstallButton.Visibility = Visibility.Visible;
+        ContentStatus.Text = "正在下载并导入整合包…";
+
+        try
+        {
+            var progress = new Progress<InstallProgress>(p =>
+            {
+                if (job.State == DownloadState.Canceled && !cts.IsCancellationRequested)
+                {
+                    cts.Cancel();
+                }
+
+                manager.UpdateJob(job, p.Percent, $"[{p.Stage}] {p.Message}");
+                ContentStatus.Text = $"[{p.Stage}] {p.Message} · {p.Percent:0}%";
+            });
+
+            var id = await _service.CreateModpackInstaller().InstallAsync(file, progress, cts.Token);
+            manager.CompleteJob(job, true);
+            LoadVersions();
+            ReloadVmVersions();
+
+            ContentStatus.Text = "整合包已导入成版本：" + id + "（已按设置做版本隔离）";
+            ShowToast("整合包已导入", id, "✓", 5000);
+        }
+        catch (OperationCanceledException)
+        {
+            manager.CompleteJob(job, false, "已取消");
+            ContentStatus.Text = "已取消导入整合包";
+        }
+        catch (Exception ex)
+        {
+            manager.CompleteJob(job, false, ex.Message);
+            ContentStatus.Text = "整合包导入失败: " + ex.Message;
+        }
         finally
         {
-            _busy = false;
-            ContentInstallButton.IsEnabled = true;
+            _installCts.Remove(job.Id);
+            cts.Dispose();
+            if (_installCts.Count == 0)
+            {
+                CancelInstallButton.Visibility = Visibility.Collapsed;
+            }
         }
     }
 
@@ -4029,7 +4287,7 @@ public partial class MainWindow : Window
         SettingsGameDir.Text = _settings.GameDirectory;
         SettingsPlayer.Text = _settings.PlayerName;
         SettingsMemory.Text = _settings.MaxMemoryMb.ToString();
-        SettingsJava.Text = _settings.JavaPath;
+        _ = RefreshJavaOptionsAsync(_settings.JavaPath);
         SettingsMirror.IsChecked = _settings.UseMirror;
         if (SettingsAskInstall != null)
         {
@@ -4062,7 +4320,7 @@ public partial class MainWindow : Window
                 _settings.MaxMemoryMb = memory;
             }
 
-            _settings.JavaPath = SettingsJava.Text.Trim();
+            _settings.JavaPath = (SettingsJavaCombo.SelectedItem as JavaOption)?.Path ?? string.Empty;
             _settings.UseMirror = SettingsMirror.IsChecked == true;
             _settings.AskInstallFolder = SettingsAskInstall?.IsChecked != false;
             _settings.MicrosoftClientId = ClientIdBox.Text?.Trim() ?? string.Empty;

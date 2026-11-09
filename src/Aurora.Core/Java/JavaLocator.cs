@@ -92,18 +92,13 @@ public sealed class JavaLocator
             yield return javaHome;
         }
 
-        var locations = new List<string>
+        // PATH 里的 java（很多玩家是解压版，直接加了环境变量）
+        foreach (var fromPath in FromPath())
         {
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Java"),
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Eclipse Adoptium"),
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Amazon Corretto"),
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Zulu"),
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Microsoft"),
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Eclipse Adoptium"),
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs"),
-        };
+            yield return fromPath;
+        }
 
-        foreach (var location in locations)
+        foreach (var location in KnownRoots())
         {
             if (!Directory.Exists(location))
             {
@@ -116,6 +111,144 @@ public sealed class JavaLocator
                 {
                     yield return sub;
                 }
+            }
+        }
+
+        // 启动器自带的运行时（官方启动器、PCL2、HMCL 下载的 Java 都在这种目录里）
+        foreach (var runtimeRoot in RuntimeRoots())
+        {
+            foreach (var home in FindUnder(runtimeRoot, 5))
+            {
+                yield return home;
+            }
+        }
+
+        // 最后再兜一层：Program Files 下两级里找 bin\java.exe
+        foreach (var broad in ProgramFilesRoots())
+        {
+            foreach (var home in FindUnder(broad, 2))
+            {
+                yield return home;
+            }
+        }
+    }
+
+    /// <summary>PATH 里的 java.exe（解析符号链接前先看 bin 目录）。</summary>
+    private static IEnumerable<string> FromPath()
+    {
+        var path = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+        var results = new List<string>();
+
+        foreach (var part in path.Split(';', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var dir = part.Trim().Trim('"');
+            if (string.IsNullOrEmpty(dir))
+            {
+                continue;
+            }
+
+            try
+            {
+                if (!File.Exists(Path.Combine(dir, "javaw.exe")) && !File.Exists(Path.Combine(dir, "java.exe")))
+                {
+                    continue;
+                }
+
+                var home = Path.GetDirectoryName(dir.TrimEnd('\\'));
+                if (!string.IsNullOrEmpty(home) && LooksLikeJavaHome(home) && !results.Contains(home))
+                {
+                    results.Add(home);
+                }
+            }
+            catch
+            {
+                // 忽略坏的 PATH 项
+            }
+        }
+
+        return results;
+    }
+
+    private static IEnumerable<string> KnownRoots()
+    {
+        var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+
+        yield return Path.Combine(programFiles, "Java");
+        yield return Path.Combine(programFiles, "Eclipse Adoptium");
+        yield return Path.Combine(programFiles, "Eclipse Foundation");
+        yield return Path.Combine(programFiles, "Amazon Corretto");
+        yield return Path.Combine(programFiles, "Zulu");
+        yield return Path.Combine(programFiles, "BellSoft");
+        yield return Path.Combine(programFiles, "Semeru");
+        yield return Path.Combine(programFiles, "Microsoft");
+        yield return Path.Combine(programFiles, "JetBrains");
+        yield return Path.Combine(programFiles, "Android", "Android Studio", "jbr");
+        yield return Path.Combine(programFilesX86, "Java");
+        yield return Path.Combine(programFilesX86, "Zulu");
+        yield return Path.Combine(localAppData, "Programs", "Eclipse Adoptium");
+        yield return Path.Combine(localAppData, "Programs");
+        yield return Path.Combine(localAppData, "JetBrains", "Toolbox", "apps");
+    }
+
+    /// <summary>各大启动器把 Java 下在自己目录里的位置。</summary>
+    private static IEnumerable<string> RuntimeRoots()
+    {
+        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+
+        yield return Path.Combine(appData, ".minecraft", "runtime");
+        yield return Path.Combine(appData, ".minecraft", "jre");
+        yield return Path.Combine(localAppData, "Packages", "Microsoft.4297127D64EC6_8wekyb3d8bbwe",
+            "LocalCache", "Local", "runtime");
+        yield return Path.Combine(localAppData, "Programs", "Minecraft Launcher", "runtime");
+    }
+
+    private static IEnumerable<string> ProgramFilesRoots()
+    {
+        yield return Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        yield return Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+    }
+
+    /// <summary>在目录里往下找 bin\java(w).exe，最多 maxDepth 层，带访问上限防止卡死。</summary>
+    private static IEnumerable<string> FindUnder(string root, int maxDepth)
+    {
+        if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
+        {
+            yield break;
+        }
+
+        var queue = new Queue<(string Dir, int Depth)>();
+        queue.Enqueue((root, 0));
+        var visited = 0;
+
+        while (queue.Count > 0 && visited < 4000)
+        {
+            var (dir, depth) = queue.Dequeue();
+            visited++;
+
+            if (LooksLikeJavaHome(dir))
+            {
+                yield return dir;
+                continue;
+            }
+
+            if (depth >= maxDepth)
+            {
+                continue;
+            }
+
+            foreach (var sub in SafeDirs(dir))
+            {
+                // 跳过明显没用的目录，省时间
+                var name = Path.GetFileName(sub);
+                if (name is "cache" or "logs" or "assets" or "libraries" or "versions")
+                {
+                    continue;
+                }
+
+                queue.Enqueue((sub, depth + 1));
             }
         }
     }

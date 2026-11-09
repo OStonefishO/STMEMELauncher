@@ -611,8 +611,21 @@
                                     </Border>
                                 </StackPanel>
 
+                                <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                    <Button x:Name="JavaModeButton" Content="Java：自动" Style="{StaticResource GlassButton}"
+                                            Padding="12,5" FontSize="10.5" Click="OnHomeToggleJavaMode"
+                                            ToolTip="自动：按版本需要的 Java 挑；手动：用你指定的那个"/>
+                                    <Button Content="扫描 Java" Style="{StaticResource GlassButton}" Padding="12,5"
+                                            FontSize="10.5" Margin="8,0,0,0" Click="OnHomeScanJava"/>
+                                    <Button Content="选择 java.exe" Style="{StaticResource GlassButton}" Padding="12,5"
+                                            FontSize="10.5" Margin="8,0,0,0" Click="OnHomePickJava"/>
+                                    <TextBlock x:Name="HomeJavaHint" Text="" FontSize="10.5"
+                                               Foreground="{StaticResource InkFaint}" VerticalAlignment="Center"
+                                               Margin="10,0,0,0" MaxWidth="300" TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+
                                 <Button x:Name="LaunchButton" Style="{StaticResource HeroButton}" Width="286" Height="60"
-                                        Margin="0,30,0,0" Click="OnLaunch" IsEnabled="False">
+                                        Margin="0,22,0,0" Click="OnLaunch" IsEnabled="False">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="▶" FontSize="13" VerticalAlignment="Center" Margin="0,1,10,0"/>
                                         <TextBlock Text="开始游戏" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
@@ -783,8 +796,14 @@
                                     </StackPanel>
                                 </Border>
 
-                                <Button x:Name="InstallButton" Content="开始安装" Style="{StaticResource HeroButton}"
-                                        Height="52" Margin="0,16,0,0" Click="OnInstall" IsEnabled="False"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                                    <Button x:Name="InstallButton" Content="开始安装" Style="{StaticResource HeroButton}"
+                                            Height="52" Width="210" Click="OnInstall" IsEnabled="False"/>
+                                    <Button x:Name="CancelInstallButton" Content="取消安装"
+                                            Style="{StaticResource GlassButton}" Height="52" Margin="10,0,0,0"
+                                            Click="OnCancelInstall" Visibility="Collapsed"
+                                            ToolTip="可以同时装好几个版本，这个只取消正在进行的安装"/>
+                                </StackPanel>
 
                                 <ProgressBar x:Name="InstallBar" Height="5" Margin="0,14,0,0" Minimum="0" Maximum="100"
                                              Foreground="{StaticResource AccentGrad}" Background="#1AFFFFFF" BorderThickness="0"/>
@@ -1073,10 +1092,24 @@
                                     <Border CornerRadius="16" Background="{StaticResource Glass}"
                                             BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16">
                                         <StackPanel>
-                                            <TextBlock x:Name="VmTitle" Text="先在左边选一个版本" FontSize="18"
-                                                       FontWeight="Bold" Foreground="{StaticResource Ink}"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock x:Name="VmTitle" Text="先在左边选一个版本" FontSize="18"
+                                                           FontWeight="Bold" Foreground="{StaticResource Ink}"
+                                                           VerticalAlignment="Center"/>
+                                                <Button x:Name="VmRenameButton" Content="重命名"
+                                                        Style="{StaticResource GlassButton}" Padding="10,4" FontSize="10.5"
+                                                        Margin="12,0,0,0" VerticalAlignment="Center" IsEnabled="False"
+                                                        Click="OnVmRename" ToolTip="改版本名（文件夹、json、id 一起改）"/>
+                                            </StackPanel>
                                             <TextBlock x:Name="VmPath" Text="" FontSize="11" Margin="0,6,0,0"
                                                        Foreground="{StaticResource InkFaint}" TextWrapping="Wrap"/>
+
+                                            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                                <TextBox x:Name="VmNoteBox" Width="440" Height="30" MaxLength="120"
+                                                         ToolTip="这个版本的备注，导出整合包时会写进说明里"/>
+                                                <Button Content="保存备注" Style="{StaticResource GlassButton}" Height="30"
+                                                        Margin="8,0,0,0" FontSize="11" Click="OnVmSaveNote"/>
+                                            </StackPanel>
 
                                             <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
                                                 <TextBlock Text="运行内存 (MB) · 全局" FontSize="11.5" VerticalAlignment="Center"
@@ -1483,8 +1516,17 @@
                                             </StackPanel>
                                         </Grid>
 
-                                        <TextBlock Text="Java 路径（留空自动匹配）" Foreground="{StaticResource InkFaint}" FontSize="11" Margin="0,14,0,0"/>
-                                        <TextBox x:Name="SettingsJava" Margin="0,6,0,0"/>
+                                        <TextBlock Text="启动游戏用的 Java" Foreground="{StaticResource InkFaint}" FontSize="11" Margin="0,14,0,0"/>
+                                        <ComboBox x:Name="SettingsJavaCombo" Margin="0,6,0,0"/>
+                                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                            <Button Content="重新扫描 Java" Style="{StaticResource GlassButton}"
+                                                    Padding="12,5" FontSize="11" Click="OnScanJava"/>
+                                            <Button Content="手动添加目录" Style="{StaticResource GlassButton}"
+                                                    Padding="12,5" FontSize="11" Margin="8,0,0,0" Click="OnAddJavaDir"/>
+                                            <TextBlock x:Name="JavaScanStatus" FontSize="10.5" VerticalAlignment="Center"
+                                                       Margin="10,0,0,0" Foreground="{StaticResource InkFaint}"
+                                                       TextTrimming="CharacterEllipsis" MaxWidth="330"/>
+                                        </StackPanel>
 
                                         <TextBlock Text="版本隔离（全局）" Foreground="{StaticResource InkFaint}" FontSize="11" Margin="0,14,0,0"/>
                                         <ComboBox x:Name="SettingsIsolation" Margin="0,6,0,0" SelectedIndex="0">

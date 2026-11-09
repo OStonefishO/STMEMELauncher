@@ -7,8 +7,13 @@ namespace Aurora.Core.Net;
 public sealed class DownloadClient : IDisposable
 {
     private readonly HttpClient _http;
-
     public const string Bmclapi = "https://bmclapi2.bangbang93.com";
+
+    /// <summary>单个地址一次尝试最多等多久，卡住就换下一个通道。</summary>
+    private static readonly TimeSpan PerAttemptTimeout = TimeSpan.FromSeconds(90);
+
+    /// <summary>下载文件时，多久没有新数据就判定卡死。</summary>
+    private static readonly TimeSpan StallTimeout = TimeSpan.FromSeconds(45);
 
     public DownloadClient(bool useMirror = true)
     {
@@ -88,10 +93,18 @@ public sealed class DownloadClient : IDisposable
         {
             try
             {
-                using var response = await _http.GetAsync(candidate, HttpCompletionOption.ResponseHeadersRead, ct)
+                // 单个地址最多等 90 秒，卡住的连接直接放弃换下一个，别让玩家对着 100% 干等
+                using var attempt = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                attempt.CancelAfter(PerAttemptTimeout);
+
+                using var response = await _http.GetAsync(candidate, HttpCompletionOption.ResponseHeadersRead, attempt.Token)
                     .ConfigureAwait(false);
                 response.EnsureSuccessStatusCode();
-                return await response.Content.ReadAsByteArrayAsync(ct).ConfigureAwait(false);
+                return await response.Content.ReadAsByteArrayAsync(attempt.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -154,21 +167,27 @@ public sealed class DownloadClient : IDisposable
 
     private async Task DownloadOnceAsync(string url, string targetPath, CancellationToken ct)
     {
-        using var response = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+        // 45 秒没收到任何数据就判定卡死，换下一个通道（有数据就一直续命）
+        using var stall = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        stall.CancelAfter(StallTimeout);
+        var token = stall.Token;
+
+        using var response = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
         var total = response.Content.Headers.ContentLength ?? -1;
 
         var temp = targetPath + ".tmp";
-        await using (var source = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false))
+        await using (var source = await response.Content.ReadAsStreamAsync(token).ConfigureAwait(false))
         await using (var target = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
         {
             var buffer = new byte[81920];
             long done = 0;
             int read;
-            while ((read = await source.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
+            while ((read = await source.ReadAsync(buffer, token).ConfigureAwait(false)) > 0)
             {
-                await target.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
+                await target.WriteAsync(buffer.AsMemory(0, read), token).ConfigureAwait(false);
                 done += read;
+                stall.CancelAfter(StallTimeout);
                 Progress?.Report((done, total));
             }
         }

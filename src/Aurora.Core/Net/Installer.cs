@@ -160,6 +160,7 @@ public sealed class Installer
         }
 
         var done = 0;
+        var failed = new System.Collections.Concurrent.ConcurrentBag<string>();
         var gate = new SemaphoreSlim(16);
         var tasks = new List<Task>();
         object sync = new();
@@ -179,8 +180,16 @@ public sealed class Installer
                         return;
                     }
 
-                    var url = $"{ObjectBase}/{hash[..2]}/{hash}";
-                    await _client.DownloadFileAsync(url, target, hash, ct: ct).ConfigureAwait(false);
+                    await DownloadAssetWithRetryAsync(hash, target, ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch
+                {
+                    // 单个资源坏了不该把整个安装拖死，记下来最后再补一次
+                    failed.Add(hash);
                 }
                 finally
                 {
@@ -206,6 +215,59 @@ public sealed class Installer
         }
 
         await Task.WhenAll(tasks).ConfigureAwait(false);
+
+        if (failed.Count == 0)
+        {
+            return;
+        }
+
+        // 第二轮：串行把失败的补一遍（通常这时候是网络抖动，重试就过了）
+        foreach (var hash in failed.ToList())
+        {
+            ct.ThrowIfCancellationRequested();
+            try
+            {
+                var relative = Path.Combine(hash[..2], hash);
+                var target = Path.Combine(AssetsDirectory, "objects", relative);
+                await DownloadAssetWithRetryAsync(hash, target, ct).ConfigureAwait(false);
+                failed.TryTake(out _);
+            }
+            catch
+            {
+                // 还失败就先留着
+            }
+        }
+
+        if (failed.Count > 0)
+        {
+            // 资源缺一点通常只是个别音效/语言文件没声，不值得让整个版本装不上
+            progress?.Report(new InstallProgress
+            {
+                Stage = "资源文件",
+                Done = entries.Count,
+                Total = entries.Count,
+                Message = $"有 {failed.Count} 个资源没下下来，先继续",
+            });
+        }
+    }
+
+    /// <summary>一个资源文件，最多试两次（第一次失败停 400ms 再来）。</summary>
+    private async Task DownloadAssetWithRetryAsync(string hash, string target, CancellationToken ct)
+    {
+        var url = $"{ObjectBase}/{hash[..2]}/{hash}";
+        try
+        {
+            await _client.DownloadFileAsync(url, target, hash, ct: ct).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            await Task.Delay(400, ct).ConfigureAwait(false);
+            await _client.DownloadFileAsync(url, target, hash, ct: ct).ConfigureAwait(false);
+        }
     }
 
     private static string? ExtractClientUrl(string jsonText)

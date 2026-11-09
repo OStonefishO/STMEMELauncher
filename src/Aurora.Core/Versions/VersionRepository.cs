@@ -122,7 +122,7 @@ public sealed class VersionRepository
                 Directory = dir,
                 JsonPath = jsonPath,
                 JarPath = jarPath,
-                ClientVersion = json.ClientVersion ?? GuessClientVersion(id),
+                ClientVersion = NormalizeClientVersion(json.ClientVersion, id),
                 Loader = loader,
                 LoaderVersion = loaderVersion,
                 JavaMajor = json.JavaVersion?.MajorVersion ?? 8,
@@ -223,6 +223,8 @@ public sealed class VersionRepository
                 ? raw!.InheritsFrom
                 : GuessClientVersion(id);
         }
+
+        clientVersion = NormalizeClientVersion(clientVersion, id);
 
         var javaMajor = merged.JavaVersion?.MajorVersion ?? InferJavaMajor(clientVersion);
 
@@ -489,6 +491,31 @@ public sealed class VersionRepository
         return 8;
     }
 
+    /// <summary>有些加载器把 clientVersion 写成自己的版本名（neoforge-26.3.0.101），这里把真正的 MC 版本抠出来。</summary>
+    public static string NormalizeClientVersion(string? value, string id)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return GuessClientVersion(id);
+        }
+
+        var v = value.Trim();
+        var looksLikeLoaderName =
+            v.StartsWith("fabric", StringComparison.OrdinalIgnoreCase) ||
+            v.StartsWith("forge", StringComparison.OrdinalIgnoreCase) ||
+            v.StartsWith("neoforge", StringComparison.OrdinalIgnoreCase) ||
+            v.StartsWith("quilt", StringComparison.OrdinalIgnoreCase) ||
+            v.StartsWith("optifine", StringComparison.OrdinalIgnoreCase) ||
+            v.StartsWith("liteloader", StringComparison.OrdinalIgnoreCase);
+
+        if (!looksLikeLoaderName)
+        {
+            return v;
+        }
+
+        return ExtractMcVersion(v) ?? GuessClientVersion(id);
+    }
+
     /// <summary>
     /// 版本 json 里没写 clientVersion（也没写 inheritsFrom）时，从版本号里猜 MC 版本。
     /// 注意加载器的版本号也长这样（fabric-loader-0.20.1-26.3），不能简单取第一个数字。
@@ -518,13 +545,29 @@ public sealed class VersionRepository
     /// </summary>
     public static string? ExtractMcVersion(string text)
     {
-        var matches = Regex.Matches(text, @"(?<![\d.])(\d{1,2}\.\d{1,2}(?:\.\d{1,2})?)(?![\d.])");
+        // 允许后面还跟着 .101 这种加载器小版本，先抓整段数字再截断
+        var matches = Regex.Matches(text, @"(?<!\d)(\d{1,3}(?:\.\d{1,3}){1,3})(?!\d)");
         string? fallback = null;
 
         foreach (Match match in matches)
         {
-            var candidate = match.Groups[1].Value;
-            fallback ??= candidate;
+            var parts = match.Groups[1].Value.Split('.');
+            if (parts.Length < 2)
+            {
+                continue;
+            }
+
+            // 0.20.1 这类是加载器版本，不是 MC
+            if (parts[0] == "0")
+            {
+                continue;
+            }
+
+            fallback ??= match.Groups[1].Value;
+
+            // 1.x 习惯写三段（1.21.11），年份版本写两段（26.3）
+            var take = parts[0] == "1" ? Math.Min(3, parts.Length) : Math.Min(2, parts.Length);
+            var candidate = string.Join('.', parts.Take(take));
 
             if (candidate.StartsWith("1.", StringComparison.Ordinal) ||
                 candidate.StartsWith("2", StringComparison.Ordinal))

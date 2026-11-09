@@ -115,9 +115,14 @@ public sealed class DownloadItem : INotifyPropertyChanged
         _ => string.Empty,
     };
 
-    public string SizeText => TotalBytes > 0
-        ? $"{ReceivedBytes / 1024.0 / 1024.0:0.0} / {TotalBytes / 1024.0 / 1024.0:0.0} MB"
-        : $"{ReceivedBytes / 1024.0 / 1024.0:0.0} MB";
+    /// <summary>不是真实文件下载的「任务」（安装版本、导入整合包），进度用百分比而不是字节。</summary>
+    public bool IsJob => string.IsNullOrEmpty(TargetPath);
+
+    public string SizeText => IsJob
+        ? (TotalBytes > 0 ? $"{Progress:0}%" : string.Empty)
+        : TotalBytes > 0
+            ? $"{ReceivedBytes / 1024.0 / 1024.0:0.0} / {TotalBytes / 1024.0 / 1024.0:0.0} MB"
+            : $"{ReceivedBytes / 1024.0 / 1024.0:0.0} MB";
 
     /// <summary>一行摘要（Run 绑定只读属性会抛异常，统一用这个）。</summary>
     public string Message
@@ -138,6 +143,7 @@ public sealed class DownloadItem : INotifyPropertyChanged
         StateText,
         SizeText,
         SpeedText,
+        State == DownloadState.Failed ? Error : string.Empty,
     }.Where(v => !string.IsNullOrWhiteSpace(v)));
 
     public string SpeedText => State == DownloadState.Running && SpeedBytesPerSecond > 0
@@ -187,7 +193,10 @@ public sealed class DownloadManager
 
     public DownloadItem Enqueue(ContentFile file, ContentKind kind, string gameDirectory)
     {
-        var folder = Path.Combine(gameDirectory, ContentKindInfo.Folder(kind));
+        var folderName = ContentKindInfo.Folder(kind);
+        // 玩家在选目录时可能直接选了 mods 里面那层，这里把多出来的一层削掉，避免 mods\mods
+        var gameDir = TrimToGameDirectory(gameDirectory, folderName);
+        var folder = Path.Combine(gameDir, folderName);
         var name = Sanitize(file.FileName);
 
         var item = new DownloadItem
@@ -202,6 +211,44 @@ public sealed class DownloadManager
         Ui(() => Tasks.Insert(0, item));
         _ = Task.Run(PumpAsync);
         return item;
+    }
+
+    /// <summary>
+    /// 把玩家选中的目录纠正成「游戏目录」：
+    /// 如果他直接选了 mods / resourcepacks 这一层，就退回上一层，避免出现 mods\mods。
+    /// </summary>
+    private static string TrimToGameDirectory(string directory, string expectedFolder)
+    {
+        if (string.IsNullOrWhiteSpace(directory))
+        {
+            return directory;
+        }
+
+        try
+        {
+            var trimmed = directory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var leaf = Path.GetFileName(trimmed);
+            if (string.IsNullOrEmpty(leaf))
+            {
+                return trimmed;
+            }
+
+            var known = new[] { "mods", "resourcepacks", "shaderpacks", "datapacks", "config", "saves" };
+            var isContentFolder = string.Equals(leaf, expectedFolder, StringComparison.OrdinalIgnoreCase) ||
+                                  known.Contains(leaf, StringComparer.OrdinalIgnoreCase);
+
+            if (!isContentFolder)
+            {
+                return trimmed;
+            }
+
+            var parent = Path.GetDirectoryName(trimmed);
+            return string.IsNullOrEmpty(parent) ? trimmed : parent;
+        }
+        catch
+        {
+            return directory;
+        }
     }
 
     /// <summary>不是下载、但有进度的任务（比如安装游戏版本），同样显示在下载管理里。</summary>

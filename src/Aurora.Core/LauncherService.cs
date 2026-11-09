@@ -10,7 +10,7 @@ using Aurora.Core.Versions;
 namespace Aurora.Core;
 
 /// <summary>把配置、版本仓库、Java 探测、命令行构建、进程启动串起来的门面层。</summary>
-public sealed class LauncherService
+public sealed partial class LauncherService
 {
     public LauncherService(LauncherSettings settings)
     {
