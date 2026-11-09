@@ -71,6 +71,8 @@ internal static class Program
                 return await ServerAsync(service, positional, flags).ConfigureAwait(false);
             case "upnp":
                 return await UpnpAsync(service, positional, flags).ConfigureAwait(false);
+            case "update":
+                return await UpdateAsync(service, positional, flags).ConfigureAwait(false);
             default:
                 PrintHelp();
                 return 0;
@@ -600,6 +602,34 @@ internal static class Program
         return result.Success ? 0 : 3;
     }
 
+    private static async Task<int> UpdateAsync(LauncherService service, List<string> positional,
+        Dictionary<string, string> flags)
+    {
+        var checker = service.CreateUpdateChecker();
+        var release = await checker.GetLatestAsync().ConfigureAwait(false);
+        if (release == null)
+        {
+            Console.Error.WriteLine("拿不到最新 Release（网络或 API 不可达）");
+            return 2;
+        }
+
+        Console.WriteLine($"最新版本: {release.Tag}  发布: {release.PublishedAt:yyyy-MM-dd}");
+        var asset = Aurora.Core.Net.SelfUpdater.PickAsset(release);
+        Console.WriteLine("exe 资产: " + (asset == null ? "无" : $"{asset.Name} ({asset.Size / 1024 / 1024} MB)"));
+
+        if (flags.ContainsKey("download") && asset != null)
+        {
+            var updater = service.CreateSelfUpdater();
+            var progress = new Progress<double>(p => Console.Write($"\r下载中 {p * 100:0}%   "));
+            var file = await updater.DownloadAsync(release, progress).ConfigureAwait(false);
+            Console.WriteLine();
+            Console.WriteLine("已下载: " + file);
+            Console.WriteLine("大小: " + new FileInfo(file).Length / 1024 / 1024 + " MB");
+        }
+
+        return 0;
+    }
+
     private static void PrintHelp()
     {
         Console.WriteLine(@"Aurora Launcher CLI (框架/自检工具)
@@ -619,6 +649,7 @@ internal static class Program
   aurora skin <png> <账号名> --dir <目录> [--mc 26.2] [--loader fabric]
   aurora server <版本id> --dir <目录> [--port 25599] [--memory 1024] [--timeout 60]
   aurora upnp [--port 25565] [--unmap]
+  aurora update [--download]
 
 公共参数:
   --game <目录>                      临时指定 .minecraft 目录");

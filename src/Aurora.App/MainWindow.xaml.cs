@@ -29,7 +29,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.5.4";
+    private const string AppVersion = "0.5.5";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -756,7 +756,7 @@ public partial class MainWindow : Window
             IsReadOnly = true,
             AcceptsReturn = true,
             TextWrapping = TextWrapping.Wrap,
-            Height = 260,
+            Height = 240,
             Background = new SolidColorBrush(Color.FromRgb(0x0B, 0x0E, 0x13)),
             Foreground = new SolidColorBrush(Color.FromRgb(0x9A, 0xA6, 0xBA)),
             BorderThickness = new Thickness(0),
@@ -766,39 +766,22 @@ public partial class MainWindow : Window
         };
         panel.Children.Add(notes);
 
+        var status = new TextBlock
+        {
+            Text = string.Empty,
+            FontSize = 11,
+            Foreground = (Brush)FindResource("InkFaint"),
+            Margin = new Thickness(0, 10, 0, 0),
+            TextWrapping = TextWrapping.Wrap,
+        };
+        panel.Children.Add(status);
+
         var buttons = new StackPanel
         {
             Orientation = Orientation.Horizontal,
             HorizontalAlignment = HorizontalAlignment.Right,
-            Margin = new Thickness(0, 14, 0, 0),
+            Margin = new Thickness(0, 12, 0, 0),
         };
-
-        var download = new Button
-        {
-            Content = "打开下载页",
-            Style = (Style)FindResource("HeroButton"),
-            Width = 140,
-            Height = 38,
-        };
-        download.Click += (_, __) =>
-        {
-            var url = string.IsNullOrEmpty(release.HtmlUrl)
-                ? "https://github.com/OStonefishO/STMEMELauncher/releases"
-                : release.HtmlUrl;
-            OpenBrowser(url);
-        };
-
-        var later = new Button
-        {
-            Content = "稍后",
-            Style = (Style)FindResource("GlassButton"),
-            Width = 90,
-            Margin = new Thickness(8, 0, 0, 0),
-        };
-
-        buttons.Children.Add(download);
-        buttons.Children.Add(later);
-        panel.Children.Add(buttons);
 
         var window = new Window
         {
@@ -812,7 +795,80 @@ public partial class MainWindow : Window
             Content = panel,
         };
 
+        var apply = new Button
+        {
+            Content = "立即更新",
+            Style = (Style)FindResource("HeroButton"),
+            Width = 140,
+            Height = 38,
+        };
+
+        var page = new Button
+        {
+            Content = "打开下载页",
+            Style = (Style)FindResource("GlassButton"),
+            Width = 120,
+            Margin = new Thickness(8, 0, 0, 0),
+        };
+
+        var later = new Button
+        {
+            Content = "稍后",
+            Style = (Style)FindResource("GlassButton"),
+            Width = 80,
+            Margin = new Thickness(8, 0, 0, 0),
+        };
+
+        apply.Click += async (_, __) =>
+        {
+            if (SelfUpdater.PickAsset(release) == null)
+            {
+                status.Text = "这个版本没附带 exe，请用「打开下载页」手动下载";
+                return;
+            }
+
+            apply.IsEnabled = false;
+            page.IsEnabled = false;
+            later.IsEnabled = false;
+            status.Text = "开始下载…";
+
+            try
+            {
+                var updater = _service.CreateSelfUpdater();
+                var progress = new Progress<double>(p =>
+                    status.Text = $"下载中 {p * 100:0}%");
+
+                var file = await updater.DownloadAsync(release, progress);
+                status.Text = "下载完成，正在重启并替换…";
+
+                SelfUpdater.ApplyAndRestart(file);
+                await Task.Delay(300);
+                Application.Current.Shutdown();
+            }
+            catch (Exception ex)
+            {
+                status.Text = "更新失败：" + ex.Message;
+                apply.IsEnabled = true;
+                page.IsEnabled = true;
+                later.IsEnabled = true;
+            }
+        };
+
+        page.Click += (_, __) =>
+        {
+            var url = string.IsNullOrEmpty(release.HtmlUrl)
+                ? "https://github.com/OStonefishO/STMEMELauncher/releases"
+                : release.HtmlUrl;
+            OpenBrowser(url);
+        };
+
         later.Click += (_, __) => window.Close();
+
+        buttons.Children.Add(apply);
+        buttons.Children.Add(page);
+        buttons.Children.Add(later);
+        panel.Children.Add(buttons);
+
         return window;
     }
 
@@ -906,7 +962,52 @@ public partial class MainWindow : Window
         var has6 = addresses.Any(a => a.Family == "IPv6");
         TunnelStatus.Text = has6
             ? "本机有公网 IPv6，朋友可以直接用 [IPv6]:端口 连进来"
-            : "只有内网 IPv4，外网联机需要下面的樱花穿透";
+            : "只有内网 IPv4，外网联机需要下面的樱花穿透或 UPnP";
+    }
+
+    private async void OnUpnpMap(object sender, RoutedEventArgs e)
+    {
+        var port = Port;
+        UpnpStatus.Text = "正在找路由器（SSDP 发现）…";
+
+        try
+        {
+            var discovered = await _upnp.DiscoverAsync();
+            if (!discovered)
+            {
+                UpnpStatus.Text = "路由器没有响应 UPnP 发现。可能关了这个功能，或者你在校园网/公司网里（这种网络一般不给 UPnP）。";
+                return;
+            }
+
+            UpnpStatus.Text = "正在添加端口映射…";
+            var result = await _upnp.MapPortAsync(port, "MEME Launcher");
+            if (!result.Success)
+            {
+                UpnpStatus.Text = "映射失败：" + result.Message;
+                return;
+            }
+
+            UpnpStatus.Text = string.IsNullOrEmpty(result.ExternalIp)
+                ? $"映射成功：{result.LocalIp}:{port} → 外网 {port}（没拿到公网 IP，去 ip.sb 看一下）"
+                : $"映射成功！朋友可以连 {result.ExternalIp}:{port}";
+        }
+        catch (Exception ex)
+        {
+            UpnpStatus.Text = "UPnP 出错：" + ex.Message;
+        }
+    }
+
+    private async void OnUpnpUnmap(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var ok = await _upnp.UnmapPortAsync(Port);
+            UpnpStatus.Text = ok ? "已删除端口映射" : "删除失败（可能本来就没有映射）";
+        }
+        catch (Exception ex)
+        {
+            UpnpStatus.Text = "删除出错：" + ex.Message;
+        }
     }
 
     private async void OnEnsureFrpc(object sender, RoutedEventArgs e)
@@ -914,8 +1015,7 @@ public partial class MainWindow : Window
         try
         {
             TunnelStatus.Text = "准备 frpc…";
-            var progress = new Progress<string>(t => TunnelStatus.Text = t);
-            await _tunnel.EnsureAsync(progress);
+            await _tunnel.EnsureAsync(new Progress<string>(t => TunnelStatus.Text = t));
             TunnelStatus.Text = "frpc 已就绪：" + SakuraFrp.ExePath;
         }
         catch (Exception ex)
@@ -977,53 +1077,6 @@ public partial class MainWindow : Window
         else if (line.Contains("error", StringComparison.OrdinalIgnoreCase))
         {
             TunnelStatus.Text = "frpc 报错，看日志";
-        }
-    }
-
-    // ---------------- UPnP ----------------
-
-    private async void OnUpnpMap(object sender, RoutedEventArgs e)
-    {
-        var port = Port;
-        UpnpStatus.Text = "正在找路由器（SSDP 发现）…";
-
-        try
-        {
-            var discovered = await _upnp.DiscoverAsync();
-            if (!discovered)
-            {
-                UpnpStatus.Text = "路由器没有响应 UPnP 发现。可能关了这个功能，或者你在校园网/公司网里（这种网络一般不给 UPnP）。";
-                return;
-            }
-
-            UpnpStatus.Text = "正在添加端口映射…";
-            var result = await _upnp.MapPortAsync(port, "MEME Launcher", ct: default);
-            if (!result.Success)
-            {
-                UpnpStatus.Text = "映射失败：" + result.Message;
-                return;
-            }
-
-            UpnpStatus.Text = string.IsNullOrEmpty(result.ExternalIp)
-                ? $"映射成功：{result.LocalIp}:{port} → 外网 {port}（没拿到公网 IP，去 ip.sb 看一下）"
-                : $"映射成功！朋友可以连 {result.ExternalIp}:{port}";
-        }
-        catch (Exception ex)
-        {
-            UpnpStatus.Text = "UPnP 出错：" + ex.Message;
-        }
-    }
-
-    private async void OnUpnpUnmap(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            var ok = await _upnp.UnmapPortAsync(Port);
-            UpnpStatus.Text = ok ? "已删除端口映射" : "删除失败（可能本来就没有映射）";
-        }
-        catch (Exception ex)
-        {
-            UpnpStatus.Text = "删除出错：" + ex.Message;
         }
     }
 

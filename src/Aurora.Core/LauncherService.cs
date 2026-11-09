@@ -148,6 +148,8 @@ public sealed class LauncherService
 
     public UpdateChecker CreateUpdateChecker() => new(SharedDownloader);
 
+    public SelfUpdater CreateSelfUpdater() => new();
+
     public Skins.OfflineSkinService CreateOfflineSkinService() => new(SharedDownloader);
 
     public CurseForgeClient CreateCurseForge() => new(Settings.CurseForgeApiKey);
