@@ -892,6 +892,27 @@
                                     <Button x:Name="NextButton" Content="下一页 ›" Style="{StaticResource GlassButton}"
                                             Margin="6,0,0,0" Padding="12,6" FontSize="11.5" Click="OnNextPage" IsEnabled="False"/>
                                 </StackPanel>
+
+                                <!-- 站外搜索：这些站没有开放 API，直接带关键词跳过去 -->
+                                <WrapPanel Margin="0,8,0,0">
+                                    <TextBlock Text="站外搜：" FontSize="10.5" Foreground="{StaticResource InkFaint}"
+                                               VerticalAlignment="Center" Margin="0,0,8,4"/>
+                                    <Button Content="MC 百科" Style="{StaticResource GlassButton}" Padding="10,4"
+                                            FontSize="10.5" Margin="0,0,6,4" Click="OnSearchSite"
+                                            Tag="https://search.mcmod.cn/s?key={q}" ToolTip="中文模组百科，搜中文介绍最准"/>
+                                    <Button Content="Planet Minecraft" Style="{StaticResource GlassButton}" Padding="10,4"
+                                            FontSize="10.5" Margin="0,0,6,4" Click="OnSearchSite"
+                                            Tag="https://www.planetminecraft.com/mods/?keywords={q}"/>
+                                    <Button Content="Minecraft Maps" Style="{StaticResource GlassButton}" Padding="10,4"
+                                            FontSize="10.5" Margin="0,0,6,4" Click="OnSearchSite"
+                                            Tag="https://www.minecraftmaps.com/?s={q}" ToolTip="主要是地图，搜不到就当逛站"/>
+                                    <Button Content="Nexus Mods" Style="{StaticResource GlassButton}" Padding="10,4"
+                                            FontSize="10.5" Margin="0,0,6,4" Click="OnSearchSite"
+                                            Tag="https://www.nexusmods.com/games/minecraft/search?keyword={q}"/>
+                                    <Button Content="ShadersMods" Style="{StaticResource GlassButton}" Padding="10,4"
+                                            FontSize="10.5" Margin="0,0,6,4" Click="OnSearchSite"
+                                            Tag="https://shadersmods.com/?s={q}" ToolTip="光影整合站"/>
+                                </WrapPanel>
                             </StackPanel>
 
                             <Border Grid.Row="1" CornerRadius="16" Background="{StaticResource Glass}"
@@ -1030,6 +1051,8 @@
                             <Grid Grid.Row="0" Margin="26,16,0,10">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <Button Content="‹ 返回" Style="{StaticResource GlassButton}" Click="OnCloseContentDetail"/>
+                                    <Button Content="MC 百科" Style="{StaticResource GlassButton}" Margin="8,0,0,0"
+                                            Click="OnOpenMcmodForDetail" ToolTip="在 MC 百科搜索这个模组的中文资料"/>
                                     <Border Width="44" Height="44" CornerRadius="12" Background="#14FFFFFF" Margin="16,0,0,0">
                                         <Image x:Name="DetailIcon" Stretch="UniformToFill"/>
                                     </Border>

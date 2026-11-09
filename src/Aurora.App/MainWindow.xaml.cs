@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.8";
+    private const string AppVersion = "0.15.9";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -950,6 +950,51 @@ public partial class MainWindow : Window
     {
         _contentOffset = 0;
         await LoadContentPageAsync();
+    }
+
+    /// <summary>站外搜索：把当前关键词带到对应站点（这些站没有公开 API，直接跳转最稳）。</summary>
+    private void OnSearchSite(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string template } || string.IsNullOrEmpty(template))
+        {
+            return;
+        }
+
+        var query = QueryBox?.Text?.Trim() ?? string.Empty;
+        var url = template.Replace("{q}", Uri.EscapeDataString(query));
+
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+            ContentStatus.Text = query.Length == 0
+                ? "已打开站点首页，输入关键词再搜一次更准"
+                : "已在浏览器搜索：" + query;
+        }
+        catch (Exception ex)
+        {
+            ContentStatus.Text = "打不开浏览器：" + ex.Message;
+        }
+    }
+
+    /// <summary>模组详情里跳 MC 百科（中文资料最全，查前置/兼容性很方便）。</summary>
+    private void OnOpenMcmodForDetail(object sender, RoutedEventArgs e)
+    {
+        var title = _detailCurrent?.Title ?? DetailTitle?.Text ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            return;
+        }
+
+        try
+        {
+            var url = "https://search.mcmod.cn/s?key=" + Uri.EscapeDataString(title);
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+            DetailStatus.Text = "已在浏览器打开 MC 百科：" + title;
+        }
+        catch (Exception ex)
+        {
+            DetailStatus.Text = "打不开浏览器：" + ex.Message;
+        }
     }
 
     private async Task LoadContentPageAsync()
