@@ -228,10 +228,58 @@ public sealed class OfficialLauncherImport
     public static string DefaultPath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), ".minecraft", "launcher_accounts.json");
 
+    /// <summary>新版（微软商店版）官方启动器把账号存在这里，但 accessToken 是空的（令牌加密存在别处）。</summary>
+    public static string StorePath => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), ".minecraft",
+        "launcher_accounts_microsoft_store.json");
+
+    private static IEnumerable<string> CandidatePaths()
+    {
+        yield return DefaultPath;
+
+        // 部分机器上商店版把 .minecraft 放在 LocalCache 里
+        var packages = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Packages");
+        yield return Path.Combine(packages, "Microsoft.4297127D64EC6_8wekyb3d8bbwe", "LocalCache", "Roaming",
+            ".minecraft", "launcher_accounts.json");
+    }
+
+    /// <summary>导不进来时给玩家一句能看懂的原因。</summary>
+    public static string Explain()
+    {
+        if (File.Exists(StorePath))
+        {
+            return "检测到新版官方启动器。它把登录令牌加密存在 launcher_msa_credentials 里，" +
+                   "launcher_accounts_microsoft_store.json 里的 accessToken 是空的，启动器读不出来。\n" +
+                   "这个功能只对旧版启动器有效 —— 想玩正版请用「微软账号登录」或 LittleSkin。";
+        }
+
+        if (File.Exists(DefaultPath))
+        {
+            return "找到 launcher_accounts.json 了，但里面没有能用的正版账号（可能只登录过离线号，或者令牌已经过期）。";
+        }
+
+        return "没找到官方启动器的账号文件（" + DefaultPath + "）。\n" +
+               "需要先用旧版官方启动器登录一次正版账号，再回来点导入。";
+    }
+
     public static List<ImportedAccount> Read(string? path = null)
     {
+        foreach (var candidate in path == null ? CandidatePaths() : new[] { path })
+        {
+            var result = ReadFile(candidate);
+            if (result.Count > 0)
+            {
+                return result;
+            }
+        }
+
+        return new List<ImportedAccount>();
+    }
+
+    private static List<ImportedAccount> ReadFile(string file)
+    {
         var result = new List<ImportedAccount>();
-        var file = path ?? DefaultPath;
         if (!File.Exists(file))
         {
             return result;

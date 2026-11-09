@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.13.5";
+    private const string AppVersion = "0.14.0";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -830,6 +830,31 @@ public partial class MainWindow : Window
             };
 
             var result = await source.SearchAsync(query);
+            var relaxedNote = false;
+
+            // 版本筛出来是 0 个，多半是这个版本号对方站点没有（比如版本号解析错、或太新的版本）。
+            // 自动放宽到「不限版本」再搜一次，别让玩家对着空白页发呆。
+            if (result.Total == 0 && !string.IsNullOrWhiteSpace(query.McVersion))
+            {
+                var relaxed = new ContentQuery
+                {
+                    Kind = query.Kind,
+                    Query = query.Query,
+                    McVersion = null,
+                    Loader = query.Loader,
+                    Category = query.Category,
+                    Offset = query.Offset,
+                    PageSize = query.PageSize,
+                };
+
+                var again = await source.SearchAsync(relaxed);
+                if (again.Total > 0)
+                {
+                    result = again;
+                    relaxedNote = true;
+                }
+            }
+
             _contentTotal = result.Total;
 
             var cards = result.Items.Select(i => new ContentCard(i)).ToList();
@@ -838,7 +863,9 @@ public partial class MainWindow : Window
 
             ContentStatus.Text = cards.Count == 0
                 ? "没有结果，换个关键词或放宽筛选"
-                : $"共 {_contentTotal} 个 · 第 {_contentOffset / ContentPageSize + 1} 页 · {source.Name}";
+                : relaxedNote
+                    ? $"「{query.McVersion}」没有匹配的，已放宽到全部版本 · 共 {_contentTotal} 个 · {source.Name}"
+                    : $"共 {_contentTotal} 个 · 第 {_contentOffset / ContentPageSize + 1} 页 · {source.Name}";
         }
         catch (Exception ex)
         {
@@ -1139,9 +1166,95 @@ public partial class MainWindow : Window
         VmTitle.Text = _vmCurrent.Id;
         VmPath.Text = dir;
         VmMemoryBox.Text = _settings.MaxMemoryMb.ToString();
-        VmStatus.Text = "mod 数量：" + _vmCurrent.ModCount;
 
+        RefreshIsolationUi(resolved);
         RefreshModList(dir);
+        UpdateModCountLine(dir);
+    }
+
+    /// <summary>mod 数量按“这个版本实际读哪个 mods 文件夹”来数，别用扫描时的旧值。</summary>
+    private void UpdateModCountLine(string gameDir)
+    {
+        var count = 0;
+        try
+        {
+            var modsDir = Path.Combine(gameDir, "mods");
+            if (Directory.Exists(modsDir))
+            {
+                count = Directory.GetFiles(modsDir).Count(f =>
+                    f.EndsWith(".jar", StringComparison.OrdinalIgnoreCase) ||
+                    f.EndsWith(".jar.disabled", StringComparison.OrdinalIgnoreCase));
+            }
+        }
+        catch
+        {
+            // 忽略
+        }
+
+        if (VmStatus != null)
+        {
+            VmStatus.Text = "mod 数量：" + count;
+        }
+    }
+
+    /// <summary>版本页那个「版本隔离」按钮的状态。</summary>
+    private void RefreshIsolationUi(ResolvedVersion? resolved)
+    {
+        if (IsolationButton == null || IsolationHint == null)
+        {
+            return;
+        }
+
+        if (resolved == null)
+        {
+            IsolationButton.IsEnabled = false;
+            IsolationButton.Content = "版本隔离：—";
+            IsolationHint.Text = string.Empty;
+            return;
+        }
+
+        IsolationButton.IsEnabled = true;
+        var isolated = _service.IsIsolated(resolved);
+        var forced = _service.IsolationOverride(resolved.Id);
+
+        IsolationButton.Content = isolated ? "版本隔离：开" : "版本隔离：关";
+        IsolationButton.Style = (Style)FindResource(isolated ? "HeroButton" : "GlassButton");
+        IsolationButton.Padding = new Thickness(16, 6, 16, 6);
+
+        IsolationHint.Text = forced == null
+            ? "现在跟随「设置 → 版本隔离」的全局设置，点按钮让这个版本单独决定。"
+            : isolated
+                ? "已隔离：这个版本的 mods / config / saves 在 " + resolved.Directory + " 里，不跟别的版本共用。"
+                : "已设成共用：mod 从游戏目录的 mods 读，和别的版本一起用。";
+    }
+
+    private void OnToggleIsolation(object sender, RoutedEventArgs e)
+    {
+        if (_vmCurrent == null)
+        {
+            return;
+        }
+
+        var resolved = _service.Resolve(_vmCurrent.Id);
+        if (resolved == null)
+        {
+            return;
+        }
+
+        var isolated = !_service.IsIsolated(resolved);
+        _service.SetIsolation(resolved, isolated);
+
+        var dir = _service.GameDirectoryFor(resolved);
+        VmPath.Text = dir;
+        RefreshIsolationUi(resolved);
+        RefreshModList(dir);
+        UpdateModCountLine(dir);
+
+        ShowToast(isolated ? "已开启版本隔离" : "已改成共用目录",
+            isolated
+                ? "现在的 mod 放在 " + Path.Combine(resolved.Directory, "mods")
+                : "mod 从 " + Path.Combine(_settings.GameDirectory, "mods") + " 读",
+            "✓", 3600);
     }
 
     private string? CurrentVmGameDir()
@@ -3069,11 +3182,8 @@ public partial class MainWindow : Window
             var accounts = OfficialLauncherImport.Read();
             if (accounts.Count == 0)
             {
-                var path = OfficialLauncherImport.DefaultPath;
-                AccountPageStatus.Text = File.Exists(path)
-                    ? "找到了 launcher_accounts.json，但里面没有可用的微软账号（可能只登录过离线号）"
-                    : "没找到 " + path + "\n需要先用官方启动器登录一次";
-                ShowToast("导入失败", "没有读到官方启动器的账号", "⚠", 4200);
+                AccountPageStatus.Text = OfficialLauncherImport.Explain();
+                ShowToast("导入失败", "官方启动器的账号读不出来，看下面的说明", "⚠", 5200);
                 return;
             }
 

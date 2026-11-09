@@ -76,6 +76,9 @@ public sealed class LauncherSettings
     /// <summary>版本隔离：auto（默认，按目录内容判断）/ on / off。</summary>
     public string VersionIsolation { get; set; } = "auto";
 
+    /// <summary>单个版本的隔离开关（true=强制隔离，false=强制共用全局），没记录的跟随上面的全局设置。</summary>
+    public Dictionary<string, bool> IsolatedVersions { get; set; } = new();
+
     /// <summary>额外的 Java 搜索目录（例如自己装的 JDK 根目录）。</summary>
     public List<string> ExtraJavaPaths { get; set; } = new();
 }

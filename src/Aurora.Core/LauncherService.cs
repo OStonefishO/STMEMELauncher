@@ -355,9 +355,46 @@ public sealed class LauncherService
     /// <summary>该版本实际使用的游戏目录（考虑版本隔离）。</summary>
     public string GameDirectoryFor(ResolvedVersion version)
     {
-        return VersionIsolation.ShouldIsolate(version.Directory, Settings.VersionIsolation)
-            ? version.Directory
-            : Settings.GameDirectory;
+        return IsIsolated(version) ? version.Directory : Settings.GameDirectory;
+    }
+
+    /// <summary>这个版本要不要隔离：先看单版本开关，没设置再按全局策略判断。</summary>
+    public bool IsIsolated(ResolvedVersion version)
+    {
+        if (Settings.IsolatedVersions.TryGetValue(version.Id, out var forced))
+        {
+            return forced;
+        }
+
+        return VersionIsolation.ShouldIsolate(version.Directory, Settings.VersionIsolation);
+    }
+
+    /// <summary>单版本的设置：null 表示跟随全局。</summary>
+    public bool? IsolationOverride(string versionId) =>
+        Settings.IsolatedVersions.TryGetValue(versionId, out var forced) ? forced : null;
+
+    /// <summary>设置某个版本是否隔离，开的时候顺手把目录建出来。</summary>
+    public void SetIsolation(ResolvedVersion version, bool isolated)
+    {
+        Settings.IsolatedVersions[version.Id] = isolated;
+        ConfigStore.Save(Settings);
+
+        if (!isolated)
+        {
+            return;
+        }
+
+        try
+        {
+            foreach (var name in new[] { "mods", "config", "saves", "resourcepacks", "shaderpacks", "crash-reports" })
+            {
+                Directory.CreateDirectory(Path.Combine(version.Directory, name));
+            }
+        }
+        catch
+        {
+            // 目录建不出来也不影响启动
+        }
     }
 
     public async Task<LaunchResult> LaunchAsync(string versionId, string? playerName = null,
