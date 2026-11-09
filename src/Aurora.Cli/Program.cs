@@ -67,6 +67,8 @@ internal static class Program
                 return await PackAsync(service, positional, flags).ConfigureAwait(false);
             case "skin":
                 return await SkinAsync(service, positional, flags).ConfigureAwait(false);
+            case "server":
+                return await ServerAsync(service, positional, flags).ConfigureAwait(false);
             default:
                 PrintHelp();
                 return 0;
@@ -501,6 +503,64 @@ internal static class Program
         return 0;
     }
 
+    private static async Task<int> ServerAsync(LauncherService service, List<string> positional,
+        Dictionary<string, string> flags)
+    {
+        var versionId = positional.FirstOrDefault();
+        if (string.IsNullOrEmpty(versionId))
+        {
+            Console.Error.WriteLine("用法: aurora server <版本id> --dir <目录> [--port 25599] [--memory 1024] [--timeout 60]");
+            return 1;
+        }
+
+        var resolved = service.Resolve(versionId);
+        if (resolved == null)
+        {
+            Console.Error.WriteLine("找不到版本: " + versionId);
+            return 1;
+        }
+
+        var dir = flags.TryGetValue("dir", out var d) ? d : Path.Combine(service.Settings.GameDirectory, "servers", "test");
+        var port = flags.TryGetValue("port", out var pt) && int.TryParse(pt, out var pv) ? pv : 25599;
+        var memory = flags.TryGetValue("memory", out var mm) && int.TryParse(mm, out var mv) ? mv : 1024;
+        var timeout = flags.TryGetValue("timeout", out var tt) && int.TryParse(tt, out var tv) ? tv : 60;
+
+        var loader = resolved.Loader == "fabric" ? "fabric" : "vanilla";
+        var java = service.SelectJava(resolved.JavaMajor, out _);
+        if (java == null)
+        {
+            Console.Error.WriteLine($"没有找到 Java {resolved.JavaMajor}");
+            return 1;
+        }
+
+        Directory.CreateDirectory(dir);
+        using var manager = new Aurora.Core.Server.ServerManager(service.SharedDownloader, service.Settings.GameDirectory);
+        manager.Output += line => Console.WriteLine("  | " + line);
+
+        var progress = new Progress<InstallProgress>(p => Console.WriteLine($"  [{p.Stage}] {p.Message}"));
+        Console.WriteLine($"准备 {versionId} ({loader}) 服务端 → {dir}");
+        var jar = await manager.EnsureServerJarAsync(resolved.ClientVersion, loader, dir, progress).ConfigureAwait(false);
+
+        var options = new Aurora.Core.Server.ServerLaunchOptions
+        {
+            Directory = dir,
+            JarPath = jar,
+            Port = port,
+            MemoryMb = memory,
+            AcceptEula = true,
+            OnlineMode = false,
+            JavaPath = java.JavaPath,
+        };
+        manager.Configure(options);
+        manager.Start(options);
+        Console.WriteLine($"服务端已启动，等待 {timeout} 秒…");
+
+        await Task.Delay(TimeSpan.FromSeconds(timeout)).ConfigureAwait(false);
+        manager.Stop();
+        Console.WriteLine("已停止");
+        return 0;
+    }
+
     private static void PrintHelp()
     {
         Console.WriteLine(@"Aurora Launcher CLI (框架/自检工具)
@@ -518,6 +578,7 @@ internal static class Program
   aurora search <mod|modpack|shader|resourcepack> <关键词> [--mc 1.21.1] [--loader fabric] [--cf]
   aurora pack <关键词> [--mc 1.21.1] [--loader fabric]
   aurora skin <png> <账号名> --dir <目录> [--mc 26.2] [--loader fabric]
+  aurora server <版本id> --dir <目录> [--port 25599] [--memory 1024] [--timeout 60]
 
 公共参数:
   --game <目录>                      临时指定 .minecraft 目录");

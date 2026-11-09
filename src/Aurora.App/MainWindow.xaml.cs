@@ -17,6 +17,7 @@ using Aurora.Core.Launch;
 using Aurora.Core.Models;
 using Aurora.Core.Net;
 using Aurora.Core.Network;
+using Aurora.Core.Server;
 
 namespace Aurora.App;
 
@@ -28,10 +29,14 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.5.2";
+    private const string AppVersion = "0.5.3";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
+    private ServerManager? _server;
+    private string _serverDirectory = string.Empty;
+    private bool _serverVersionsLoaded;
+    private List<VersionSummary> _serverVersions = new();
     private bool _onlineLoaded;
 
     public MainWindow()
@@ -109,6 +114,7 @@ public partial class MainWindow : Window
         {
             _onlineLoaded = true;
             _tunnel.Output += line => Dispatcher.BeginInvoke(() => AppendTunnelLog(line));
+            InitServerPanel();
             RefreshAddresses();
         }
 
@@ -971,6 +977,169 @@ public partial class MainWindow : Window
         {
             TunnelStatus.Text = "frpc 报错，看日志";
         }
+    }
+
+    // ---------------- 一键开服 ----------------
+
+    private void InitServerPanel()
+    {
+        _server ??= new ServerManager(_service.SharedDownloader, _settings.GameDirectory);
+        _server.Output -= OnServerOutput;
+        _server.Output += OnServerOutput;
+
+        if (_serverVersionsLoaded)
+        {
+            return;
+        }
+
+        _serverVersions = _service.ListVersions()
+            .Where(v => v.IsUsable)
+            .OrderByDescending(v => v.ClientVersion, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        ServerVersionCombo.ItemsSource = _serverVersions
+            .Select(v => $"{v.Id}  ·  MC {v.ClientVersion}  ·  {v.Loader}")
+            .ToList();
+        if (_serverVersions.Count > 0)
+        {
+            ServerVersionCombo.SelectedIndex = 0;
+        }
+
+        _serverVersionsLoaded = true;
+    }
+
+    private void OnServerOutput(string line) => Dispatcher.BeginInvoke(() => AppendServerLog(line));
+
+    private void AppendServerLog(string line)
+    {
+        if (ServerLog == null)
+        {
+            return;
+        }
+
+        ServerLog.AppendText(line + Environment.NewLine);
+        ServerLog.ScrollToEnd();
+
+        if (line.Contains("Done (", StringComparison.Ordinal) || line.Contains("For help, type", StringComparison.Ordinal))
+        {
+            ServerStatus.Text = "服务器已就绪，可以把地址发给朋友了";
+        }
+    }
+
+    private async void OnStartServer(object sender, RoutedEventArgs e)
+    {
+        if (ServerVersionCombo.SelectedIndex < 0 || ServerVersionCombo.SelectedIndex >= _serverVersions.Count)
+        {
+            ServerStatus.Text = "先在「启动」页装一个版本";
+            return;
+        }
+
+        var summary = _serverVersions[ServerVersionCombo.SelectedIndex];
+        if (summary == null)
+        {
+            ServerStatus.Text = "先在「启动」页装一个版本";
+            return;
+        }
+
+        if (ServerEula.IsChecked != true)
+        {
+            ServerStatus.Text = "需要先勾选同意 Minecraft EULA";
+            return;
+        }
+
+        var loader = summary.Loader.Equals("fabric", StringComparison.OrdinalIgnoreCase) ? "fabric" : "vanilla";
+        if (summary.Loader is "forge" or "neoforge")
+        {
+            ServerStatus.Text = $"{summary.Loader} 服务端还需要跑官方安装器，暂时只支持原版和 Fabric";
+            return;
+        }
+
+        try
+        {
+            ServerStartButton.IsEnabled = false;
+            ServerStatus.Text = "准备服务端…";
+
+            _server ??= new ServerManager(_service.SharedDownloader, _settings.GameDirectory);
+            _serverDirectory = Path.Combine(ServerManager.ServersRoot(_settings.GameDirectory), SafeName(summary.Id));
+            Directory.CreateDirectory(_serverDirectory);
+
+            var progress = new Progress<InstallProgress>(p => ServerStatus.Text = $"{p.Stage} · {p.Message}");
+            var jar = await _server.EnsureServerJarAsync(summary.ClientVersion, loader, _serverDirectory, progress);
+
+            var port = int.TryParse(ServerPortBox.Text, out var p1) ? p1 : 25565;
+            var memory = int.TryParse(ServerMemoryBox.Text, out var m1) ? Math.Max(1024, m1) : 2048;
+            var java = _service.SelectJava(summary.JavaMajor, out _)?.JavaPath;
+            if (string.IsNullOrEmpty(java))
+            {
+                ServerStatus.Text = $"没有找到 Java {summary.JavaMajor}";
+                ServerStartButton.IsEnabled = true;
+                return;
+            }
+
+            var options = new ServerLaunchOptions
+            {
+                Directory = _serverDirectory,
+                JarPath = jar,
+                Port = port,
+                MemoryMb = memory,
+                OnlineMode = ServerOnlineMode.IsChecked == true,
+                AcceptEula = true,
+                JavaPath = java,
+                Motd = "MEME Launcher · 一键开服",
+            };
+
+            _server.Configure(options);
+            _server.Start(options);
+
+            ServerStopButton.IsEnabled = true;
+            ServerStatus.Text = $"服务端已启动，端口 {port}（目录：{_serverDirectory}）";
+        }
+        catch (Exception ex)
+        {
+            ServerStatus.Text = "开服失败: " + ex.Message;
+            ServerStartButton.IsEnabled = true;
+        }
+    }
+
+    private void OnStopServer(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            _server?.Stop();
+        }
+        catch
+        {
+            // 忽略
+        }
+
+        ServerStopButton.IsEnabled = false;
+        ServerStartButton.IsEnabled = true;
+        ServerStatus.Text = "已停止";
+    }
+
+    private void OnOpenServerFolder(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var dir = string.IsNullOrEmpty(_serverDirectory)
+                ? ServerManager.ServersRoot(_settings.GameDirectory)
+                : _serverDirectory;
+            Directory.CreateDirectory(dir);
+            Process.Start(new ProcessStartInfo("explorer.exe", $"\"{dir}\"") { UseShellExecute = true });
+        }
+        catch
+        {
+            // 忽略
+        }
+    }
+
+    private static string SafeName(string name)
+    {
+        foreach (var bad in Path.GetInvalidFileNameChars())
+        {
+            name = name.Replace(bad, '_');
+        }
+
+        return name.Replace(' ', '_');
     }
 
     // ---------------- 账号 ----------------

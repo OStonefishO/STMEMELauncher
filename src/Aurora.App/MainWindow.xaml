@@ -758,69 +758,144 @@
                         <StackPanel Grid.Row="0" Margin="26,6,0,14">
                             <TextBlock Text="联机" FontSize="32" FontFamily="{StaticResource FontHead}"
                                        Foreground="{StaticResource TitleGrad}"/>
-                            <TextBlock Text="把本机地址发给朋友；没有公网 IP 就用樱花穿透" FontSize="12.5"
+                            <TextBlock Text="一键开服，然后把地址发给朋友；没有公网 IP 就用樱花穿透" FontSize="12.5"
                                        Foreground="{StaticResource InkDim}" Margin="0,6,0,0"/>
                         </StackPanel>
 
-                        <Grid Grid.Row="1" Margin="26,0,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="1*"/>
-                                <ColumnDefinition Width="1.05*"/>
-                            </Grid.ColumnDefinitions>
+                        <ScrollViewer Grid.Row="1" Margin="26,0,0,0" VerticalScrollBarVisibility="Auto">
+                            <StackPanel MaxWidth="1180" HorizontalAlignment="Left">
 
-                            <Border Grid.Column="0" CornerRadius="16" Background="{StaticResource Glass}"
-                                    BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16"
-                                    VerticalAlignment="Top">
-                                <StackPanel>
-                                    <TextBlock Text="本机地址" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
-                                    <TextBlock Text="IPv6 是公网地址，朋友可以直接连；IPv4 一般需要穿透或同一局域网。"
-                                               FontSize="11" Foreground="{StaticResource InkFaint}" Margin="0,5,0,12" TextWrapping="Wrap"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="1.05*"/>
+                                        <ColumnDefinition Width="1*"/>
+                                    </Grid.ColumnDefinitions>
 
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="端口" FontSize="11.5" Foreground="{StaticResource InkDim}" VerticalAlignment="Center"/>
-                                        <TextBox x:Name="PortBox" Text="25565" Width="90" Margin="10,0,0,0" HorizontalContentAlignment="Center"/>
-                                        <Button Content="刷新地址" Style="{StaticResource GlassButton}" Margin="10,0,0,0" Click="OnRefreshAddresses"/>
-                                    </StackPanel>
+                                    <Border Grid.Column="0" CornerRadius="16" Background="{StaticResource Glass}"
+                                            BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16">
+                                        <StackPanel>
+                                            <TextBlock Text="一键开服" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
+                                            <TextBlock Text="用已安装的版本起一个服务端；原版和 Fabric 支持，Forge 暂未接入。"
+                                                       FontSize="11" Foreground="{StaticResource InkFaint}" Margin="0,5,0,12"
+                                                       TextWrapping="Wrap"/>
 
-                                    <StackPanel x:Name="AddressList" Margin="0,14,0,0"/>
-                                </StackPanel>
-                            </Border>
+                                            <TextBlock Text="版本" FontSize="11" Foreground="{StaticResource InkDim}"/>
+                                            <ComboBox x:Name="ServerVersionCombo" Margin="0,6,0,10" Height="34" DisplayMemberPath="Id"/>
 
-                            <Border Grid.Column="1" CornerRadius="16" Background="{StaticResource Glass}"
-                                    BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16"
-                                    Margin="14,0,0,0" VerticalAlignment="Top">
-                                <StackPanel>
-                                    <TextBlock Text="樱花穿透" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
-                                    <TextBlock Text="在 natfrp.com 建一个 TCP 隧道指向本机 25565，然后填访问密钥和隧道 ID。"
-                                               FontSize="11" Foreground="{StaticResource InkFaint}" Margin="0,5,0,12" TextWrapping="Wrap"/>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="12"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0">
+                                                    <TextBlock Text="端口" FontSize="11" Foreground="{StaticResource InkDim}"/>
+                                                    <TextBox x:Name="ServerPortBox" Text="25565" Margin="0,6,0,0" Height="32"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2">
+                                                    <TextBlock Text="内存 (MB)" FontSize="11" Foreground="{StaticResource InkDim}"/>
+                                                    <TextBox x:Name="ServerMemoryBox" Text="2048" Margin="0,6,0,0" Height="32"/>
+                                                </StackPanel>
+                                            </Grid>
 
-                                    <TextBlock Text="访问密钥" FontSize="11.5" Foreground="{StaticResource InkDim}"/>
-                                    <TextBox x:Name="TunnelTokenBox" Height="34" Margin="0,6,0,10"/>
+                                            <CheckBox x:Name="ServerOnlineMode" Content="开启正版验证（正版账号专用）"
+                                                      Foreground="{StaticResource InkDim}" Margin="0,12,0,0" FontSize="11.5"/>
+                                            <CheckBox x:Name="ServerEula" Content="我已阅读并同意 Minecraft EULA"
+                                                      Foreground="{StaticResource InkDim}" Margin="0,8,0,0" FontSize="11.5"/>
 
-                                    <TextBlock Text="隧道 ID（多个用逗号分隔）" FontSize="11.5" Foreground="{StaticResource InkDim}"/>
-                                    <TextBox x:Name="TunnelIdBox" Height="34" Margin="0,6,0,12"/>
+                                            <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                                                <Button x:Name="ServerStartButton" Content="开服" Style="{StaticResource HeroButton}"
+                                                        Height="38" Width="92" Click="OnStartServer"/>
+                                                <Button x:Name="ServerStopButton" Content="停服" Style="{StaticResource GlassButton}"
+                                                        Margin="10,0,0,0" Click="OnStopServer" IsEnabled="False"/>
+                                                <Button Content="打开服务端目录" Style="{StaticResource GlassButton}" Margin="10,0,0,0"
+                                                        Click="OnOpenServerFolder"/>
+                                            </StackPanel>
 
-                                    <StackPanel Orientation="Horizontal">
-                                        <Button x:Name="TunnelStartButton" Content="启动隧道" Style="{StaticResource HeroButton}"
-                                                Height="38" Padding="20,0" Click="OnStartTunnel"/>
-                                        <Button x:Name="TunnelStopButton" Content="停止" Style="{StaticResource GlassButton}"
-                                                Margin="10,0,0,0" Click="OnStopTunnel" IsEnabled="False"/>
-                                        <Button Content="下载客户端" Style="{StaticResource GlassButton}" Margin="10,0,0,0"
-                                                Click="OnEnsureFrpc"/>
-                                    </StackPanel>
-
-                                    <TextBlock x:Name="TunnelStatus" Text="未启动" FontSize="11.5" Margin="0,10,0,0"
-                                               Foreground="{StaticResource InkFaint}" TextWrapping="Wrap"/>
-
-                                    <Border CornerRadius="10" Background="#0B0E13" Margin="0,10,0,0" Padding="10" Height="180">
-                                        <TextBox x:Name="TunnelLog" Background="Transparent" BorderThickness="0"
-                                                 Foreground="#FF9AA6BA" FontFamily="Consolas" FontSize="11"
-                                                 IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap"
-                                                 VerticalScrollBarVisibility="Auto"/>
+                                            <TextBlock x:Name="ServerStatus" Text="未运行" FontSize="11.5" Margin="0,10,0,0"
+                                                       Foreground="{StaticResource InkFaint}" TextWrapping="Wrap"/>
+                                        </StackPanel>
                                     </Border>
-                                </StackPanel>
-                            </Border>
-                        </Grid>
+
+                                    <Border Grid.Column="1" CornerRadius="16" Background="{StaticResource Glass}"
+                                            BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16"
+                                            Margin="14,0,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="本机地址" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
+                                            <TextBlock Text="IPv6 是公网地址，朋友可以直接连；IPv4 一般需要穿透或同一局域网。"
+                                                       FontSize="11" Foreground="{StaticResource InkFaint}" Margin="0,5,0,12" TextWrapping="Wrap"/>
+
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="端口" FontSize="11.5" Foreground="{StaticResource InkDim}" VerticalAlignment="Center"/>
+                                                <TextBox x:Name="PortBox" Text="25565" Width="90" Margin="10,0,0,0" HorizontalContentAlignment="Center"/>
+                                                <Button Content="刷新地址" Style="{StaticResource GlassButton}" Margin="10,0,0,0" Click="OnRefreshAddresses"/>
+                                            </StackPanel>
+
+                                            <StackPanel x:Name="AddressList" Margin="0,14,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+
+                                <Border CornerRadius="16" Background="{StaticResource Glass}"
+                                        BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16"
+                                        Margin="0,14,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="樱花穿透" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
+                                        <TextBlock Text="在 natfrp.com 建一个 TCP 隧道指向本机端口，然后填访问密钥和隧道 ID。"
+                                                   FontSize="11" Foreground="{StaticResource InkFaint}" Margin="0,5,0,12" TextWrapping="Wrap"/>
+
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="12"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="访问密钥" FontSize="11" Foreground="{StaticResource InkDim}"/>
+                                                <TextBox x:Name="TunnelTokenBox" Height="32" Margin="0,6,0,0"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="隧道 ID（多个用逗号分隔）" FontSize="11" Foreground="{StaticResource InkDim}"/>
+                                                <TextBox x:Name="TunnelIdBox" Height="32" Margin="0,6,0,0"/>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                            <Button x:Name="TunnelStartButton" Content="启动隧道" Style="{StaticResource GlassButton}"
+                                                    Click="OnStartTunnel"/>
+                                            <Button x:Name="TunnelStopButton" Content="停止" Style="{StaticResource GlassButton}"
+                                                    Margin="10,0,0,0" Click="OnStopTunnel" IsEnabled="False"/>
+                                            <Button Content="下载 frpc" Style="{StaticResource GlassButton}" Margin="10,0,0,0"
+                                                    Click="OnEnsureFrpc"/>
+                                        </StackPanel>
+
+                                        <TextBlock x:Name="TunnelStatus" Text="未启动" FontSize="11.5" Margin="0,10,0,0"
+                                                   Foreground="{StaticResource InkFaint}" TextWrapping="Wrap"/>
+
+                                        <Border CornerRadius="10" Background="#0B0E13" Margin="0,10,0,0" Padding="10" Height="130">
+                                            <TextBox x:Name="TunnelLog" Background="Transparent" BorderThickness="0"
+                                                     Foreground="#FF9AA6BA" FontFamily="Consolas" FontSize="11"
+                                                     IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap"
+                                                     VerticalScrollBarVisibility="Auto"/>
+                                        </Border>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border CornerRadius="16" Background="{StaticResource Glass}"
+                                        BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16"
+                                        Margin="0,14,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="服务端控制台" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
+                                        <Border CornerRadius="10" Background="#0B0E13" Margin="0,10,0,0" Padding="10" Height="180">
+                                            <TextBox x:Name="ServerLog" Background="Transparent" BorderThickness="0"
+                                                     Foreground="#FF9AA6BA" FontFamily="Consolas" FontSize="11"
+                                                     IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap"
+                                                     VerticalScrollBarVisibility="Auto"/>
+                                        </Border>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
                     </Grid>
 
                     <!-- ========== 账号页 ========== -->
