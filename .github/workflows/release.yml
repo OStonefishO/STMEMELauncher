@@ -206,11 +206,22 @@ jobs:
         shell: pwsh
         run: |
           $tag = if ('${{ github.event_name }}' -eq 'workflow_dispatch') { "v${{ needs.build.outputs.version }}" } else { '${{ github.ref_name }}' }
+
+          # SignPath 要求下载页上写明「本项目用 SignPath 签名」，所以每次 Release 都带上这句
+          $notes = @(
+            "本项目使用 **SignPath Foundation** 提供的免费代码签名服务。",
+            "This project uses the free code signing provided by [SignPath Foundation](https://signpath.org/).",
+            "",
+            "### 更新内容",
+            "见本页下方的 commits 列表。"
+          )
+          Set-Content -Path notes.md -Value $notes -Encoding UTF8
+
           gh release create $tag `
             "${{ steps.pick.outputs.final }}" `
             "MEME-Launcher-v${{ needs.build.outputs.version }}.sha256.txt" `
             "使用说明-v${{ needs.build.outputs.version }}.txt" `
-            --title "MEME Launcher $tag" --generate-notes
+            --title "MEME Launcher $tag" --notes-file notes.md
 
       - name: 上传到 Gitee（可选）
         if: ${{ env.GITEE_TOKEN != '' }}
