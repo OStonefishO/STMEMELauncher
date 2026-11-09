@@ -228,7 +228,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ComboBoxItem">
-                        <Border x:Name="b" Background="Transparent" CornerRadius="7" Padding="{TemplateBinding Padding}">
+                        <Border x:Name="b" Background="Transparent" CornerRadius="7" Padding="{TemplateBinding Padding}" TextElement.Foreground="{TemplateBinding Foreground}">
                             <ContentPresenter/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -252,7 +252,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="ComboBox">
                         <Grid>
-                            <ToggleButton x:Name="PART_Toggle" Focusable="False" ClickMode="Press"
+                            <ToggleButton x:Name="PART_Toggle" Focusable="False" ClickMode="Press" Foreground="{TemplateBinding Foreground}"
                                           IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
                                 <ToggleButton.Template>
                                     <ControlTemplate TargetType="ToggleButton">
@@ -279,7 +279,7 @@
                                         </ControlTemplate.Triggers>
                                     </ControlTemplate>
                                 </ToggleButton.Template>
-                                <ContentPresenter Content="{TemplateBinding SelectionBoxItem}"
+                                <ContentPresenter TextElement.Foreground="{TemplateBinding Foreground}" Content="{TemplateBinding SelectionBoxItem}"
                                                   ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
                                                   Margin="12,0,0,0" VerticalAlignment="Center"/>
                             </ToggleButton>
