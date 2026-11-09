@@ -1,3 +1,4 @@
+using System.Net.Http;
 using System.Text.Json;
 
 namespace Aurora.Core.Net;
@@ -39,6 +40,23 @@ public static class ContentKindInfo
         ContentKind.ResourcePack => "resourcepack",
         _ => "mod",
     };
+
+    /// <summary>CurseForge 的 classId。</summary>
+    public static int CurseForgeClassId(ContentKind kind) => kind switch
+    {
+        ContentKind.Modpack => 4471,
+        ContentKind.ResourcePack => 12,
+        ContentKind.World => 17,
+        ContentKind.Shader => 6552,
+        _ => 6,
+    };
+}
+
+public sealed class ContentTag
+{
+    public string Id { get; init; } = string.Empty;
+    public string Name { get; init; } = string.Empty;
+    public override string ToString() => Name;
 }
 
 public sealed class ContentItem
@@ -53,7 +71,6 @@ public sealed class ContentItem
     public string? IconUrl { get; init; }
     public long Downloads { get; init; }
     public List<string> Categories { get; init; } = new();
-    public string? LoaderHint { get; init; }
 
     public string DownloadText => Downloads >= 1_000_000
         ? $"{Downloads / 1_000_000.0:0.#}M"
@@ -74,19 +91,38 @@ public sealed class ContentFile
     public bool IsPrimary { get; init; }
 }
 
+public sealed class ContentQuery
+{
+    public ContentKind Kind { get; init; }
+    public string Query { get; init; } = string.Empty;
+    public string? McVersion { get; init; }
+    public string? Loader { get; init; }
+    public string? Category { get; init; }
+    public int Offset { get; init; }
+    public int PageSize { get; init; } = 20;
+}
+
+public sealed class ContentResult
+{
+    public List<ContentItem> Items { get; init; } = new();
+    public int Total { get; init; }
+}
+
 public interface IContentSource
 {
     string Name { get; }
     ContentKind[] SupportedKinds { get; }
+    bool IsAvailable { get; }
 
-    Task<List<ContentItem>> SearchAsync(ContentKind kind, string query, string? mcVersion, string? loader,
-        int limit, CancellationToken ct = default);
+    Task<ContentResult> SearchAsync(ContentQuery query, CancellationToken ct = default);
 
     Task<List<ContentFile>> GetFilesAsync(ContentItem item, string? mcVersion, string? loader,
         CancellationToken ct = default);
+
+    Task<List<ContentTag>> GetCategoriesAsync(ContentKind kind, CancellationToken ct = default);
 }
 
-/// <summary>Modrinth 官方 API：搜索 + 版本 + 直链下载，不需要 key。</summary>
+/// <summary>Modrinth 官方 API：搜索 / 分类 / 版本 / 直链，全都不需要 key。</summary>
 public sealed class ModrinthClient : IContentSource
 {
     private const string Api = "https://api.modrinth.com/v2";
@@ -97,42 +133,52 @@ public sealed class ModrinthClient : IContentSource
 
     public string Name => "Modrinth";
 
+    public bool IsAvailable => true;
+
     public ContentKind[] SupportedKinds =>
         new[] { ContentKind.Mod, ContentKind.Modpack, ContentKind.Shader, ContentKind.ResourcePack };
 
-    public async Task<List<ContentItem>> SearchAsync(ContentKind kind, string query, string? mcVersion,
-        string? loader, int limit, CancellationToken ct = default)
+    public async Task<ContentResult> SearchAsync(ContentQuery query, CancellationToken ct = default)
     {
-        var facets = new List<string> { $"[\"project_type:{ContentKindInfo.ModrinthType(kind)}\"]" };
-        if (!string.IsNullOrWhiteSpace(mcVersion))
+        var facets = new List<string> { $"[\"project_type:{ContentKindInfo.ModrinthType(query.Kind)}\"]" };
+        if (!string.IsNullOrWhiteSpace(query.McVersion))
         {
-            facets.Add($"[\"versions:{mcVersion}\"]");
+            facets.Add($"[\"versions:{query.McVersion}\"]");
         }
 
-        if (kind is ContentKind.Mod or ContentKind.Modpack && !string.IsNullOrWhiteSpace(loader) &&
-            loader != "vanilla")
+        if (!string.IsNullOrWhiteSpace(query.Category))
         {
-            facets.Add($"[\"categories:{loader}\"]");
+            facets.Add($"[\"categories:{query.Category}\"]");
+        }
+        else if (query.Kind is ContentKind.Mod or ContentKind.Modpack &&
+                 !string.IsNullOrWhiteSpace(query.Loader) && query.Loader != "vanilla")
+        {
+            facets.Add($"[\"categories:{query.Loader}\"]");
         }
 
-        var url = $"{Api}/search?query={Uri.EscapeDataString(query ?? string.Empty)}" +
+        var url = $"{Api}/search?query={Uri.EscapeDataString(query.Query ?? string.Empty)}" +
                   $"&facets={Uri.EscapeDataString("[" + string.Join(",", facets) + "]")}" +
-                  $"&limit={Math.Clamp(limit, 1, 50)}&index=relevance";
+                  $"&limit={Math.Clamp(query.PageSize, 1, 50)}&offset={Math.Max(0, query.Offset)}&index=relevance";
 
         var json = await _client.GetStringAsync(url, ct).ConfigureAwait(false);
         using var doc = JsonDocument.Parse(json);
-        var items = new List<ContentItem>();
+
+        var result = new ContentResult
+        {
+            Total = doc.RootElement.TryGetProperty("total_hits", out var total) ? total.GetInt32() : 0,
+        };
+
         if (!doc.RootElement.TryGetProperty("hits", out var hits))
         {
-            return items;
+            return result;
         }
 
         foreach (var hit in hits.EnumerateArray())
         {
-            items.Add(new ContentItem
+            result.Items.Add(new ContentItem
             {
                 Source = "Modrinth",
-                Kind = kind,
+                Kind = query.Kind,
                 Id = GetString(hit, "project_id") ?? string.Empty,
                 Slug = GetString(hit, "slug") ?? string.Empty,
                 Title = GetString(hit, "title") ?? string.Empty,
@@ -144,7 +190,32 @@ public sealed class ModrinthClient : IContentSource
             });
         }
 
-        return items;
+        return result;
+    }
+
+    public async Task<List<ContentTag>> GetCategoriesAsync(ContentKind kind, CancellationToken ct = default)
+    {
+        var type = ContentKindInfo.ModrinthType(kind);
+        var json = await _client.GetStringAsync($"{Api}/tag/category", ct).ConfigureAwait(false);
+        using var doc = JsonDocument.Parse(json);
+
+        var tags = new List<ContentTag>();
+        foreach (var item in doc.RootElement.EnumerateArray())
+        {
+            var projectType = GetString(item, "project_type");
+            if (!string.Equals(projectType, type, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var name = GetString(item, "name");
+            if (!string.IsNullOrEmpty(name))
+            {
+                tags.Add(new ContentTag { Id = name!, Name = name! });
+            }
+        }
+
+        return tags;
     }
 
     public async Task<List<ContentFile>> GetFilesAsync(ContentItem item, string? mcVersion, string? loader,
@@ -231,67 +302,190 @@ public sealed class ModrinthClient : IContentSource
 }
 
 /// <summary>
-/// CurseForge：官方 API 需要 key，这里走公开的 cfwidget 元数据 + forgecdn 直链。
-/// 不支持关键词搜索，按「slug / 链接」精确导入。
+/// CurseForge 官方 API。需要 key（console.curseforge.com 免费申请），
+/// 没有 key 时这个源会显示为「未配置」，其余功能照常。
 /// </summary>
 public sealed class CurseForgeClient : IContentSource
 {
-    private readonly DownloadClient _client;
+    private const string Api = "https://api.curseforge.com/v1";
 
-    public CurseForgeClient(DownloadClient client) => _client = client;
+    private readonly HttpClient _http;
+
+    public CurseForgeClient(string? apiKey)
+    {
+        ApiKey = apiKey?.Trim() ?? string.Empty;
+        _http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+        _http.DefaultRequestHeaders.UserAgent.ParseAdd("MemeLauncher/0.4");
+        if (!string.IsNullOrEmpty(ApiKey))
+        {
+            _http.DefaultRequestHeaders.Add("x-api-key", ApiKey);
+        }
+    }
+
+    public string ApiKey { get; }
 
     public string Name => "CurseForge";
 
-    public ContentKind[] SupportedKinds =>
-        new[] { ContentKind.Mod, ContentKind.Modpack, ContentKind.ResourcePack, ContentKind.World };
+    public bool IsAvailable => !string.IsNullOrEmpty(ApiKey);
 
-    public async Task<List<ContentItem>> SearchAsync(ContentKind kind, string query, string? mcVersion,
-        string? loader, int limit, CancellationToken ct = default)
-    {
-        // 只接受 slug 或 curseforge 链接
-        var slug = ExtractSlug(query);
-        if (string.IsNullOrEmpty(slug))
+    public ContentKind[] SupportedKinds =>
+        new[]
         {
-            return new List<ContentItem>();
+            ContentKind.Mod, ContentKind.Modpack, ContentKind.ResourcePack, ContentKind.Shader, ContentKind.World,
+        };
+
+    public async Task<ContentResult> SearchAsync(ContentQuery query, CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+        {
+            return new ContentResult();
         }
 
-        var item = await FetchAsync(kind, slug!, ct).ConfigureAwait(false);
-        return item == null ? new List<ContentItem>() : new List<ContentItem> { item };
+        var url = $"{Api}/mods/search?gameId=432&classId={ContentKindInfo.CurseForgeClassId(query.Kind)}" +
+                  $"&index={Math.Max(0, query.Offset)}&pageSize={Math.Clamp(query.PageSize, 1, 50)}" +
+                  "&sortField=2&sortOrder=desc";
+
+        if (!string.IsNullOrWhiteSpace(query.Query))
+        {
+            url += "&searchFilter=" + Uri.EscapeDataString(query.Query);
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.McVersion))
+        {
+            url += "&gameVersion=" + Uri.EscapeDataString(query.McVersion);
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Category))
+        {
+            url += "&categoryId=" + Uri.EscapeDataString(query.Category);
+        }
+
+        var json = await GetStringAsync(url, ct).ConfigureAwait(false);
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+
+        var result = new ContentResult();
+        if (root.TryGetProperty("pagination", out var pagination) &&
+            pagination.TryGetProperty("totalCount", out var total))
+        {
+            result = new ContentResult { Total = total.GetInt32() };
+        }
+
+        if (!root.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array)
+        {
+            return result;
+        }
+
+        foreach (var mod in data.EnumerateArray())
+        {
+            var logo = mod.TryGetProperty("logo", out var l) && l.ValueKind == JsonValueKind.Object
+                ? ModrinthClient.GetString(l, "thumbnailUrl")
+                : null;
+
+            var categories = new List<string>();
+            if (mod.TryGetProperty("categories", out var cats) && cats.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var c in cats.EnumerateArray())
+                {
+                    var name = ModrinthClient.GetString(c, "name");
+                    if (!string.IsNullOrEmpty(name))
+                    {
+                        categories.Add(name!);
+                    }
+                }
+            }
+
+            var links = mod.TryGetProperty("links", out var lk) && lk.ValueKind == JsonValueKind.Object
+                ? ModrinthClient.GetString(lk, "websiteUrl")
+                : null;
+
+            result.Items.Add(new ContentItem
+            {
+                Source = "CurseForge",
+                Kind = query.Kind,
+                Id = mod.TryGetProperty("id", out var id) ? id.GetInt64().ToString() : string.Empty,
+                Slug = mod.TryGetProperty("slug", out var slug) ? slug.GetString() ?? string.Empty : string.Empty,
+                Title = ModrinthClient.GetString(mod, "name") ?? string.Empty,
+                Summary = ModrinthClient.GetString(mod, "summary") ?? string.Empty,
+                Author = links ?? string.Empty,
+                IconUrl = logo,
+                Downloads = mod.TryGetProperty("downloadCount", out var dc) ? dc.GetInt64() : 0,
+                Categories = categories,
+            });
+        }
+
+        return result;
+    }
+
+    public async Task<List<ContentTag>> GetCategoriesAsync(ContentKind kind, CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+        {
+            return new List<ContentTag>();
+        }
+
+        var url = $"{Api}/categories?gameId=432&classId={ContentKindInfo.CurseForgeClassId(kind)}";
+        var json = await GetStringAsync(url, ct).ConfigureAwait(false);
+        using var doc = JsonDocument.Parse(json);
+
+        var tags = new List<ContentTag>();
+        if (!doc.RootElement.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array)
+        {
+            return tags;
+        }
+
+        foreach (var item in data.EnumerateArray())
+        {
+            var id = item.TryGetProperty("id", out var i) ? i.GetInt64().ToString() : string.Empty;
+            var name = ModrinthClient.GetString(item, "name");
+            if (!string.IsNullOrEmpty(id) && !string.IsNullOrEmpty(name))
+            {
+                tags.Add(new ContentTag { Id = id, Name = name! });
+            }
+        }
+
+        return tags;
     }
 
     public async Task<List<ContentFile>> GetFilesAsync(ContentItem item, string? mcVersion, string? loader,
         CancellationToken ct = default)
     {
-        var payload = await FetchRawAsync(item.Kind, item.Slug, ct).ConfigureAwait(false);
-        if (payload == null)
+        if (!IsAvailable || string.IsNullOrEmpty(item.Id))
         {
             return new List<ContentFile>();
         }
 
+        var url = $"{Api}/mods/{item.Id}/files?pageSize=50";
+        if (!string.IsNullOrWhiteSpace(mcVersion))
+        {
+            url += "&gameVersion=" + Uri.EscapeDataString(mcVersion);
+        }
+
+        var json = await GetStringAsync(url, ct).ConfigureAwait(false);
+        using var doc = JsonDocument.Parse(json);
+
         var files = new List<ContentFile>();
-        if (!payload.Value.TryGetProperty("files", out var arr))
+        if (!doc.RootElement.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array)
         {
             return files;
         }
 
-        foreach (var file in arr.EnumerateArray())
+        foreach (var file in data.EnumerateArray())
         {
-            var name = ModrinthClient.GetString(file, "name");
-            if (string.IsNullOrEmpty(name))
+            var fileName = ModrinthClient.GetString(file, "fileName");
+            if (string.IsNullOrEmpty(fileName))
             {
                 continue;
             }
 
-            var versions = ModrinthClient.StringList(file, "versions");
-            if (!string.IsNullOrWhiteSpace(mcVersion) && versions.Count > 0 &&
-                !versions.Contains(mcVersion, StringComparer.OrdinalIgnoreCase))
+            var id = file.TryGetProperty("id", out var fid) ? fid.GetInt64() : 0;
+            var download = ModrinthClient.GetString(file, "downloadUrl");
+            if (string.IsNullOrEmpty(download) && id > 0)
             {
-                continue;
+                download = BuildCdnUrl(id, fileName!);
             }
 
-            var id = file.TryGetProperty("id", out var idEl) ? idEl.GetInt64() : 0;
-            var url = id > 0 ? BuildCdnUrl(id, name!) : null;
-            if (url == null)
+            if (string.IsNullOrEmpty(download))
             {
                 continue;
             }
@@ -299,12 +493,11 @@ public sealed class CurseForgeClient : IContentSource
             files.Add(new ContentFile
             {
                 Id = id.ToString(),
-                FileName = name!,
-                DisplayName = ModrinthClient.GetString(file, "display") ?? string.Empty,
-                Url = url,
-                Size = file.TryGetProperty("filesize", out var fs) ? fs.GetInt64() : 0,
-                GameVersions = versions,
-                Loaders = versions.Where(v => v is "Forge" or "Fabric" or "NeoForge" or "Quilt").ToList(),
+                FileName = fileName!,
+                DisplayName = ModrinthClient.GetString(file, "displayName") ?? string.Empty,
+                Url = download!,
+                Size = file.TryGetProperty("fileLength", out var len) ? len.GetInt64() : 0,
+                GameVersions = ModrinthClient.StringList(file, "gameVersions"),
                 IsPrimary = true,
             });
         }
@@ -312,78 +505,22 @@ public sealed class CurseForgeClient : IContentSource
         return files;
     }
 
-    /// <summary>forgecdn 的稳定直链规则：files/{id/1000}/{id%1000}/{filename}</summary>
-    private static string BuildCdnUrl(long fileId, string fileName)
+    /// <summary>forgecdn 的稳定直链规则。</summary>
+    private static string BuildCdnUrl(long fileId, string fileName) =>
+        $"https://mediafilez.forgecdn.net/files/{fileId / 1000}/{fileId % 1000}/{fileName}";
+
+    private async Task<string> GetStringAsync(string url, CancellationToken ct)
     {
-        var folder = fileId / 1000;
-        var remainder = fileId % 1000;
-        return $"https://mediafilez.forgecdn.net/files/{folder}/{remainder}/{fileName}";
+        using var response = await _http.GetAsync(url, ct).ConfigureAwait(false);
+        var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException($"CurseForge 返回 {(int)response.StatusCode}: {Trim(body, 160)}");
+        }
+
+        return body;
     }
 
-    private async Task<ContentItem?> FetchAsync(ContentKind kind, string slug, CancellationToken ct)
-    {
-        var payload = await FetchRawAsync(kind, slug, ct).ConfigureAwait(false);
-        if (payload == null)
-        {
-            return null;
-        }
-
-        var root = payload.Value;
-        return new ContentItem
-        {
-            Source = "CurseForge",
-            Kind = kind,
-            Id = root.TryGetProperty("id", out var id) ? id.GetInt64().ToString() : slug,
-            Slug = slug,
-            Title = ModrinthClient.GetString(root, "title") ?? slug,
-            Summary = ModrinthClient.GetString(root, "summary") ?? string.Empty,
-            Author = string.Empty,
-            IconUrl = ModrinthClient.GetString(root, "thumbnail"),
-            Downloads = root.TryGetProperty("downloads", out var d) && d.TryGetInt64(out var dval) ? dval : 0,
-        };
-    }
-
-    private async Task<JsonElement?> FetchRawAsync(ContentKind kind, string slug, CancellationToken ct)
-    {
-        var type = kind switch
-        {
-            ContentKind.ResourcePack => "texture-packs",
-            ContentKind.World => "worlds",
-            _ => "mc-mods",
-        };
-
-        try
-        {
-            var json = await _client.GetStringAsync($"https://api.cfwidget.com/minecraft/{type}/{slug}", ct)
-                .ConfigureAwait(false);
-            using var doc = JsonDocument.Parse(json);
-            return doc.RootElement.Clone();
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    internal static string? ExtractSlug(string? query)
-    {
-        if (string.IsNullOrWhiteSpace(query))
-        {
-            return null;
-        }
-
-        var text = query.Trim();
-        var index = text.IndexOf("curseforge.com/", StringComparison.OrdinalIgnoreCase);
-        if (index >= 0)
-        {
-            var rest = text[(index + "curseforge.com/".Length)..].Trim('/');
-            var parts = rest.Split('/', StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length >= 2)
-            {
-                return parts[1];
-            }
-        }
-
-        return text.Contains(' ') || text.Contains('/') ? null : text;
-    }
+    private static string Trim(string text, int max) =>
+        string.IsNullOrEmpty(text) ? string.Empty : text.Length <= max ? text : text[..max] + "…";
 }

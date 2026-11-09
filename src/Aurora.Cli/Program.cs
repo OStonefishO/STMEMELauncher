@@ -399,7 +399,15 @@ internal static class Program
         var loader = flags.TryGetValue("loader", out var l) ? l : null;
         IContentSource source = flags.ContainsKey("cf") ? service.CreateCurseForge() : service.CreateModrinth();
 
-        var items = await source.SearchAsync(kind, query, mc, loader, 10).ConfigureAwait(false);
+        var search = await source.SearchAsync(new ContentQuery
+        {
+            Kind = kind,
+            Query = query,
+            McVersion = mc,
+            Loader = loader,
+            PageSize = 10,
+        }).ConfigureAwait(false);
+        var items = search.Items;
         Console.WriteLine($"{source.Name} · {kind}: {items.Count} 个结果");
         foreach (var item in items)
         {
@@ -429,7 +437,15 @@ internal static class Program
         var loader = flags.TryGetValue("loader", out var l) ? l : null;
 
         var modrinth = service.CreateModrinth();
-        var items = await modrinth.SearchAsync(ContentKind.Modpack, query, mc, loader, 10).ConfigureAwait(false);
+        var packed = await modrinth.SearchAsync(new ContentQuery
+        {
+            Kind = ContentKind.Modpack,
+            Query = query,
+            McVersion = mc,
+            Loader = loader,
+            PageSize = 10,
+        }).ConfigureAwait(false);
+        var items = packed.Items;
         if (items.Count == 0)
         {
             Console.Error.WriteLine("没有找到整合包");

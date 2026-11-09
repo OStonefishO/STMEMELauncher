@@ -30,6 +30,9 @@ public sealed class LauncherSettings
     /// <summary>下载时走国内镜像（BMCLAPI）。</summary>
     public bool UseMirror { get; set; } = true;
 
+    /// <summary>CurseForge API key（console.curseforge.com 免费申请），留空则只用 Modrinth。</summary>
+    public string CurseForgeApiKey { get; set; } = string.Empty;
+
     /// <summary>自建镜像站地址（例如 http://127.0.0.1:8123）。留空则直接用 BMCLAPI。</summary>
     public string MirrorBaseUrl { get; set; } = string.Empty;
 

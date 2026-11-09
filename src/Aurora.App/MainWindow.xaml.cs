@@ -45,6 +45,7 @@ public partial class MainWindow : Window
 
         LoadSettingsToUi();
         LoadVersions();
+        InitContentFilters();
         SetPage(0);
 
         // 支持 --page 1/2/3 直接打开某一页（截图和调试用）
@@ -91,6 +92,11 @@ public partial class MainWindow : Window
         if (index == 4 && !_updatesLoaded)
         {
             _ = LoadUpdatesAsync();
+        }
+
+        if (index == 2 && ContentList.ItemsSource == null)
+        {
+            _ = LoadContentPageAsync();
         }
     }
 
@@ -371,6 +377,10 @@ public partial class MainWindow : Window
 
     // ---------------- 内容页 ----------------
 
+    private const int ContentPageSize = 20;
+    private int _contentOffset;
+    private int _contentTotal;
+
     private ContentKind SelectedKind() => KindCombo.SelectedIndex switch
     {
         1 => ContentKind.Modpack,
@@ -382,37 +392,156 @@ public partial class MainWindow : Window
     private IContentSource SelectedSource() =>
         SourceCombo.SelectedIndex == 1 ? _service.CreateCurseForge() : _service.CreateModrinth();
 
+    private void InitContentFilters()
+    {
+        var versions = _service.ListVersions()
+            .Select(v => v.ClientVersion)
+            .Where(v => !string.IsNullOrWhiteSpace(v))
+            .Distinct()
+            .ToList();
+
+        var items = new List<string> { "跟随当前版本", "全部版本" };
+        items.AddRange(versions);
+        VersionCombo.ItemsSource = items;
+        VersionCombo.SelectedIndex = 0;
+        ContentLoaderCombo.SelectedIndex = 0;
+        _ = ReloadCategoriesAsync();
+    }
+
+    private string? EffectiveVersion()
+    {
+        if (VersionCombo.SelectedIndex <= 0)
+        {
+            return (VersionList.SelectedItem as VersionCard)?.Summary.ClientVersion;
+        }
+
+        return VersionCombo.SelectedIndex == 1 ? null : VersionCombo.SelectedItem as string;
+    }
+
+    private string? EffectiveLoader()
+    {
+        if (ContentLoaderCombo.SelectedIndex <= 0)
+        {
+            return (VersionList.SelectedItem as VersionCard)?.Summary.Loader;
+        }
+
+        return (ContentLoaderCombo.SelectedItem as ComboBoxItem)?.Content as string;
+    }
+
+    private string? EffectiveCategory() =>
+        CategoryCombo.SelectedItem is ContentTag tag && !string.IsNullOrEmpty(tag.Id) ? tag.Id : null;
+
+    private async void OnKindChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!IsLoaded)
+        {
+            return;
+        }
+
+        await ReloadCategoriesAsync();
+    }
+
+    private async void OnSourceChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!IsLoaded)
+        {
+            return;
+        }
+
+        await ReloadCategoriesAsync();
+    }
+
+    private async Task ReloadCategoriesAsync()
+    {
+        try
+        {
+            var source = SelectedSource();
+            var tags = await source.GetCategoriesAsync(SelectedKind());
+            var list = new List<ContentTag> { new() { Id = string.Empty, Name = "全部分类" } };
+            list.AddRange(tags);
+            CategoryCombo.ItemsSource = list;
+            CategoryCombo.SelectedIndex = 0;
+        }
+        catch
+        {
+            CategoryCombo.ItemsSource = new List<ContentTag> { new() { Id = string.Empty, Name = "全部分类" } };
+            CategoryCombo.SelectedIndex = 0;
+        }
+    }
+
     private async void OnSearch(object sender, RoutedEventArgs e)
     {
-        var kind = SelectedKind();
-        var source = SelectedSource();
-        var query = QueryBox.Text?.Trim() ?? string.Empty;
+        _contentOffset = 0;
+        await LoadContentPageAsync();
+    }
 
-        if (source is CurseForgeClient && string.IsNullOrEmpty(query))
+    private async Task LoadContentPageAsync()
+    {
+        var source = SelectedSource();
+        if (!source.IsAvailable)
         {
-            ContentStatus.Text = "CurseForge 不支持关键词搜索，请粘贴项目链接或 slug";
+            ContentStatus.Text = "CurseForge 需要 API key：设置 → 下载与镜像 → CurseForge API key（免费申请）";
+            ContentList.ItemsSource = null;
+            _contentTotal = 0;
+            UpdatePager();
             return;
         }
 
         try
         {
             ContentStatus.Text = "搜索中…";
-            ContentList.ItemsSource = null;
-            FileCombo.ItemsSource = null;
+            var query = new ContentQuery
+            {
+                Kind = SelectedKind(),
+                Query = QueryBox.Text?.Trim() ?? string.Empty,
+                McVersion = EffectiveVersion(),
+                Loader = EffectiveLoader(),
+                Category = EffectiveCategory(),
+                Offset = _contentOffset,
+                PageSize = ContentPageSize,
+            };
 
-            var mc = (VersionList.SelectedItem as VersionCard)?.Summary.ClientVersion;
-            var loader = (VersionList.SelectedItem as VersionCard)?.Summary.Loader;
-            var items = await source.SearchAsync(kind, query, mc, loader, 30);
+            var result = await source.SearchAsync(query);
+            _contentTotal = result.Total;
 
-            var cards = items.Select(i => new ContentCard(i)).ToList();
+            var cards = result.Items.Select(i => new ContentCard(i)).ToList();
             ContentList.ItemsSource = cards;
+            UpdatePager();
+
             ContentStatus.Text = cards.Count == 0
-                ? "没有结果（换个关键词，或确认当前版本/加载器）"
-                : $"找到 {cards.Count} 个结果 · {source.Name}";
+                ? "没有结果，换个关键词或放宽筛选"
+                : $"共 {_contentTotal} 个 · 第 {_contentOffset / ContentPageSize + 1} 页 · {source.Name}";
         }
         catch (Exception ex)
         {
             ContentStatus.Text = "搜索失败: " + ex.Message;
+        }
+    }
+
+    private void UpdatePager()
+    {
+        var pages = Math.Max(1, (int)Math.Ceiling(_contentTotal / (double)ContentPageSize));
+        var page = _contentOffset / ContentPageSize + 1;
+        PageText.Text = _contentTotal == 0 ? string.Empty : $"第 {page} / {pages} 页";
+        PrevButton.IsEnabled = _contentOffset > 0;
+        NextButton.IsEnabled = _contentOffset + ContentPageSize < _contentTotal;
+    }
+
+    private async void OnPrevPage(object sender, RoutedEventArgs e)
+    {
+        if (_contentOffset >= ContentPageSize)
+        {
+            _contentOffset -= ContentPageSize;
+            await LoadContentPageAsync();
+        }
+    }
+
+    private async void OnNextPage(object sender, RoutedEventArgs e)
+    {
+        if (_contentOffset + ContentPageSize < _contentTotal)
+        {
+            _contentOffset += ContentPageSize;
+            await LoadContentPageAsync();
         }
     }
 
@@ -430,8 +559,8 @@ public partial class MainWindow : Window
         try
         {
             ContentStatus.Text = "读取版本列表…";
-            var mc = (VersionList.SelectedItem as VersionCard)?.Summary.ClientVersion;
-            var loader = (VersionList.SelectedItem as VersionCard)?.Summary.Loader;
+            var mc = EffectiveVersion();
+            var loader = EffectiveLoader();
             var source = card.Item.Source == "CurseForge" ? (IContentSource)_service.CreateCurseForge() : _service.CreateModrinth();
             var files = await source.GetFilesAsync(card.Item, mc, loader);
 
@@ -444,7 +573,7 @@ public partial class MainWindow : Window
 
             ContentInstallButton.IsEnabled = list.Count > 0;
             ContentStatus.Text = list.Count == 0
-                ? "这个版本没有可用文件"
+                ? "这个筛选下没有可用文件（换个版本或加载器试试）"
                 : $"{list.Count} 个文件 · 选中后点安装";
         }
         catch (Exception ex)
@@ -468,7 +597,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        var target = (VersionList.SelectedItem as VersionCard);
+        var target = VersionList.SelectedItem as VersionCard;
         var resolved = target == null ? null : _service.Resolve(target.Summary.Id);
         var gameDir = resolved == null ? _settings.GameDirectory : _service.GameDirectoryFor(resolved);
 
@@ -686,6 +815,7 @@ public partial class MainWindow : Window
         SettingsMirror.IsChecked = _settings.UseMirror;
         ClientIdBox.Text = _settings.MicrosoftClientId;
         SettingsMirrorUrl.Text = _settings.MirrorBaseUrl;
+        SettingsCfKey.Text = _settings.CurseForgeApiKey;
         SettingsIsolation.SelectedIndex = _settings.VersionIsolation?.ToLowerInvariant() switch
         {
             "on" => 1,
@@ -714,6 +844,7 @@ public partial class MainWindow : Window
             _settings.UseMirror = SettingsMirror.IsChecked == true;
             _settings.MicrosoftClientId = ClientIdBox.Text?.Trim() ?? string.Empty;
             _settings.MirrorBaseUrl = SettingsMirrorUrl.Text?.Trim() ?? string.Empty;
+            _settings.CurseForgeApiKey = SettingsCfKey.Text?.Trim() ?? string.Empty;
             _settings.VersionIsolation = SettingsIsolation.SelectedIndex switch
             {
                 1 => "on",
@@ -1072,13 +1203,14 @@ public partial class MainWindow : Window
             new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex));
     }
 
-    private sealed class ContentCard
+    private sealed class ContentCard : System.ComponentModel.INotifyPropertyChanged
     {
         public ContentCard(ContentItem item)
         {
             Item = item;
             Meta = $"{item.Source} · {item.DownloadText} 次下载" +
                    (item.Categories.Count > 0 ? " · " + string.Join(" / ", item.Categories.Take(3)) : string.Empty);
+            _ = LoadIconAsync();
         }
 
         public ContentItem Item { get; }
@@ -1088,6 +1220,34 @@ public partial class MainWindow : Window
         public string Summary => Item.Summary;
 
         public string Meta { get; }
+
+        private ImageSource? _icon;
+
+        public ImageSource? Icon
+        {
+            get => _icon;
+            private set
+            {
+                _icon = value;
+                PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(Icon)));
+            }
+        }
+
+        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+
+        private async Task LoadIconAsync()
+        {
+            if (string.IsNullOrWhiteSpace(Item.IconUrl))
+            {
+                return;
+            }
+
+            var bitmap = await IconCache.GetAsync(Item.IconUrl!).ConfigureAwait(true);
+            if (bitmap != null)
+            {
+                Icon = bitmap;
+            }
+        }
     }
 
     private sealed class FileEntry
