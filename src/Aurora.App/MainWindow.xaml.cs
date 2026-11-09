@@ -3420,7 +3420,14 @@ public partial class MainWindow : Window
                 return;
             }
 
-            await AccountSkinWeb.EnsureCoreWebView2Async();
+            // WebView2 的缓存放到 LOCALAPPDATA，别污染启动器目录
+            var userDataFolder = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "MEMELauncher", "WebView2");
+            Directory.CreateDirectory(userDataFolder);
+            var env = await Microsoft.Web.WebView2.Core.CoreWebView2Environment
+                .CreateAsync(null, userDataFolder);
+            await AccountSkinWeb.EnsureCoreWebView2Async(env);
             AccountSkinWeb.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
             AccountSkinWeb.CoreWebView2.Settings.AreDevToolsEnabled = false;
             AccountSkinWeb.CoreWebView2.Settings.IsStatusBarEnabled = false;

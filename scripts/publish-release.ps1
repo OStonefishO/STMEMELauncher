@@ -5,7 +5,8 @@
     [string]$GiteeRepo = "STMEMELauncher",
     [string]$NotesFile = "",
     [switch]$SkipGithub,
-    [switch]$SkipGitee
+    [switch]$SkipGitee,
+    [int]$KeepReleaseCount = 4
 )
 
 # 一条命令发版：构建 → 发布单文件 exe → GitHub Release → Gitee Release
@@ -39,7 +40,7 @@ if (-not $SkipGithub) {
 if (-not $SkipGitee) {
     Write-Host "==> Gitee Release" -ForegroundColor Cyan
     & "$root\scripts\upload-gitee.ps1" -Token $GiteeToken -Owner $GiteeOwner -Repo $GiteeRepo `
-        -Tag $tag -File "$root\$asset" -Name "MEME Launcher $tag"
+        -Tag $tag -File "$root\$asset" -Name "MEME Launcher $tag" -KeepReleaseCount $KeepReleaseCount
 }
 
 Write-Host ""

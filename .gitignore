@@ -6,3 +6,7 @@ dist/
 .vs/
 .idea/
 *.log
+
+# WebView2 运行时缓存
+*.WebView2/
+

@@ -7,7 +7,9 @@
     [string]$Name = "",
     [string]$Body = "MEME Launcher 国内镜像",
     [string]$Branch = "",
-    [switch]$CreateRepo
+    [int]$KeepReleaseCount = 4,
+    [switch]$CreateRepo,
+    [switch]$PruneOnly
 )
 
 # 把构建产物传到 Gitee Releases，作为国内备用下载源。
@@ -68,6 +70,7 @@ if ([string]::IsNullOrWhiteSpace($Branch)) {
     $Branch = if ($repoInfo.default_branch) { $repoInfo.default_branch } else { "master" }
 }
 
+if ($PruneOnly) { Write-Host "仅清理模式，不上传"; } else {
 # 2. 建 Release
 Write-Host "创建 Release $Tag（分支 $Branch）..."
 $bodyFile = [System.IO.Path]::GetTempFileName()
@@ -113,4 +116,29 @@ if ($info.browser_download_url) {
 } else {
     Write-Error "上传失败: $upload"
     exit 1
+}
+}
+
+# 只保留最近 N 个版本，避免附件配额（1GB）被旧版本吃光
+if ($KeepReleaseCount -gt 0) {
+    Write-Host ""
+    Write-Host "清理旧版本（保留最近 $KeepReleaseCount 个）..."
+
+    $all = & curl.exe -s --max-time 30 "$api/releases?access_token=$Token&per_page=100" | ConvertFrom-Json
+    $sorted = $all | Sort-Object { [datetime]$_.created_at } -Descending
+    $drop = $sorted | Select-Object -Skip $KeepReleaseCount
+
+    if (-not $drop) {
+        Write-Host "没有需要清理的版本"
+    }
+
+    foreach ($r in $drop) {
+        if ($r.tag_name -eq $Tag) { continue }
+        $code = & curl.exe -s -o NUL -w "%{http_code}" -X DELETE "$api/releases/$($r.id)?access_token=$Token"
+        if ($code -eq '204') {
+            Write-Host ("  已删除 {0}" -f $r.tag_name)
+        } else {
+            Write-Host ("  删除失败 {0} -> HTTP {1}" -f $r.tag_name, $code)
+        }
+    }
 }
