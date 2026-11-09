@@ -26,14 +26,70 @@ public sealed class UpdateChecker
 {
     private readonly DownloadClient _client;
     private readonly string _repository;
+    private readonly string _giteeRepository;
 
-    public UpdateChecker(DownloadClient client, string repository = "OStonefishO/STMEMELauncher")
+    public UpdateChecker(DownloadClient client, string repository = "OStonefishO/STMEMELauncher",
+        string giteeRepository = "")
     {
         _client = client;
         _repository = repository;
+        _giteeRepository = giteeRepository;
     }
 
     public async Task<ReleaseInfo?> GetLatestAsync(CancellationToken ct = default)
+    {
+        var fromGithub = await GetFromGithubAsync(ct).ConfigureAwait(false);
+        if (fromGithub != null || string.IsNullOrEmpty(_giteeRepository))
+        {
+            return fromGithub;
+        }
+
+        return await GetFromGiteeAsync(ct).ConfigureAwait(false);
+    }
+
+    /// <summary>GitHub 不通时用 Gitee 的镜像 Release 拿版本信息。</summary>
+    private async Task<ReleaseInfo?> GetFromGiteeAsync(CancellationToken ct)
+    {
+        try
+        {
+            var json = await _client
+                .GetStringAsync($"https://gitee.com/api/v5/repos/{_giteeRepository}/releases/latest", ct)
+                .ConfigureAwait(false);
+
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            var assets = new List<ReleaseAsset>();
+            if (root.TryGetProperty("assets", out var arr) && arr.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var item in arr.EnumerateArray())
+                {
+                    assets.Add(new ReleaseAsset
+                    {
+                        Name = Get(item, "name") ?? string.Empty,
+                        Url = Get(item, "browser_download_url") ?? string.Empty,
+                        Size = item.TryGetProperty("size", out var s) ? s.GetInt64() : 0,
+                    });
+                }
+            }
+
+            return new ReleaseInfo
+            {
+                Tag = Get(root, "tag_name") ?? string.Empty,
+                Name = Get(root, "name") ?? string.Empty,
+                Body = Get(root, "body") ?? string.Empty,
+                PublishedAt = DateTimeOffset.TryParse(Get(root, "created_at"), out var dt) ? dt : default,
+                HtmlUrl = Get(root, "html_url") ?? string.Empty,
+                Assets = assets,
+            };
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private async Task<ReleaseInfo?> GetFromGithubAsync(CancellationToken ct)
     {
         try
         {

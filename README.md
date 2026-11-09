@@ -12,6 +12,7 @@
 
 | 通道 | 地址 | 说明 |
 |---|---|---|
+| **Gitee 国内镜像** | [stonefish8/STMEMELauncher](https://gitee.com/stonefish8/STMEMELauncher/releases) | ⭐ 国内首选，实测 3.28 MB/s |
 | **GitHub Releases** | [最新版本](https://github.com/OStonefishO/STMEMELauncher/releases/latest) | 原版，海外/有代理时最快 |
 | **gh-proxy 加速** | `https://gh-proxy.com/` + Release 资产地址 | 国内可用，已实测 65.9MB 完整下载 |
 | **ghfast 加速** | `https://ghfast.top/` + Release 资产地址 | 备用 |

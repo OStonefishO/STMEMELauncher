@@ -49,6 +49,9 @@ public sealed class LauncherSettings
 
     public string YggdrasilName { get; set; } = string.Empty;
 
+    /// <summary>Gitee 镜像仓库（owner/repo），留空关闭；用于国内更新下载。</summary>
+    public string GiteeRepo { get; set; } = "stonefish8/STMEMELauncher";
+
     /// <summary>CurseForge API key（console.curseforge.com 免费申请），留空则只用 Modrinth。</summary>
     public string CurseForgeApiKey { get; set; } = string.Empty;
 

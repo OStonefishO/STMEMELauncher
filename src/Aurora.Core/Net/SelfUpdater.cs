@@ -11,6 +11,9 @@ namespace Aurora.Core.Net;
 public sealed class SelfUpdater
 {
     private readonly HttpClient _http = new() { Timeout = TimeSpan.FromMinutes(10) };
+    private readonly string _giteeRepo;
+
+    public SelfUpdater(string giteeRepo = "") => _giteeRepo = giteeRepo;
 
     public static string CurrentExePath
     {
@@ -51,13 +54,17 @@ public sealed class SelfUpdater
 
         var target = Path.Combine(Path.GetTempPath(), $"MemeLauncher-{release.VersionText}.exe");
 
-        // GitHub 直连在部分网络不可达，依次尝试
-        var candidates = new[]
+        // 依次尝试：Gitee 镜像 → GitHub 直连 → 几个加速代理
+        var candidates = new List<string>();
+        if (!string.IsNullOrEmpty(_giteeRepo))
         {
-            asset.Url,
-            "https://gh-proxy.com/" + asset.Url,
-            "https://ghfast.top/" + asset.Url,
-        };
+            candidates.Add($"https://gitee.com/{_giteeRepo}/releases/download/{release.Tag}/{asset.Name}");
+        }
+
+        candidates.Add(asset.Url);
+        candidates.Add("https://gh-proxy.com/" + asset.Url);
+        candidates.Add("https://ghfast.top/" + asset.Url);
+        candidates.Add("https://ghproxy.net/" + asset.Url);
 
         Exception? last = null;
         foreach (var url in candidates)

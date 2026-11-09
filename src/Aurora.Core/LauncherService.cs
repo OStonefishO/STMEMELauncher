@@ -146,9 +146,10 @@ public sealed class LauncherService
 
     public UpdateFeed CreateUpdateFeed() => new(SharedDownloader);
 
-    public UpdateChecker CreateUpdateChecker() => new(SharedDownloader);
+    public UpdateChecker CreateUpdateChecker() =>
+        new(SharedDownloader, "OStonefishO/STMEMELauncher", Settings.GiteeRepo);
 
-    public SelfUpdater CreateSelfUpdater() => new();
+    public SelfUpdater CreateSelfUpdater() => new(Settings.GiteeRepo);
 
     public Skins.OfflineSkinService CreateOfflineSkinService() => new(SharedDownloader);
 
