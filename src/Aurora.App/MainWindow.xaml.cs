@@ -76,6 +76,7 @@ public partial class MainWindow : Window
         {
             ApplyDarkTitleBar();
             _ = SplashFadeOutAsync();
+            _ = InitSkinWebAsync();
             _ = CheckUpdatesAsync(silent: true);
         };
     }
@@ -3397,81 +3398,81 @@ public partial class MainWindow : Window
     private Point _dragStart;
     private bool _dragging;
 
-    private void UpdateSkinModel(BitmapSource? skin)
+
+
+
+
+
+
+
+
+    private bool _skinWebReady;
+    private byte[]? _pendingSkinBytes;
+
+    private async Task InitSkinWebAsync()
     {
-        if (AccountSkinViewport == null)
+        try
+        {
+            if (AccountSkinWeb == null)
+            {
+                return;
+            }
+
+            await AccountSkinWeb.EnsureCoreWebView2Async();
+            AccountSkinWeb.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
+            AccountSkinWeb.CoreWebView2.Settings.AreDevToolsEnabled = false;
+            AccountSkinWeb.CoreWebView2.Settings.IsStatusBarEnabled = false;
+
+            AccountSkinWeb.NavigationCompleted += async (_, args) =>
+            {
+                if (args.IsSuccess && _pendingSkinBytes != null)
+                {
+                    await ShowSkinInWeb(_pendingSkinBytes);
+                }
+            };
+
+            var page = Path.Combine(AppContext.BaseDirectory, "Assets", "skinview", "viewer.html");
+            AccountSkinWeb.Source = new Uri(page);
+            _skinWebReady = true;
+
+            if (_pendingSkinBytes != null)
+            {
+                await ShowSkinInWeb(_pendingSkinBytes);
+            }
+        }
+        catch (Exception ex)
+        {
+            // WebView2 不可用时静默降级（只显示头像）
+            AccountSkinStatus.Text = "3D 预览不可用: " + ex.Message;
+        }
+    }
+
+    private async Task ShowSkinInWeb(byte[]? bytes)
+    {
+        _pendingSkinBytes = bytes;
+
+        if (!_skinWebReady || AccountSkinWeb?.CoreWebView2 == null)
         {
             return;
         }
 
-        AccountSkinViewport.Children.Clear();
-        AccountSkinViewport.Camera = SkinModel3D.Camera();
-        AccountSkinViewport.Children.Add(new ModelVisual3D { Content = SkinModel3D.Lights() });
-
-        var model = SkinModel3D.Build(skin, _skinSlim);
-        _skinRotation = new AxisAngleRotation3D(new Vector3D(0, 1, 0), -20);
-
-        // 待机动画：上下浮动 + 轻微左右摆
-        var bob = new TranslateTransform3D(0, 0, 0);
-        var swayRotation = new AxisAngleRotation3D(new Vector3D(0, 0, 1), 0);
-
-        var transform = new Transform3DGroup();
-        transform.Children.Add(new RotateTransform3D(_skinRotation));
-        transform.Children.Add(new RotateTransform3D(swayRotation));
-        transform.Children.Add(bob);
-        model.Transform = transform;
-
-        var bobAnimation = new System.Windows.Media.Animation.DoubleAnimation(-1.4, 1.4, TimeSpan.FromSeconds(2.2))
+        try
         {
-            AutoReverse = true,
-            RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever,
-            EasingFunction = new System.Windows.Media.Animation.SineEase
+            var dataUrl = bytes == null || bytes.Length == 0
+                ? "null"
+                : "'data:image/png;base64," + Convert.ToBase64String(bytes) + "'";
+
+            if (dataUrl == "null")
             {
-                EasingMode = System.Windows.Media.Animation.EasingMode.EaseInOut,
-            },
-        };
-        bob.BeginAnimation(TranslateTransform3D.OffsetYProperty, bobAnimation);
+                return;
+            }
 
-        var swayAnimation = new System.Windows.Media.Animation.DoubleAnimation(-1.8, 1.8, TimeSpan.FromSeconds(3.4))
-        {
-            AutoReverse = true,
-            RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever,
-            EasingFunction = new System.Windows.Media.Animation.SineEase
-            {
-                EasingMode = System.Windows.Media.Animation.EasingMode.EaseInOut,
-            },
-        };
-        swayRotation.BeginAnimation(AxisAngleRotation3D.AngleProperty, swayAnimation);
-
-        RenderOptions.SetBitmapScalingMode(AccountSkinViewport, BitmapScalingMode.NearestNeighbor);
-        AccountSkinViewport.Children.Add(new ModelVisual3D { Content = model });
-    }
-
-    private void OnSkinViewportDown(object sender, MouseButtonEventArgs e)
-    {
-        _dragging = true;
-        _dragStart = e.GetPosition(AccountSkinViewport);
-        AccountSkinViewport.CaptureMouse();
-        e.Handled = true;
-    }
-
-    private void OnSkinViewportUp(object sender, MouseButtonEventArgs e)
-    {
-        _dragging = false;
-        AccountSkinViewport.ReleaseMouseCapture();
-    }
-
-    private void OnSkinViewportMove(object sender, MouseEventArgs e)
-    {
-        if (!_dragging || _skinRotation == null)
-        {
-            return;
+            await AccountSkinWeb.CoreWebView2.ExecuteScriptAsync($"setSkin({dataUrl})");
         }
-
-        var point = e.GetPosition(AccountSkinViewport);
-        var dx = point.X - _dragStart.X;
-        _dragStart = point;
-        _skinRotation.Angle += dx * 0.8;
+        catch
+        {
+            // 忽略
+        }
     }
 
     private async void RefreshCurrentSkinPreview()
@@ -3485,7 +3486,6 @@ public partial class MainWindow : Window
         AccountSkinName.Text = account.Name + "（" + account.TypeLabel + "）";
         AccountSkinStatus.Text = "读取皮肤…";
         AccountHeadImage.Source = null;
-        UpdateSkinModel(null);
         _skinBitmap = null;
 
         try
@@ -3512,7 +3512,7 @@ public partial class MainWindow : Window
 
             AccountHeadImage.Source = SkinImage.Head(bytes, 88);
             _skinBitmap = SkinImage.FromBytes(bytes);
-            UpdateSkinModel(_skinBitmap);
+            _ = ShowSkinInWeb(bytes);
             if (AccountSkinImage != null)
             {
                 AccountSkinImage.Source = SkinImage.Full(bytes, 256);

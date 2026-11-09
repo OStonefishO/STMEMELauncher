@@ -21,6 +21,16 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2592.51" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\skinview\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <Using Remove="System.Windows.Forms" />
     <Using Remove="System.Drawing" />
   </ItemGroup>

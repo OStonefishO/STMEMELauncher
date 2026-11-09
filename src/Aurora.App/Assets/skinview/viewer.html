@@ -1,0 +1,76 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+  .hint { position: fixed; left: 0; right: 0; bottom: 6px; text-align: center;
+          font: 10px "Microsoft YaHei UI"; color: rgba(255,255,255,0.35); }
+</style>
+<script src="skinview3d.bundle.js"></script>
+</head>
+<body>
+<canvas id="skin"></canvas>
+<div class="hint">拖动可以旋转</div>
+<script>
+(function () {
+  var params = new URLSearchParams(location.search);
+  var canvas = document.getElementById('skin');
+
+  function whiteSkin() {
+    var c = document.createElement('canvas');
+    c.width = 64; c.height = 64;
+    var ctx = c.getContext('2d');
+    ctx.fillStyle = '#e9e9ef';
+    ctx.fillRect(0, 0, 64, 64);
+    return c.toDataURL();
+  }
+
+  var skinUrl = params.get('skin') || whiteSkin();
+
+  var viewer = new skinview3d.SkinViewer({
+    canvas: canvas,
+    width: canvas.clientWidth || 320,
+    height: canvas.clientHeight || 210,
+    skin: skinUrl,
+    enableControls: true
+  });
+
+  viewer.animation = new skinview3d.IdleAnimation();
+  viewer.controls.enableZoom = false;
+  viewer.controls.enablePan = false;
+  viewer.autoRotate = false;
+
+
+  // 让模型稍微转一点角度，别正对着
+  viewer.playerWrapper.rotation.y = -0.35;
+
+  // 拉远相机，保证全身入镜
+  try {
+    
+    viewer.camera.position.z = viewer.camera.position.z * 1.25;
+    viewer.camera.updateProjectionMatrix();
+    if (viewer.camera.position.y === 0) { viewer.camera.position.y = 8; }
+  } catch (e) { console.error(e); }
+
+  window.setSkin = function (dataUrl) {
+    viewer.loadSkin(dataUrl).catch(function (e) { console.error(e); });
+  };
+
+  window.setAnimation = function (name) {
+    if (name === 'walk') viewer.animation = new skinview3d.WalkingAnimation();
+    else if (name === 'run') viewer.animation = new skinview3d.RunningAnimation();
+    else viewer.animation = new skinview3d.IdleAnimation();
+  };
+
+  function fit() {
+    viewer.width = canvas.clientWidth || 320;
+    viewer.height = canvas.clientHeight || 210;
+  }
+  window.addEventListener('resize', fit);
+  fit();
+})();
+</script>
+</body>
+</html>
