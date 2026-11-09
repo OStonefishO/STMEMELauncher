@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
@@ -30,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.9.0";
+    private const string AppVersion = "0.9.1";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -69,7 +70,7 @@ public partial class MainWindow : Window
         var flag = Array.IndexOf(argv, "--page");
         if (flag >= 0 && flag + 1 < argv.Length && int.TryParse(argv[flag + 1], out var pageIndex))
         {
-            SetPage(Math.Clamp(pageIndex, 0, 6));
+            SetPage(Math.Clamp(pageIndex, 0, 7));
         }
         Loaded += (_, __) =>
         {
@@ -121,6 +122,7 @@ public partial class MainWindow : Window
         InstallPage.Visibility = index == 1 ? Visibility.Visible : Visibility.Collapsed;
         ContentPage.Visibility = index == 2 ? Visibility.Visible : Visibility.Collapsed;
         OnlinePage.Visibility = index == 6 ? Visibility.Visible : Visibility.Collapsed;
+        VersionsPage.Visibility = index == 7 ? Visibility.Visible : Visibility.Collapsed;
         AccountPage.Visibility = index == 3 ? Visibility.Visible : Visibility.Collapsed;
         SettingsPage.Visibility = index == 4 ? Visibility.Visible : Visibility.Collapsed;
         UpdatesPage.Visibility = index == 5 ? Visibility.Visible : Visibility.Collapsed;
@@ -130,12 +132,18 @@ public partial class MainWindow : Window
         NavLaunch.Foreground = index == 0 ? active : inactive;
         NavContent.Foreground = index is 1 or 2 ? active : inactive;
         NavOnline.Foreground = index == 6 ? active : inactive;
+        NavVersions.Foreground = index == 7 ? active : inactive;
         NavAccount.Foreground = index == 3 ? active : inactive;
         NavSettings.Foreground = index is 4 or 5 ? active : inactive;
 
         if (index == 1 && _mcVersions.Count == 0)
         {
             _ = LoadMcVersionsAsync();
+        }
+
+        if (index == 7)
+        {
+            InitVersionManager();
         }
 
         if (index == 6 && !_onlineLoaded)
@@ -776,6 +784,417 @@ public partial class MainWindow : Window
         }
 
         ForceKillButton.Visibility = Visibility.Collapsed;
+    }
+
+    // ---------------- 版本管理 ----------------
+
+    private sealed class VmVersionItem
+    {
+        public string Id { get; init; } = string.Empty;
+        public string RawId { get; init; } = string.Empty;
+        public string Subtitle { get; init; } = string.Empty;
+    }
+
+    private VersionSummary? _vmCurrent;
+    private bool _vmLoaded;
+
+    private void InitVersionManager()
+    {
+        if (_vmLoaded || VmVersionList == null)
+        {
+            return;
+        }
+
+        _vmLoaded = true;
+        var items = _service.ListVersions()
+            .Where(v => v.IsUsable)
+            .OrderByDescending(v => v.ClientVersion, StringComparer.OrdinalIgnoreCase)
+            .Select(v => new VmVersionItem
+            {
+                Id = v.Id,
+                RawId = v.Id,
+                Subtitle = $"{v.Loader} · {v.ModCount} mods",
+            })
+            .ToList();
+
+        VmVersionList.ItemsSource = items;
+        if (items.Count > 0)
+        {
+            VmVersionList.SelectedIndex = 0;
+        }
+    }
+
+    private void OnVmVersionSelected(object sender, SelectionChangedEventArgs e)
+    {
+        if (VmVersionList.SelectedItem is not VmVersionItem item)
+        {
+            return;
+        }
+
+        _vmCurrent = _service.ListVersions().FirstOrDefault(v => v.Id == item.RawId);
+        if (_vmCurrent == null)
+        {
+            VmTitle.Text = "版本不存在";
+            return;
+        }
+
+        var resolved = _service.Resolve(_vmCurrent.Id);
+        var dir = resolved == null ? _settings.GameDirectory : _service.GameDirectoryFor(resolved);
+
+        VmTitle.Text = _vmCurrent.Id;
+        VmPath.Text = dir;
+        VmMemoryBox.Text = _settings.MaxMemoryMb.ToString();
+        VmStatus.Text = "mod 数量：" + _vmCurrent.ModCount;
+
+        RefreshModList(dir);
+    }
+
+    private string? CurrentVmGameDir()
+    {
+        if (_vmCurrent == null)
+        {
+            return null;
+        }
+
+        var resolved = _service.Resolve(_vmCurrent.Id);
+        return resolved == null ? _settings.GameDirectory : _service.GameDirectoryFor(resolved);
+    }
+
+    private void RefreshModList(string gameDir)
+    {
+        VmModList.Children.Clear();
+        var modsDir = Path.Combine(gameDir, "mods");
+        if (!Directory.Exists(modsDir))
+        {
+            VmModList.Children.Add(new TextBlock
+            {
+                Text = "还没有 mods 文件夹（启动一次游戏会自动创建）",
+                FontSize = 11.5,
+                Foreground = (Brush)FindResource("InkFaint"),
+            });
+            return;
+        }
+
+        var files = Directory.GetFiles(modsDir)
+            .Where(f => f.EndsWith(".jar", StringComparison.OrdinalIgnoreCase) ||
+                        f.EndsWith(".jar.disabled", StringComparison.OrdinalIgnoreCase))
+            .OrderBy(f => Path.GetFileName(f))
+            .ToList();
+
+        if (files.Count == 0)
+        {
+            VmModList.Children.Add(new TextBlock
+            {
+                Text = "这个版本还没有 mod，可以把 jar 拖进来",
+                FontSize = 11.5,
+                Foreground = (Brush)FindResource("InkFaint"),
+            });
+            return;
+        }
+
+        foreach (var file in files)
+        {
+            var name = Path.GetFileName(file);
+            var enabled = name.EndsWith(".jar", StringComparison.OrdinalIgnoreCase);
+
+            var row = new Grid { Margin = new Thickness(0, 0, 0, 6) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var label = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            label.Children.Add(new TextBlock
+            {
+                Text = name.Replace(".disabled", string.Empty),
+                FontSize = 12,
+                Foreground = (Brush)FindResource(enabled ? "Ink" : "InkFaint"),
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            });
+            label.Children.Add(new TextBlock
+            {
+                Text = enabled ? "已启用" : "已禁用",
+                FontSize = 10,
+                Foreground = (Brush)FindResource("InkFaint"),
+                Margin = new Thickness(0, 2, 0, 0),
+            });
+            row.Children.Add(label);
+
+            var buttons = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+
+            var toggle = new Button
+            {
+                Content = enabled ? "禁用" : "启用",
+                Style = (Style)FindResource("GlassButton"),
+                Padding = new Thickness(10, 4, 10, 4),
+                FontSize = 11,
+            };
+            toggle.Click += (_, __) =>
+            {
+                try
+                {
+                    var target = enabled ? file + ".disabled" : file[..^".disabled".Length];
+                    File.Move(file, target, overwrite: true);
+                    RefreshModList(gameDir);
+                    VmStatus.Text = (enabled ? "已禁用 " : "已启用 ") + name;
+                }
+                catch (Exception ex)
+                {
+                    VmStatus.Text = "操作失败: " + ex.Message;
+                }
+            };
+            buttons.Children.Add(toggle);
+
+            var remove = new Button
+            {
+                Content = "删除",
+                Style = (Style)FindResource("GlassButton"),
+                Padding = new Thickness(10, 4, 10, 4),
+                FontSize = 11,
+                Margin = new Thickness(6, 0, 0, 0),
+            };
+            remove.Click += (_, __) =>
+            {
+                try
+                {
+                    File.Delete(file);
+                    RefreshModList(gameDir);
+                    VmStatus.Text = "已删除 " + name;
+                }
+                catch (Exception ex)
+                {
+                    VmStatus.Text = "删除失败: " + ex.Message;
+                }
+            };
+            buttons.Children.Add(remove);
+
+            Grid.SetColumn(buttons, 1);
+            row.Children.Add(buttons);
+
+            VmModList.Children.Add(new Border
+            {
+                CornerRadius = new CornerRadius(9),
+                Background = new SolidColorBrush(Color.FromArgb(0x12, 0xFF, 0xFF, 0xFF)),
+                Padding = new Thickness(12, 8, 10, 8),
+                Child = row,
+            });
+        }
+    }
+
+    private void OnVmRefreshMods(object sender, RoutedEventArgs e)
+    {
+        var dir = CurrentVmGameDir();
+        if (dir != null)
+        {
+            RefreshModList(dir);
+        }
+    }
+
+    private void OnVmSaveMemory(object sender, RoutedEventArgs e)
+    {
+        if (!int.TryParse(VmMemoryBox.Text, out var memory) || memory < 512)
+        {
+            VmStatus.Text = "内存要填大于 512 的数字";
+            return;
+        }
+
+        _settings.MaxMemoryMb = memory;
+        ConfigStore.Save(_settings);
+        VmStatus.Text = "内存已设为 " + memory + " MB";
+    }
+
+    private void OnVmOpenVersionDir(object sender, RoutedEventArgs e)
+    {
+        var dir = CurrentVmGameDir();
+        if (dir == null)
+        {
+            return;
+        }
+
+        OpenFolder(dir);
+    }
+
+    private void OnVmOpenFolder(object sender, RoutedEventArgs e)
+    {
+        var dir = CurrentVmGameDir();
+        if (dir == null || sender is not Button { Tag: string folder })
+        {
+            return;
+        }
+
+        var target = Path.Combine(dir, folder);
+        Directory.CreateDirectory(target);
+        OpenFolder(target);
+    }
+
+    private void OpenFolder(string path)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo("explorer.exe", $"\"{path}\"") { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            VmStatus.Text = "打开文件夹失败: " + ex.Message;
+        }
+    }
+
+    private void OnVmAddMods(object sender, RoutedEventArgs e)
+    {
+        var dir = CurrentVmGameDir();
+        if (dir == null)
+        {
+            return;
+        }
+
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "选择 mod（可多选）",
+            Filter = "Mod jar|*.jar",
+            Multiselect = true,
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        CopyMods(dialog.FileNames, dir);
+    }
+
+    private void OnVmModsDragOver(object sender, DragEventArgs e)
+    {
+        e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private void OnVmModsDrop(object sender, DragEventArgs e)
+    {
+        var dir = CurrentVmGameDir();
+        if (dir == null || !e.Data.GetDataPresent(DataFormats.FileDrop))
+        {
+            return;
+        }
+
+        if (e.Data.GetData(DataFormats.FileDrop) is string[] files)
+        {
+            CopyMods(files, dir);
+        }
+    }
+
+    private void CopyMods(IEnumerable<string> files, string gameDir)
+    {
+        var modsDir = Path.Combine(gameDir, "mods");
+        Directory.CreateDirectory(modsDir);
+
+        var copied = 0;
+        foreach (var file in files.Where(f => f.EndsWith(".jar", StringComparison.OrdinalIgnoreCase)))
+        {
+            try
+            {
+                var target = Path.Combine(modsDir, Path.GetFileName(file));
+                File.Copy(file, target, overwrite: true);
+                copied++;
+            }
+            catch (Exception ex)
+            {
+                VmStatus.Text = "复制失败: " + ex.Message;
+            }
+        }
+
+        RefreshModList(gameDir);
+        VmStatus.Text = $"已添加 {copied} 个 mod";
+    }
+
+    private void OnVmExportPack(object sender, RoutedEventArgs e)
+    {
+        var dir = CurrentVmGameDir();
+        if (dir == null)
+        {
+            return;
+        }
+
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "导出整合包",
+            Filter = "整合包 zip|*.zip",
+            FileName = (_vmCurrent?.Id ?? "modpack") + ".zip",
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        try
+        {
+            if (File.Exists(dialog.FileName))
+            {
+                File.Delete(dialog.FileName);
+            }
+
+            using var zip = System.IO.Compression.ZipFile.Open(dialog.FileName,
+                System.IO.Compression.ZipArchiveMode.Create);
+
+            void AddFolder(string folder)
+            {
+                var full = Path.Combine(dir, folder);
+                if (!Directory.Exists(full))
+                {
+                    return;
+                }
+
+                foreach (var file in Directory.GetFiles(full, "*", SearchOption.AllDirectories))
+                {
+                    var entryName = Path.GetRelativePath(dir, file).Replace('\\', '/');
+                    zip.CreateEntryFromFile(file, entryName);
+                }
+            }
+
+            AddFolder("mods");
+            AddFolder("config");
+
+            var options = Path.Combine(dir, "options.txt");
+            if (File.Exists(options))
+            {
+                zip.CreateEntryFromFile(options, "options.txt");
+            }
+
+            VmStatus.Text = "已导出: " + dialog.FileName;
+        }
+        catch (Exception ex)
+        {
+            VmStatus.Text = "导出失败: " + ex.Message;
+        }
+    }
+
+    private void OnVmImportPack(object sender, RoutedEventArgs e)
+    {
+        var dir = CurrentVmGameDir();
+        if (dir == null)
+        {
+            return;
+        }
+
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "导入整合包",
+            Filter = "整合包 zip|*.zip",
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        try
+        {
+            System.IO.Compression.ZipFile.ExtractToDirectory(dialog.FileName, dir, overwriteFiles: true);
+            RefreshModList(dir);
+            VmStatus.Text = "已导入到 " + dir;
+        }
+        catch (Exception ex)
+        {
+            VmStatus.Text = "导入失败: " + ex.Message;
+        }
     }
 
     // ---------------- 内容点击 / 提示 ----------------

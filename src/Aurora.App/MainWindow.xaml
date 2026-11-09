@@ -429,6 +429,12 @@
                             <TextBlock Text="内容" FontSize="10.5" HorizontalAlignment="Center" Margin="0,4,0,0"/>
                         </StackPanel>
                     </Button>
+                    <Button x:Name="NavVersions" Style="{StaticResource RailButton}" Tag="7" Click="OnNavClick" Margin="0,6,0,0">
+                        <StackPanel>
+                            <TextBlock Text="❖" FontSize="15" HorizontalAlignment="Center"/>
+                            <TextBlock Text="版本" FontSize="10.5" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Button>
                     <Button x:Name="NavOnline" Style="{StaticResource RailButton}" Tag="6" Click="OnNavClick" Margin="0,6,0,0">
                         <StackPanel>
                             <TextBlock Text="⇄" FontSize="17" HorizontalAlignment="Center"/>
@@ -894,6 +900,128 @@
                             </ScrollViewer>
                         </Grid>
                     </Grid>
+                    <!-- ========== 版本管理 ========== -->
+                    <Grid x:Name="VersionsPage" Visibility="Collapsed">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Margin="26,6,0,14">
+                            <TextBlock Text="版本" FontSize="32" FontFamily="{StaticResource FontHead}"
+                                       Foreground="{StaticResource TitleGrad}"/>
+                            <TextBlock Text="管理每个版本的内容：mod、地图、资源包、内存，还能导出整合包"
+                                       FontSize="12.5" Foreground="{StaticResource InkDim}" Margin="0,6,0,0"/>
+                        </StackPanel>
+
+                        <Grid Grid.Row="1" Margin="26,0,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="270"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Border Grid.Column="0" CornerRadius="16" Background="{StaticResource Glass}"
+                                    BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="6">
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Top" Text="已安装版本" FontSize="11.5"
+                                               Foreground="{StaticResource InkFaint}" Margin="12,10,10,8"/>
+                                    <ListBox x:Name="VmVersionList" Background="Transparent" BorderThickness="0"
+                                             Foreground="{StaticResource Ink}" SelectionChanged="OnVmVersionSelected">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Margin="6,5">
+                                                    <TextBlock Text="{Binding Id}" FontWeight="SemiBold" FontSize="12"/>
+                                                    <TextBlock Text="{Binding Subtitle}" FontSize="10"
+                                                               Foreground="{StaticResource InkFaint}"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </DockPanel>
+                            </Border>
+
+                            <ScrollViewer Grid.Column="1" Margin="16,0,0,0" VerticalScrollBarVisibility="Auto">
+                                <StackPanel MaxWidth="860" HorizontalAlignment="Left">
+
+                                    <Border CornerRadius="16" Background="{StaticResource Glass}"
+                                            BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16">
+                                        <StackPanel>
+                                            <TextBlock x:Name="VmTitle" Text="先在左边选一个版本" FontSize="18"
+                                                       FontWeight="Bold" Foreground="{StaticResource Ink}"/>
+                                            <TextBlock x:Name="VmPath" Text="" FontSize="11" Margin="0,6,0,0"
+                                                       Foreground="{StaticResource InkFaint}" TextWrapping="Wrap"/>
+
+                                            <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                                                <TextBlock Text="运行内存 (MB)" FontSize="11.5" VerticalAlignment="Center"
+                                                           Foreground="{StaticResource InkDim}"/>
+                                                <TextBox x:Name="VmMemoryBox" Width="110" Margin="10,0,0,0"
+                                                         HorizontalContentAlignment="Center"/>
+                                                <Button Content="应用" Style="{StaticResource GlassButton}" Margin="8,0,0,0"
+                                                        Click="OnVmSaveMemory"/>
+                                                <Button Content="打开版本目录" Style="{StaticResource GlassButton}" Margin="8,0,0,0"
+                                                        Click="OnVmOpenVersionDir"/>
+                                            </StackPanel>
+
+                                            <WrapPanel Margin="0,12,0,0">
+                                                <Button Content="mods" Style="{StaticResource GlassButton}" Margin="0,0,8,8"
+                                                        Tag="mods" Click="OnVmOpenFolder"/>
+                                                <Button Content="saves（地图）" Style="{StaticResource GlassButton}" Margin="0,0,8,8"
+                                                        Tag="saves" Click="OnVmOpenFolder"/>
+                                                <Button Content="resourcepacks" Style="{StaticResource GlassButton}" Margin="0,0,8,8"
+                                                        Tag="resourcepacks" Click="OnVmOpenFolder"/>
+                                                <Button Content="shaderpacks" Style="{StaticResource GlassButton}" Margin="0,0,8,8"
+                                                        Tag="shaderpacks" Click="OnVmOpenFolder"/>
+                                            </WrapPanel>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border CornerRadius="16" Background="{StaticResource Glass}"
+                                            BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16"
+                                            Margin="0,14,0,0">
+                                        <StackPanel>
+                                            <Grid>
+                                                <TextBlock Text="模组" FontSize="14" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource Ink}" VerticalAlignment="Center"/>
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                                    <Button Content="添加 mod" Style="{StaticResource GlassButton}" Padding="12,5" FontSize="11"
+                                                            Click="OnVmAddMods"/>
+                                                    <Button Content="刷新" Style="{StaticResource GlassButton}" Padding="12,5" FontSize="11"
+                                                            Margin="8,0,0,0" Click="OnVmRefreshMods"/>
+                                                </StackPanel>
+                                            </Grid>
+                                            <TextBlock Text="可以直接把 .jar 拖进来；点开关启用/禁用（改扩展名，不删文件）"
+                                                       FontSize="10.5" Foreground="{StaticResource InkFaint}" Margin="0,6,0,10"/>
+
+                                            <Border CornerRadius="10" Background="#0B0E13" Padding="10" MinHeight="220"
+                                                    AllowDrop="True" Drop="OnVmModsDrop" DragOver="OnVmModsDragOver">
+                                                <StackPanel x:Name="VmModList"/>
+                                            </Border>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border CornerRadius="16" Background="{StaticResource Glass}"
+                                            BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16"
+                                            Margin="0,14,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="整合包" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
+                                            <TextBlock Text="把这个版本的 mods / config / options.txt 打成一个 zip，别人导入就能玩"
+                                                       FontSize="10.5" Foreground="{StaticResource InkFaint}" Margin="0,6,0,10"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <Button Content="导出整合包" Style="{StaticResource HeroButton}" Height="36" Width="150"
+                                                        Click="OnVmExportPack"/>
+                                                <Button Content="导入整合包" Style="{StaticResource GlassButton}" Margin="10,0,0,0"
+                                                        Click="OnVmImportPack"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <TextBlock x:Name="VmStatus" Text="" FontSize="11.5" Margin="4,12,0,20"
+                                               Foreground="{StaticResource InkFaint}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Grid>
+                    </Grid>
+
                     <!-- ========== 联机页 ========== -->
                     <Grid x:Name="OnlinePage" Visibility="Collapsed">
                         <Grid.RowDefinitions>
