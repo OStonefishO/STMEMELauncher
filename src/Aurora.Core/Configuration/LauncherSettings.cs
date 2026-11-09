@@ -49,6 +49,9 @@ public sealed class LauncherSettings
 
     public string YggdrasilName { get; set; } = string.Empty;
 
+    /// <summary>用过的游戏目录（版本管理页的文件夹下拉）。</summary>
+    public List<string> KnownGameDirs { get; set; } = new();
+
     /// <summary>每次安装内容前询问装到哪个目录。</summary>
     public bool AskInstallFolder { get; set; } = true;
 

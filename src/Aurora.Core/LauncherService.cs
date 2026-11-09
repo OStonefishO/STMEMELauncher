@@ -22,7 +22,7 @@ public sealed class LauncherService
 
     public LauncherSettings Settings { get; }
 
-    public VersionRepository Versions { get; }
+    public VersionRepository Versions { get; private set; }
 
     // ---------------- 账号 ----------------
 
@@ -188,6 +188,19 @@ public sealed class LauncherService
         var locator = new JavaLocator(roots);
         all = locator.Scan();
         return locator.Select(requiredMajor, all);
+    }
+
+    /// <summary>切换游戏目录（多 .minecraft 文件夹）。</summary>
+    public void SetGameDirectory(string directory)
+    {
+        if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
+        {
+            throw new InvalidOperationException("目录不存在: " + directory);
+        }
+
+        Settings.GameDirectory = directory;
+        ConfigStore.Save(Settings);
+        Versions = new VersionRepository(directory);
     }
 
     public List<VersionSummary> ListVersions() => Versions.Scan();

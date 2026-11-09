@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.9.1";
+    private const string AppVersion = "0.9.2";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -800,8 +800,16 @@ public partial class MainWindow : Window
 
     private void InitVersionManager()
     {
-        if (_vmLoaded || VmVersionList == null)
+        if (VmVersionList == null)
         {
+            return;
+        }
+
+        RefreshVmDirs();
+
+        if (_vmLoaded)
+        {
+            ReloadVmVersions();
             return;
         }
 
@@ -822,6 +830,146 @@ public partial class MainWindow : Window
         {
             VmVersionList.SelectedIndex = 0;
         }
+    }
+
+    private void RefreshVmDirs()
+    {
+        if (VmDirCombo == null)
+        {
+            return;
+        }
+
+        var dirs = new List<string>();
+        void Add(string? dir)
+        {
+            if (!string.IsNullOrWhiteSpace(dir) && Directory.Exists(dir) && !dirs.Contains(dir))
+            {
+                dirs.Add(dir);
+            }
+        }
+
+        Add(_settings.GameDirectory);
+        foreach (var dir in _settings.KnownGameDirs)
+        {
+            Add(dir);
+        }
+
+        var selected = _settings.GameDirectory;
+        VmDirCombo.ItemsSource = dirs;
+        VmDirCombo.SelectedItem = dirs.FirstOrDefault(d => string.Equals(d, selected, StringComparison.OrdinalIgnoreCase))
+                                  ?? dirs.FirstOrDefault();
+    }
+
+    private void OnVmAddDir(object sender, RoutedEventArgs e)
+    {
+        var dialog = new System.Windows.Forms.FolderBrowserDialog
+        {
+            Description = "选择一个 .minecraft 文件夹（里面要有 versions）",
+            UseDescriptionForTitle = true,
+            SelectedPath = _settings.GameDirectory,
+        };
+
+        if (dialog.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+        {
+            return;
+        }
+
+        var dir = dialog.SelectedPath;
+        if (!Directory.Exists(Path.Combine(dir, "versions")))
+        {
+            VmStatus.Text = "这个文件夹里没有 versions 子目录，可能不是 .minecraft";
+        }
+
+        if (!_settings.KnownGameDirs.Contains(dir))
+        {
+            _settings.KnownGameDirs.Add(dir);
+            ConfigStore.Save(_settings);
+        }
+
+        RefreshVmDirs();
+        VmDirCombo.SelectedItem = dir;
+    }
+
+    private void OnVmDirChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (VmDirCombo?.SelectedItem is not string dir || string.IsNullOrEmpty(dir))
+        {
+            return;
+        }
+
+        if (string.Equals(dir, _settings.GameDirectory, StringComparison.OrdinalIgnoreCase))
+        {
+            ReloadVmVersions();
+            return;
+        }
+
+        try
+        {
+            _service.SetGameDirectory(dir);
+            _mcVersions.Clear();
+            ReloadVmVersions();
+            RefreshVersionCards();
+            VmStatus.Text = "已切换到 " + dir;
+        }
+        catch (Exception ex)
+        {
+            VmStatus.Text = "切换目录失败: " + ex.Message;
+        }
+    }
+
+    private void ReloadVmVersions()
+    {
+        if (VmVersionList == null)
+        {
+            return;
+        }
+
+        var items = _service.ListVersions()
+            .Where(v => v.IsUsable)
+            .OrderByDescending(v => v.ClientVersion, StringComparer.OrdinalIgnoreCase)
+            .Select(v => new VmVersionItem
+            {
+                Id = v.Id,
+                RawId = v.Id,
+                Subtitle = $"{v.Loader} · {v.ModCount} mods",
+            })
+            .ToList();
+
+        VmVersionList.ItemsSource = items;
+        if (items.Count > 0)
+        {
+            VmVersionList.SelectedIndex = 0;
+        }
+        else
+        {
+            VmTitle.Text = "这个目录里没有可用版本";
+            VmModList.Children.Clear();
+        }
+    }
+
+    private void RefreshVersionCards()
+    {
+        try
+        {
+            var versions = _service.ListVersions().Where(v => v.IsUsable).ToList();
+            VersionList.ItemsSource = versions.Select(v => new VersionCard(v)).ToList();
+            if (VersionList.Items.Count > 0)
+            {
+                VersionList.SelectedIndex = 0;
+            }
+        }
+        catch
+        {
+            // 忽略
+        }
+    }
+
+    private void OnOpenVersionManager(object sender, RoutedEventArgs e) => SetPage(7);
+
+    private void OnImportPackHome(object sender, RoutedEventArgs e)
+    {
+        SetPage(7);
+        OnVmImportPack(sender, e);
     }
 
     private void OnVmVersionSelected(object sender, SelectionChangedEventArgs e)
