@@ -884,6 +884,9 @@
                                                    Foreground="{StaticResource InkFaint}"/>
                                     </Grid>
                                     <Button Content="搜索" Style="{StaticResource GlassButton}" Margin="8,0,0,0" Click="OnSearch"/>
+                                    <Button x:Name="TranslateButton" Content="中文翻译：关" Style="{StaticResource GlassButton}"
+                                            Margin="8,0,0,0" Padding="12,6" Click="OnToggleTranslate"
+                                            ToolTip="打开后简介和分类标签自动翻成中文（标签用内置词表，句子走免费翻译）"/>
 
                                     <TextBlock x:Name="PageText" Text="" FontSize="11.5" Margin="18,0,0,0"
                                                VerticalAlignment="Center" Foreground="{StaticResource InkFaint}"/>

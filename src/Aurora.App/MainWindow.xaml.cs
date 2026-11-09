@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.10";
+    private const string AppVersion = "0.15.11";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -1055,6 +1055,11 @@ public partial class MainWindow : Window
             ContentList.ItemsSource = cards;
             UpdatePager();
 
+            if (_settings.TranslateContent)
+            {
+                _ = TranslateCardsAsync(cards);
+            }
+
             ContentStatus.Text = cards.Count == 0
                 ? "没有结果，换个关键词或放宽筛选"
                 : relaxedNote
@@ -1065,6 +1070,45 @@ public partial class MainWindow : Window
         {
             ContentStatus.Text = "搜索失败: " + ex.Message;
         }
+    }
+
+    private async Task TranslateCardsAsync(List<ContentCard> cards)
+    {
+        foreach (var card in cards)
+        {
+            try
+            {
+                var zh = await Aurora.Core.Net.Translator.TextAsync(card.Item.Summary);
+                if (!string.IsNullOrWhiteSpace(zh))
+                {
+                    card.SetSummary(zh);
+                }
+            }
+            catch
+            {
+                // 翻译失败就保留英文
+            }
+        }
+    }
+
+    private void OnToggleTranslate(object sender, RoutedEventArgs e)
+    {
+        _settings.TranslateContent = !_settings.TranslateContent;
+        ConfigStore.Save(_settings);
+        UpdateTranslateButton();
+
+        if (_settings.TranslateContent)
+        {
+            _ = LoadContentPageAsync();
+        }
+    }
+
+    private void UpdateTranslateButton()
+    {
+        if (TranslateButton == null) return;
+        TranslateButton.Content = _settings.TranslateContent ? "中文翻译：开" : "中文翻译：关";
+        TranslateButton.Style = (Style)FindResource(_settings.TranslateContent ? "HeroButton" : "GlassButton");
+        TranslateButton.Padding = new Thickness(12, 6, 12, 6);
     }
 
     private void UpdatePager()
@@ -3988,6 +4032,7 @@ public partial class MainWindow : Window
         }
 
         UpdateAccountChip();
+        UpdateTranslateButton();
     }
 
     private Border BuildAccountCard(SavedAccount account, bool isActive)
@@ -4599,6 +4644,7 @@ public partial class MainWindow : Window
         };
 
         UpdateAccountChip();
+        UpdateTranslateButton();
     }
 
     private void OnSaveSettings(object sender, RoutedEventArgs e)
@@ -4650,6 +4696,7 @@ public partial class MainWindow : Window
             }
 
             UpdateAccountChip();
+        UpdateTranslateButton();
             SaveStatus.Text = "已保存 · " + ConfigStore.ConfigPath;
             SetStatus("设置已保存");
         }
@@ -5152,6 +5199,7 @@ public partial class MainWindow : Window
         public ContentCard(ContentItem item)
         {
             Item = item;
+            _summary = item.Summary;
             Meta = $"{item.Source} · {item.DownloadText} 次下载" +
                    (item.Categories.Count > 0 ? " · " + string.Join(" / ", item.Categories.Take(3)) : string.Empty);
             _ = LoadIconAsync();
@@ -5161,7 +5209,14 @@ public partial class MainWindow : Window
 
         public string Title => Item.Title;
 
-        public string Summary => Item.Summary;
+        private string _summary = string.Empty;
+        public string Summary => _summary;
+        public void SetSummary(string value)
+        {
+            if (string.IsNullOrEmpty(value) || value == _summary) return;
+            _summary = value;
+            PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(Summary)));
+        }
 
         public string Meta { get; }
 

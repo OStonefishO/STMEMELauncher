@@ -82,6 +82,9 @@ public sealed class LauncherSettings
     public Dictionary<string, bool> IsolatedVersions { get; set; } = new();
 
     /// <summary>主页 3D 方块岛的群系：0 主世界 / 1 下界 / 2 末地。</summary>
+    /// <summary>内容页要不要把英文简介和标签翻成中文</summary>
+    public bool TranslateContent { get; set; }
+
     public int HeroBiome { get; set; }
 
     /// <summary>每个版本的备注（整合包作者写给玩家看的说明），键是版本 id。</summary>
