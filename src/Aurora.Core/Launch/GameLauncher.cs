@@ -8,6 +8,32 @@ public sealed class GameLauncher
     /// <summary>游戏的标准输出/错误，逐行回调。</summary>
     public event Action<string>? OutputReceived;
 
+    /// <summary>进程启动后回调（pid）。</summary>
+    public event Action<int>? Started;
+
+    private Process? _process;
+
+    public bool IsRunning => _process is { HasExited: false };
+
+    /// <summary>强制结束游戏进程（游戏卡死时用）。</summary>
+    public bool Kill()
+    {
+        try
+        {
+            if (_process is { HasExited: false })
+            {
+                _process.Kill(entireProcessTree: true);
+                return true;
+            }
+        }
+        catch
+        {
+            // 忽略
+        }
+
+        return false;
+    }
+
     public async Task<LaunchResult> LaunchAsync(LaunchPlan plan, CancellationToken cancellationToken = default)
     {
         if (!File.Exists(plan.JavaPath))
@@ -39,7 +65,8 @@ public sealed class GameLauncher
 
         var stopwatch = Stopwatch.StartNew();
         var normalizer = new Infrastructure.LogNormalizer();
-        using var process = new Process { StartInfo = psi, EnableRaisingEvents = true };
+        var process = new Process { StartInfo = psi, EnableRaisingEvents = true };
+        _process = process;
 
         process.OutputDataReceived += (_, e) => Emit(normalizer, e.Data);
         process.ErrorDataReceived += (_, e) => Emit(normalizer, e.Data);
@@ -58,6 +85,7 @@ public sealed class GameLauncher
 
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
+        Started?.Invoke(process.Id);
 
         try
         {

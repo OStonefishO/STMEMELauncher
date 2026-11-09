@@ -136,13 +136,50 @@
                         <Border x:Name="b" Background="{TemplateBinding Background}" CornerRadius="10"
                                 BorderBrush="{StaticResource GlassLine}" BorderThickness="1"
                                 TextElement.Foreground="{TemplateBinding Foreground}"
-                                Padding="{TemplateBinding Padding}">
+                                Padding="{TemplateBinding Padding}" RenderTransformOrigin="0.5,0.5">
+                            <Border.RenderTransform>
+                                <ScaleTransform x:Name="btnScale" ScaleX="1" ScaleY="1"/>
+                            </Border.RenderTransform>
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
                                               TextElement.Foreground="{TemplateBinding Foreground}"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="b" Property="Background" Value="#24FFFFFF"/>
+                                <Setter TargetName="b" Property="Background" Value="#2EFFFFFF"/>
+                                <Setter TargetName="b" Property="BorderBrush" Value="#5B8CFF"/>
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="btnScale" Storyboard.TargetProperty="ScaleX"
+                                                             To="1.04" Duration="0:0:0.12"/>
+                                            <DoubleAnimation Storyboard.TargetName="btnScale" Storyboard.TargetProperty="ScaleY"
+                                                             To="1.04" Duration="0:0:0.12"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="btnScale" Storyboard.TargetProperty="ScaleX"
+                                                             To="1" Duration="0:0:0.12"/>
+                                            <DoubleAnimation Storyboard.TargetName="btnScale" Storyboard.TargetProperty="ScaleY"
+                                                             To="1" Duration="0:0:0.12"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="#40FFFFFF"/>
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="btnScale" Storyboard.TargetProperty="ScaleX"
+                                                             To="0.96" Duration="0:0:0.06"/>
+                                            <DoubleAnimation Storyboard.TargetName="btnScale" Storyboard.TargetProperty="ScaleY"
+                                                             To="0.96" Duration="0:0:0.06"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.4"/>
@@ -490,6 +527,8 @@
                                         <TextBlock Text="开始游戏" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </Button>
+                                <Button x:Name="ForceKillButton" Content="强制关闭游戏" Style="{StaticResource GlassButton}"
+                                        Height="32" Margin="0,10,0,0" Visibility="Collapsed" Click="OnForceKillGame"/>
 
                                 <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
                                     <Button Content="打开目录" Style="{StaticResource GlassButton}" Click="OnOpenFolder"
@@ -706,7 +745,13 @@
                             <Border Grid.Row="1" CornerRadius="16" Background="{StaticResource Glass}"
                                     BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="6">
                                 <ListBox x:Name="ContentList" Background="Transparent" BorderThickness="0"
-                                         Foreground="{StaticResource Ink}" SelectionChanged="OnContentSelected">
+                                         Foreground="{StaticResource Ink}" SelectionChanged="OnContentSelected"
+                                         PreviewMouseLeftButtonUp="OnContentListClick">
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                                            <EventSetter Event="MouseLeftButtonUp" Handler="OnContentItemClick"/>
+                                        </Style>
+                                    </ListBox.ItemContainerStyle>
                                     <ListBox.ItemTemplate>
                                         <DataTemplate>
                                             <Grid Margin="8,7">
@@ -1147,6 +1192,8 @@
                                         <TextBlock Text="下载与镜像" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}" Margin="0,0,0,10"/>
                                         <CheckBox x:Name="SettingsMirror" Content="下载走国内镜像 (BMCLAPI)"
                                                   Foreground="{StaticResource Ink}" IsChecked="True"/>
+                                        <CheckBox x:Name="SettingsAskInstall" Content="安装 mod / 光影前询问装到哪个目录"
+                                                  Foreground="{StaticResource Ink}" Margin="0,10,0,0" IsChecked="True"/>
                                         <TextBlock Text="自建镜像站地址（留空则直接用 BMCLAPI）" Foreground="{StaticResource InkFaint}"
                                                    FontSize="11" Margin="0,14,0,0"/>
                                         <TextBox x:Name="SettingsMirrorUrl" Margin="0,6,0,0"/>
@@ -1221,6 +1268,23 @@
                            Foreground="{StaticResource InkFaint}" TextTrimming="CharacterEllipsis"/>
             </Grid>
         </Grid>
+
+        <!-- 右下角提示 -->
+        <Border x:Name="ToastHost" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                Margin="0,0,26,54" CornerRadius="12" Background="#F2141A24"
+                BorderBrush="#3A5B8CFF" BorderThickness="1" Padding="14,11"
+                MaxWidth="380" Visibility="Collapsed" Opacity="0">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock x:Name="ToastIcon" Text="⇩" FontSize="16" Foreground="#FF8AB4FF"
+                           VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <StackPanel>
+                    <TextBlock x:Name="ToastTitle" Text="" FontSize="12.5" FontWeight="SemiBold"
+                               Foreground="{StaticResource Ink}" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="ToastDetail" Text="" FontSize="11" Margin="0,3,0,0"
+                               Foreground="{StaticResource InkFaint}" TextWrapping="Wrap"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
 
         <!-- 启动动画 -->
         <Grid x:Name="SplashOverlay" Background="#FF070A12">

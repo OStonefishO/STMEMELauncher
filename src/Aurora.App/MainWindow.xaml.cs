@@ -30,7 +30,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.8.3";
+    private const string AppVersion = "0.9.0";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -258,6 +258,16 @@ public partial class MainWindow : Window
             SetStatus($"{resolved.Id} · 运行中（{plan.JavaPath}）");
 
             var launcher = new GameLauncher();
+            _gameLauncher = launcher;
+            launcher.Started += pid => Dispatcher.BeginInvoke(() =>
+            {
+                if (ForceKillButton != null)
+                {
+                    ForceKillButton.Visibility = Visibility.Visible;
+                }
+
+                SetStatus($"游戏已启动（pid {pid}），点「强制关闭游戏」可以强杀");
+            });
             launcher.OutputReceived += line =>
                 Dispatcher.BeginInvoke(() => SetStatus(Trim(line, 140)));
 
@@ -747,6 +757,81 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnForceKillGame(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (_gameLauncher?.Kill() == true)
+            {
+                SetStatus("已强制结束游戏进程");
+            }
+            else
+            {
+                SetStatus("游戏没有在运行");
+            }
+        }
+        catch (Exception ex)
+        {
+            SetStatus("强制关闭失败: " + ex.Message);
+        }
+
+        ForceKillButton.Visibility = Visibility.Collapsed;
+    }
+
+    // ---------------- 内容点击 / 提示 ----------------
+
+    private DateTime _lastDetailClick = DateTime.MinValue;
+
+    private void OnContentListClick(object sender, MouseButtonEventArgs e) => TryOpenSelectedContent();
+
+    private void OnContentItemClick(object sender, MouseButtonEventArgs e) => TryOpenSelectedContent();
+
+    private void TryOpenSelectedContent()
+    {
+        if (ContentList.SelectedItem is not ContentCard card)
+        {
+            return;
+        }
+
+        // 同一个条目可能同时触发 ListBox 和 ListBoxItem 两个事件，防抖一下
+        if ((DateTime.Now - _lastDetailClick).TotalMilliseconds < 250)
+        {
+            return;
+        }
+
+        _lastDetailClick = DateTime.Now;
+        _ = ShowContentDetailAsync(card.Item);
+    }
+
+    private async void ShowToast(string title, string detail, string icon = "⇩", int milliseconds = 3200)
+    {
+        try
+        {
+            if (ToastHost == null)
+            {
+                return;
+            }
+
+            ToastIcon.Text = icon;
+            ToastTitle.Text = title;
+            ToastDetail.Text = detail;
+
+            ToastHost.Visibility = Visibility.Visible;
+            var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180));
+            ToastHost.BeginAnimation(OpacityProperty, fadeIn);
+
+            await Task.Delay(milliseconds);
+
+            var fadeOut = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(260));
+            fadeOut.Completed += (_, __) => ToastHost.Visibility = Visibility.Collapsed;
+            ToastHost.BeginAnimation(OpacityProperty, fadeOut);
+        }
+        catch
+        {
+            // 提示失败不影响主流程
+        }
+    }
+
     // ---------------- 下载管理 ----------------
 
     private void InitDownloadPanel()
@@ -758,7 +843,27 @@ public partial class MainWindow : Window
 
         var manager = _service.CreateDownloadManager();
         DownloadList.ItemsSource = manager.Tasks;
-        manager.Tasks.CollectionChanged += (_, __) => UpdateDownloadHint();
+        manager.Tasks.CollectionChanged += (_, e) =>
+        {
+            UpdateDownloadHint();
+            if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add &&
+                e.NewItems is { Count: > 0 } && e.NewItems[0] is DownloadItem added)
+            {
+                ShowToast("开始下载", added.FileName, "⇩", 2400);
+            }
+        };
+
+        manager.TaskCompleted += item => Dispatcher.BeginInvoke(() =>
+        {
+            UpdateDownloadHint();
+            ShowToast("下载完成", item.FileName, "✓", 3600);
+        });
+        manager.TaskFailed += item => Dispatcher.BeginInvoke(() =>
+        {
+            UpdateDownloadHint();
+            ShowToast("下载失败", item.FileName + " · " + item.Error, "⚠", 5000);
+        });
+
         UpdateDownloadHint();
     }
 
@@ -1086,6 +1191,7 @@ public partial class MainWindow : Window
 
     private int expanderCount;
     private readonly Stack<ContentItem> _detailStack = new();
+    private GameLauncher? _gameLauncher;
     private ContentItem? _detailCurrent;
 
     private Border BuildVersionRow(ContentItem item, ContentVersion version, string? currentLoader)
@@ -1158,6 +1264,31 @@ public partial class MainWindow : Window
         };
     }
 
+    /// <summary>按设置询问安装目录；返回 null 表示用户取消。</summary>
+    private string? AskInstallTarget(string fallback)
+    {
+        if (!_settings.AskInstallFolder)
+        {
+            return fallback;
+        }
+
+        var dialog = new System.Windows.Forms.FolderBrowserDialog
+        {
+            Description = "选择要装进哪个游戏目录（会写入它的 mods / resourcepacks 等文件夹）",
+            UseDescriptionForTitle = true,
+            SelectedPath = Directory.Exists(_settings.LastInstallFolder) ? _settings.LastInstallFolder : fallback,
+        };
+
+        if (dialog.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+        {
+            return null;
+        }
+
+        _settings.LastInstallFolder = dialog.SelectedPath;
+        ConfigStore.Save(_settings);
+        return dialog.SelectedPath;
+    }
+
     private async Task InstallVersionAsync(ContentItem item, ContentVersion version, Button? button)
     {
         try
@@ -1166,6 +1297,19 @@ public partial class MainWindow : Window
             var target = VersionList.SelectedItem as VersionCard;
             var resolved = target == null ? null : _service.Resolve(target.Summary.Id);
             var gameDir = resolved == null ? _settings.GameDirectory : _service.GameDirectoryFor(resolved);
+
+            var chosen = AskInstallTarget(gameDir);
+            if (string.IsNullOrEmpty(chosen))
+            {
+                DetailStatus.Text = "已取消安装";
+                if (button != null)
+                {
+                    button.IsEnabled = true;
+                }
+                return;
+            }
+
+            gameDir = chosen;
 
             var file = new ContentFile
             {
@@ -2526,6 +2670,10 @@ public partial class MainWindow : Window
         SettingsMemory.Text = _settings.MaxMemoryMb.ToString();
         SettingsJava.Text = _settings.JavaPath;
         SettingsMirror.IsChecked = _settings.UseMirror;
+        if (SettingsAskInstall != null)
+        {
+            SettingsAskInstall.IsChecked = _settings.AskInstallFolder;
+        }
         ClientIdBox.Text = _settings.MicrosoftClientId;
         SettingsMirrorUrl.Text = _settings.MirrorBaseUrl;
         SettingsCfKey.Text = _settings.CurseForgeApiKey;
@@ -2555,6 +2703,7 @@ public partial class MainWindow : Window
 
             _settings.JavaPath = SettingsJava.Text.Trim();
             _settings.UseMirror = SettingsMirror.IsChecked == true;
+            _settings.AskInstallFolder = SettingsAskInstall?.IsChecked != false;
             _settings.MicrosoftClientId = ClientIdBox.Text?.Trim() ?? string.Empty;
             _settings.MirrorBaseUrl = SettingsMirrorUrl.Text?.Trim() ?? string.Empty;
             _settings.CurseForgeApiKey = SettingsCfKey.Text?.Trim() ?? string.Empty;

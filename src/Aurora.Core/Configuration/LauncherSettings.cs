@@ -49,6 +49,12 @@ public sealed class LauncherSettings
 
     public string YggdrasilName { get; set; } = string.Empty;
 
+    /// <summary>每次安装内容前询问装到哪个目录。</summary>
+    public bool AskInstallFolder { get; set; } = true;
+
+    /// <summary>内容安装时上次选择的目录。</summary>
+    public string LastInstallFolder { get; set; } = string.Empty;
+
     /// <summary>Gitee 镜像仓库（owner/repo），留空关闭；用于国内更新下载。</summary>
     public string GiteeRepo { get; set; } = "stonefish8/STMEMELauncher";
 

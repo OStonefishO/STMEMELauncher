@@ -166,6 +166,12 @@ public sealed class DownloadManager
 
     public ObservableCollection<DownloadItem> Tasks { get; } = new();
 
+    /// <summary>一个任务下载完成（UI 线程回调）。</summary>
+    public event Action<DownloadItem>? TaskCompleted;
+
+    /// <summary>一个任务失败（UI 线程回调）。</summary>
+    public event Action<DownloadItem>? TaskFailed;
+
     public DownloadItem Enqueue(ContentFile file, ContentKind kind, string gameDirectory)
     {
         var folder = Path.Combine(gameDirectory, ContentKindInfo.Folder(kind));
@@ -335,6 +341,7 @@ public sealed class DownloadManager
                 item.ReceivedBytes = Math.Max(item.ReceivedBytes, received);
                 item.State = DownloadState.Completed;
                 item.SpeedBytesPerSecond = 0;
+                TaskCompleted?.Invoke(item);
             });
         }
         catch (OperationCanceledException)
@@ -347,6 +354,7 @@ public sealed class DownloadManager
             {
                 item.Error = ex.Message;
                 item.State = DownloadState.Failed;
+                TaskFailed?.Invoke(item);
             });
         }
         finally
