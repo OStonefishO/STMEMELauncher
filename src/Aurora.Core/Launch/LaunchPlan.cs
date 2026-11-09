@@ -18,6 +18,11 @@ public sealed class LaunchOptions
     public int WindowHeight { get; set; }
     public string LauncherName { get; set; } = "MemeLauncher";
     public string LauncherVersion { get; set; } = "0.2.0";
+    /// <summary>外置登录：authlib-injector 路径与皮肤站 API 根地址。</summary>
+    public string? AuthlibInjectorPath { get; set; }
+
+    public string? YggdrasilApiRoot { get; set; }
+
     public string? ServerAddress { get; set; }
     public int ServerPort { get; set; }
 }

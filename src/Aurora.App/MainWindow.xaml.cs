@@ -40,6 +40,7 @@ public partial class MainWindow : Window
         _settings = ConfigStore.Load();
         _service = new LauncherService(_settings);
 
+        _service.RestoreYggdrasil();
         InitHero();
         Loaded += (_, __) => InitParticles();
 
@@ -679,8 +680,130 @@ public partial class MainWindow : Window
     private void OnLogout(object sender, RoutedEventArgs e)
     {
         _service.Account = null;
+        _service.SaveYggdrasil(null);
         UpdateAccountChip();
         AccountStatus.Text = "已退出，使用离线账号";
+    }
+
+    // ---------------- 外置登录 / 导入 ----------------
+
+    private async void OnYggdrasilLogin(object sender, RoutedEventArgs e)
+    {
+        var dialog = BuildYggdrasilDialog(out var apiBox, out var emailBox, out var passBox);
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        var apiRoot = apiBox.Text?.Trim() ?? string.Empty;
+        var email = emailBox.Text?.Trim() ?? string.Empty;
+        var password = passBox.Password;
+
+        if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password))
+        {
+            AccountStatus.Text = "邮箱和密码都要填";
+            return;
+        }
+
+        try
+        {
+            AccountStatus.Text = "正在登录外置账号…";
+            var auth = _service.CreateYggdrasil(apiRoot);
+            var session = await auth.AuthenticateAsync(email, password);
+
+            AccountStatus.Text = "下载 authlib-injector…";
+            var installer = _service.CreateInjectorInstaller();
+            await installer.EnsureAsync(_settings.GameDirectory, new Progress<string>(t => AccountStatus.Text = t));
+
+            _service.SaveYggdrasil(session);
+            _settings.YggdrasilEmail = email;
+            ConfigStore.Save(_settings);
+            UpdateAccountChip();
+            AccountStatus.Text = $"外置登录成功：{session.PlayerName}";
+        }
+        catch (Exception ex)
+        {
+            AccountStatus.Text = "外置登录失败: " + ex.Message;
+        }
+    }
+
+    private Window BuildYggdrasilDialog(out TextBox apiBox, out TextBox emailBox, out PasswordBox passBox)
+    {
+        var panel = new StackPanel { Margin = new Thickness(26) };
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = "服务器地址",
+            FontSize = 12,
+            Foreground = (Brush)FindResource("InkDim"),
+        });
+        apiBox = new TextBox
+        {
+            Text = string.IsNullOrWhiteSpace(_settings.YggdrasilApiRoot)
+                ? "https://littleskin.cn/api/yggdrasil"
+                : _settings.YggdrasilApiRoot,
+            Margin = new Thickness(0, 6, 0, 14),
+        };
+        panel.Children.Add(apiBox);
+
+        panel.Children.Add(new TextBlock { Text = "邮箱", FontSize = 12, Foreground = (Brush)FindResource("InkDim") });
+        emailBox = new TextBox { Text = _settings.YggdrasilEmail, Margin = new Thickness(0, 6, 0, 14) };
+        panel.Children.Add(emailBox);
+
+        panel.Children.Add(new TextBlock { Text = "密码", FontSize = 12, Foreground = (Brush)FindResource("InkDim") });
+        passBox = new PasswordBox { Margin = new Thickness(0, 6, 0, 16), Padding = new Thickness(9, 7, 9, 7) };
+        panel.Children.Add(passBox);
+
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+        var ok = new Button { Content = "登录", Style = (Style)FindResource("HeroButton"), Width = 96, Height = 36, IsDefault = true };
+        var cancel = new Button { Content = "取消", Style = (Style)FindResource("GlassButton"), Width = 80, Margin = new Thickness(8, 0, 0, 0), IsCancel = true };
+        buttons.Children.Add(ok);
+        buttons.Children.Add(cancel);
+        panel.Children.Add(buttons);
+
+        var window = new Window
+        {
+            Owner = this,
+            Title = "外置登录",
+            Width = 430,
+            SizeToContent = SizeToContent.Height,
+            ResizeMode = ResizeMode.NoResize,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = (Brush)FindResource("Bg"),
+            Content = panel,
+        };
+
+        ok.Click += (_, __) => window.DialogResult = true;
+        return window;
+    }
+
+    private void OnImportOfficial(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var accounts = OfficialLauncherImport.Read();
+            if (accounts.Count == 0)
+            {
+                AccountStatus.Text = "没找到官方启动器的登录记录（先用官方启动器登录一次）";
+                return;
+            }
+
+            var first = accounts[0];
+            _service.Yggdrasil = null;
+            _service.SaveYggdrasil(null);
+            _service.Account = new AuthSession
+            {
+                PlayerName = first.PlayerName,
+                Uuid = first.Uuid,
+                AccessToken = first.AccessToken,
+            };
+            UpdateAccountChip();
+            AccountStatus.Text = $"已从官方启动器导入：{first.PlayerName}（token 有效期约 24 小时）";
+        }
+        catch (Exception ex)
+        {
+            AccountStatus.Text = "导入失败: " + ex.Message;
+        }
     }
 
     private Window BuildLoginDialog(DeviceCodeFlow flow)
@@ -796,12 +919,25 @@ public partial class MainWindow : Window
     }
     private void UpdateAccountChip()
     {
+        var ygg = _service.Yggdrasil;
         var account = _service.Account;
-        var isPremium = account is { IsValid: true };
-        AccountChip.Text = isPremium ? "正版：" + account!.PlayerName : "离线：" + _settings.PlayerName;
-        AccountStatus.Text = isPremium
-            ? $"已登录微软账号：{account!.PlayerName}（{account.Uuid}）"
-            : $"当前：离线账号 {_settings.PlayerName} · 想用正版皮肤就登录微软账号";
+
+        if (ygg is { IsValid: true })
+        {
+            AccountChip.Text = "外置：" + ygg.PlayerName;
+            AccountStatus.Text = $"外置登录：{ygg.PlayerName}（{ygg.Uuid}）· {ygg.ApiRoot}";
+            return;
+        }
+
+        if (account is { IsValid: true })
+        {
+            AccountChip.Text = "正版：" + account.PlayerName;
+            AccountStatus.Text = $"已登录微软账号：{account.PlayerName}（{account.Uuid}）";
+            return;
+        }
+
+        AccountChip.Text = "离线：" + _settings.PlayerName;
+        AccountStatus.Text = $"当前：离线账号 {_settings.PlayerName} · 想用皮肤就外置登录或登录微软账号";
     }
 
     // ---------------- 设置 ----------------

@@ -26,6 +26,44 @@ public sealed class LauncherService
     /// <summary>当前登录的正版账号（null 表示离线登录）。</summary>
     public AuthSession? Account { get; set; }
 
+    /// <summary>当前登录的外置账号（LittleSkin 等）。</summary>
+    public YggdrasilSession? Yggdrasil { get; set; }
+
+    public void RestoreYggdrasil()
+    {
+        if (!string.IsNullOrEmpty(Settings.YggdrasilToken) && !string.IsNullOrEmpty(Settings.YggdrasilUuid))
+        {
+            Yggdrasil = new YggdrasilSession
+            {
+                ApiRoot = Settings.YggdrasilApiRoot,
+                AccessToken = Settings.YggdrasilToken,
+                ClientToken = Settings.YggdrasilClientToken,
+                Uuid = Settings.YggdrasilUuid,
+                PlayerName = Settings.YggdrasilName,
+            };
+        }
+    }
+
+    public void SaveYggdrasil(YggdrasilSession? session)
+    {
+        Yggdrasil = session;
+        Settings.YggdrasilToken = session?.AccessToken ?? string.Empty;
+        Settings.YggdrasilClientToken = session?.ClientToken ?? string.Empty;
+        Settings.YggdrasilUuid = session?.Uuid ?? string.Empty;
+        Settings.YggdrasilName = session?.PlayerName ?? string.Empty;
+        if (session != null)
+        {
+            Settings.YggdrasilApiRoot = session.ApiRoot;
+        }
+
+        ConfigStore.Save(Settings);
+    }
+
+    public YggdrasilAuth CreateYggdrasil(string? apiRoot = null) =>
+        new(string.IsNullOrWhiteSpace(apiRoot) ? Settings.YggdrasilApiRoot : apiRoot);
+
+    public AuthlibInjectorInstaller CreateInjectorInstaller() => new();
+
     public DownloadClient SharedDownloader =>
         _shared ??= new DownloadClient(Settings.UseMirror) { MirrorBaseUrl = Settings.MirrorBaseUrl };
 
@@ -102,12 +140,55 @@ public sealed class LauncherService
 
         var gameDir = GameDirectoryFor(resolved);
         var account = Account;
+        var yggdrasil = Yggdrasil;
+
+        string player;
+        string? uuid;
+        string token;
+        string userType;
+        string? injector = null;
+        string? apiRoot = null;
+
+        if (yggdrasil is { IsValid: true })
+        {
+            player = yggdrasil.PlayerName;
+            uuid = yggdrasil.Uuid;
+            token = yggdrasil.AccessToken;
+            userType = "mojang";
+            apiRoot = yggdrasil.ApiRoot;
+            var jar = Path.Combine(Settings.GameDirectory, "authlib-injector.jar");
+            if (File.Exists(jar))
+            {
+                injector = jar;
+            }
+            else
+            {
+                problems.Add("外置登录需要 authlib-injector.jar，请重新登录以自动下载");
+            }
+        }
+        else if (account is { IsValid: true })
+        {
+            player = account.PlayerName;
+            uuid = account.Uuid;
+            token = account.AccessToken;
+            userType = account.UserType;
+        }
+        else
+        {
+            player = playerName ?? Settings.PlayerName;
+            uuid = null;
+            token = "0";
+            userType = "legacy";
+        }
+
         var options = new LaunchOptions
         {
-            PlayerName = account is { IsValid: true } ? account.PlayerName : (playerName ?? Settings.PlayerName),
-            Uuid = account is { IsValid: true } ? account.Uuid : null,
-            AccessToken = account is { IsValid: true } ? account.AccessToken : "0",
-            UserType = account is { IsValid: true } ? account.UserType : "legacy",
+            PlayerName = player,
+            Uuid = uuid,
+            AccessToken = token,
+            UserType = userType,
+            AuthlibInjectorPath = injector,
+            YggdrasilApiRoot = apiRoot,
             JavaPath = java.JavaPath,
             MinMemoryMb = Settings.MinMemoryMb,
             MaxMemoryMb = Settings.MaxMemoryMb,

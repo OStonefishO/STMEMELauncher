@@ -69,6 +69,15 @@ public sealed class LaunchPlanner
             "-Dstderr.encoding=UTF-8",
         };
 
+        // 外置登录：authlib-injector 必须在最前面注入
+        if (!string.IsNullOrEmpty(options.AuthlibInjectorPath) && File.Exists(options.AuthlibInjectorPath))
+        {
+            var root = string.IsNullOrEmpty(options.YggdrasilApiRoot)
+                ? "https://littleskin.cn/api/yggdrasil"
+                : options.YggdrasilApiRoot!;
+            jvmArgs.Add($"-javaagent:{options.AuthlibInjectorPath}={root}");
+        }
+
         if (!string.IsNullOrWhiteSpace(options.ExtraJvmArgs))
         {
             jvmArgs.AddRange(TextUtil.SplitCommandLine(options.ExtraJvmArgs));

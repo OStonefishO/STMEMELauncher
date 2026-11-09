@@ -30,6 +30,19 @@ public sealed class LauncherSettings
     /// <summary>下载时走国内镜像（BMCLAPI）。</summary>
     public bool UseMirror { get; set; } = true;
 
+    /// <summary>外置登录（Yggdrasil）服务器地址，默认 LittleSkin。</summary>
+    public string YggdrasilApiRoot { get; set; } = "https://littleskin.cn/api/yggdrasil";
+
+    public string YggdrasilEmail { get; set; } = string.Empty;
+
+    public string YggdrasilToken { get; set; } = string.Empty;
+
+    public string YggdrasilClientToken { get; set; } = string.Empty;
+
+    public string YggdrasilUuid { get; set; } = string.Empty;
+
+    public string YggdrasilName { get; set; } = string.Empty;
+
     /// <summary>CurseForge API key（console.curseforge.com 免费申请），留空则只用 Modrinth。</summary>
     public string CurseForgeApiKey { get; set; } = string.Empty;
 
