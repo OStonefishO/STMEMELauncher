@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.12.6";
+    private const string AppVersion = "0.13.0";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -67,10 +67,20 @@ public partial class MainWindow : Window
 
         // 支持 --page 1/2/3 直接打开某一页（截图和调试用）
         var argv = Environment.GetCommandLineArgs();
+
+        // 调试用：--music <文件或文件夹>，先把歌放进播放器再截图
+        var musicFlag = Array.IndexOf(argv, "--music");
+        if (musicFlag >= 0 && musicFlag + 1 < argv.Length)
+        {
+            EnsureMusicInited();
+            SetFunTab(false);
+            AddMusicFiles(new[] { argv[musicFlag + 1] });
+        }
+
         var flag = Array.IndexOf(argv, "--page");
         if (flag >= 0 && flag + 1 < argv.Length && int.TryParse(argv[flag + 1], out var pageIndex))
         {
-            SetPage(Math.Clamp(pageIndex, 0, 7));
+            SetPage(Math.Clamp(pageIndex, 0, 8));
         }
         Loaded += (_, __) =>
         {
@@ -78,10 +88,67 @@ public partial class MainWindow : Window
             _ = SplashFadeOutAsync();
             _ = InitSkinWebAsync();
             _ = CheckUpdatesAsync(silent: true);
+
+            // 调试用：--shot <png>，等界面稳定后自己存一张图然后退出
+            var shotFlag = Array.IndexOf(argv, "--shot");
+            if (shotFlag >= 0 && shotFlag + 1 < argv.Length)
+            {
+                _ = CaptureAndExitAsync(argv[shotFlag + 1]);
+            }
+
+            // 调试用：--demo-crash，拿一条假崩溃跑一遍崩溃窗口
+            if (argv.Contains("--demo-crash"))
+            {
+                ShowCrashWindow(BuildDemoCrash(), modal: false);
+            }
+
+            // 调试用：--scroll-bottom，设置页直接滚到底（看水印）
+            if (argv.Contains("--scroll-bottom"))
+            {
+                _ = Task.Delay(600).ContinueWith(_ => Dispatcher.BeginInvoke(() => ScrollSettingsToBottom()));
+            }
         };
     }
 
     // ---------------- 导航 ----------------
+
+    /// <summary>调试：把当前窗口内容渲染成 PNG（不含 WebView2 的网页内容），然后退出。</summary>
+    private async Task CaptureAndExitAsync(string path)
+    {
+        try
+        {
+            await Task.Delay(3800);
+
+            // 有弹窗就截弹窗
+            Window target = this;
+            var extra = Application.Current.Windows.Cast<Window>()
+                .LastOrDefault(w => w.IsVisible && !ReferenceEquals(w, this));
+            if (extra != null)
+            {
+                target = extra;
+            }
+
+            var dpi = VisualTreeHelper.GetDpi(target);
+            var width = (int)Math.Round(target.ActualWidth * dpi.DpiScaleX);
+            var height = (int)Math.Round(target.ActualHeight * dpi.DpiScaleY);
+            var bitmap = new RenderTargetBitmap(width, height, dpi.PixelsPerInchX, dpi.PixelsPerInchY,
+                PixelFormats.Pbgra32);
+            bitmap.Render(target);
+
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(bitmap));
+            await using (var stream = File.Create(path))
+            {
+                encoder.Save(stream);
+            }
+        }
+        catch
+        {
+            // 截图失败不影响正常使用
+        }
+
+        Application.Current.Shutdown();
+    }
 
     private void OnNavClick(object sender, RoutedEventArgs e)
     {
@@ -127,6 +194,7 @@ public partial class MainWindow : Window
         AccountPage.Visibility = index == 3 ? Visibility.Visible : Visibility.Collapsed;
         SettingsPage.Visibility = index == 4 ? Visibility.Visible : Visibility.Collapsed;
         UpdatesPage.Visibility = index == 5 ? Visibility.Visible : Visibility.Collapsed;
+        FunPage.Visibility = index == 8 ? Visibility.Visible : Visibility.Collapsed;
 
         var active = (Brush)FindResource("TextMain");
         var inactive = (Brush)FindResource("TextDim");
@@ -135,6 +203,7 @@ public partial class MainWindow : Window
         NavOnline.Foreground = index == 6 ? active : inactive;
         NavVersions.Foreground = index == 7 ? active : inactive;
         NavAccount.Foreground = index == 3 ? active : inactive;
+        NavFun.Foreground = index == 8 ? active : inactive;
         NavSettings.Foreground = index is 4 or 5 ? active : inactive;
 
         if (index == 1 && _mcVersions.Count == 0)
@@ -159,6 +228,11 @@ public partial class MainWindow : Window
         {
             RefreshAccounts();
             RefreshCurrentSkinPreview();
+        }
+
+        if (index == 8)
+        {
+            _ = OnFunOpenedAsync();
         }
 
         try
@@ -292,9 +366,16 @@ public partial class MainWindow : Window
 
             var result = await Task.Run(() => launcher.LaunchAsync(plan));
 
+            var killedByUser = _killedByUser;
+            _killedByUser = false;
+
             if (!string.IsNullOrEmpty(result.CrashSummary))
             {
                 SetStatus("崩溃：" + result.CrashSummary);
+                if (result.Insight != null && !killedByUser)
+                {
+                    ShowCrashWindow(result.Insight);
+                }
             }
             else
             {
@@ -311,6 +392,21 @@ public partial class MainWindow : Window
         {
             _busy = false;
             LaunchButton.IsEnabled = true;
+        }
+    }
+
+    private void OnOpenBiliSpace(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo("https://space.bilibili.com/3546629445519895")
+            {
+                UseShellExecute = true,
+            });
+        }
+        catch (Exception ex)
+        {
+            SetStatus("打不开浏览器：" + ex.Message);
         }
     }
 
@@ -787,6 +883,7 @@ public partial class MainWindow : Window
 
     private void OnForceKillGame(object sender, RoutedEventArgs e)
     {
+        _killedByUser = true;
         try
         {
             if (_gameLauncher?.Kill() == true)
@@ -1823,6 +1920,28 @@ public partial class MainWindow : Window
     private int expanderCount;
     private readonly Stack<ContentItem> _detailStack = new();
     private GameLauncher? _gameLauncher;
+    private bool _killedByUser;
+
+    /// <summary>崩溃窗口：看完原因、导出报告。</summary>
+    private void ShowCrashWindow(CrashInsight insight, bool modal = true)
+    {
+        try
+        {
+            var window = new CrashWindow(insight) { Owner = this };
+            if (modal)
+            {
+                window.ShowDialog();
+            }
+            else
+            {
+                window.Show();
+            }
+        }
+        catch (Exception ex)
+        {
+            SetStatus("崩溃窗口打不开：" + ex.Message);
+        }
+    }
     private ContentItem? _detailCurrent;
 
     private Border BuildVersionRow(ContentItem item, ContentVersion version, string? currentLoader)

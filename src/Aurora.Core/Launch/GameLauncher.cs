@@ -12,8 +12,13 @@ public sealed class GameLauncher
     public event Action<int>? Started;
 
     private Process? _process;
+    private readonly List<string> _recentOutput = new();
+    private DateTimeOffset _startedAt = DateTimeOffset.Now;
 
     public bool IsRunning => _process is { HasExited: false };
+
+    /// <summary>最近抓到的日志（给崩溃分析用）。</summary>
+    public IReadOnlyList<string> RecentOutput => _recentOutput;
 
     /// <summary>强制结束游戏进程（游戏卡死时用）。</summary>
     public bool Kill()
@@ -64,6 +69,8 @@ public sealed class GameLauncher
         }
 
         var stopwatch = Stopwatch.StartNew();
+        _startedAt = DateTimeOffset.Now;
+        _recentOutput.Clear();
         var normalizer = new Infrastructure.LogNormalizer();
         var process = new Process { StartInfo = psi, EnableRaisingEvents = true };
         _process = process;
@@ -107,11 +114,16 @@ public sealed class GameLauncher
         stopwatch.Stop();
         foreach (var line in normalizer.Flush())
         {
+            Remember(line);
             OutputReceived?.Invoke(line);
         }
 
         var exitCode = process.ExitCode;
-        var crash = exitCode != 0 ? CrashAnalyzer.FindLatest(plan.WorkingDirectory) : null;
+        CrashInsight? insight = null;
+        if (exitCode != 0)
+        {
+            insight = CrashInspector.Analyze(plan.WorkingDirectory, exitCode, _recentOutput, _startedAt);
+        }
 
         return new LaunchResult
         {
@@ -119,8 +131,9 @@ public sealed class GameLauncher
             ExitCode = exitCode,
             Duration = stopwatch.Elapsed,
             Plan = plan,
-            CrashReportPath = crash?.Path,
-            CrashSummary = crash?.Summary,
+            CrashReportPath = insight?.GameCrashReportPath,
+            CrashSummary = insight == null ? null : insight.Headline,
+            Insight = insight,
         };
     }
 
@@ -173,7 +186,22 @@ public sealed class GameLauncher
     {
         foreach (var line in normalizer.Feed(raw))
         {
+            Remember(line);
             OutputReceived?.Invoke(line);
+        }
+    }
+
+    private void Remember(string line)
+    {
+        if (string.IsNullOrEmpty(line))
+        {
+            return;
+        }
+
+        _recentOutput.Add(line.Length > 800 ? line[..800] : line);
+        if (_recentOutput.Count > 800)
+        {
+            _recentOutput.RemoveRange(0, _recentOutput.Count - 800);
         }
     }
 
@@ -190,58 +218,5 @@ public sealed class GameLauncher
         {
             // 忽略
         }
-    }
-}
-
-public sealed class CrashInfo
-{
-    public string Path { get; init; } = string.Empty;
-    public string Summary { get; init; } = string.Empty;
-    public string[] HeadLines { get; init; } = Array.Empty<string>();
-}
-
-/// <summary>从 crash-reports / logs 里提取最有用的崩溃信息。</summary>
-public static class CrashAnalyzer
-{
-    public static CrashInfo? FindLatest(string gameDirectory)
-    {
-        var crashDir = Path.Combine(gameDirectory, "crash-reports");
-        if (Directory.Exists(crashDir))
-        {
-            var latest = Directory.GetFiles(crashDir, "*.txt")
-                .OrderByDescending(File.GetLastWriteTimeUtc)
-                .FirstOrDefault();
-
-            if (latest != null && DateTime.UtcNow - File.GetLastWriteTimeUtc(latest) < TimeSpan.FromMinutes(30))
-            {
-                return ReadCrash(latest);
-            }
-        }
-
-        return null;
-    }
-
-    private static CrashInfo ReadCrash(string path)
-    {
-        string[] lines;
-        try
-        {
-            lines = File.ReadAllLines(path);
-        }
-        catch
-        {
-            return new CrashInfo { Path = path, Summary = "无法读取崩溃报告" };
-        }
-
-        var description = lines.FirstOrDefault(l => l.TrimStart().StartsWith("Description:", StringComparison.OrdinalIgnoreCase));
-        var cause = lines.FirstOrDefault(l => l.StartsWith("\t", StringComparison.Ordinal) && l.Contains("Exception", StringComparison.OrdinalIgnoreCase));
-        var summary = string.Join(" | ", new[] { description, cause }.Where(s => !string.IsNullOrWhiteSpace(s)));
-
-        return new CrashInfo
-        {
-            Path = path,
-            Summary = string.IsNullOrWhiteSpace(summary) ? "退出码非 0（无崩溃报告）" : summary,
-            HeadLines = lines.Take(40).ToArray(),
-        };
     }
 }

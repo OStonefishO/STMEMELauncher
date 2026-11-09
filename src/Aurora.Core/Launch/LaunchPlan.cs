@@ -76,4 +76,7 @@ public sealed class LaunchResult
     public LaunchPlan? Plan { get; init; }
     public string? CrashReportPath { get; init; }
     public string? CrashSummary { get; init; }
+
+    /// <summary>退出码非 0 时的分析结果（启动器据此弹崩溃窗口）。</summary>
+    public CrashInsight? Insight { get; init; }
 }

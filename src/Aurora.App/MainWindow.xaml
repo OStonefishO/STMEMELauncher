@@ -93,6 +93,7 @@
         <Style x:Key="HeroButton" TargetType="Button">
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="18,9"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -104,7 +105,9 @@
                                 </Border.Effect>
                             </Border>
                             <Border x:Name="b" CornerRadius="30" Background="{StaticResource AccentGrad}" TextElement.Foreground="{TemplateBinding Foreground}">
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <Border Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
                             </Border>
                         </Grid>
                         <ControlTemplate.Triggers>
@@ -184,6 +187,81 @@
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 滑条（进度 / 音量） -->
+        <Style x:Key="TrackSlider" TargetType="Slider">
+            <Setter Property="Height" Value="18"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Slider">
+                        <Grid Height="18" VerticalAlignment="Center" Background="Transparent">
+                            <Border Height="4" CornerRadius="2" Background="#26FFFFFF" VerticalAlignment="Center"/>
+                            <Track x:Name="PART_Track"
+                                   Minimum="{TemplateBinding Minimum}"
+                                   Maximum="{TemplateBinding Maximum}"
+                                   Value="{TemplateBinding Value}"
+                                   Orientation="{TemplateBinding Orientation}"
+                                   IsDirectionReversed="False">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="Slider.DecreaseLarge" Focusable="False">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Height="4" CornerRadius="2" VerticalAlignment="Center"
+                                                        Background="{StaticResource AccentGrad}"/>
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.DecreaseRepeatButton>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="Slider.IncreaseLarge" Focusable="False">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Height="18" Background="Transparent"/>
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.IncreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb Width="12" Height="12">
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Ellipse Width="12" Height="12" Fill="#FFFFFFFF"/>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 歌单条目 -->
+        <Style x:Key="TrackItem" TargetType="ListBoxItem">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,2"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="b" CornerRadius="10" Background="Transparent" Padding="8,6">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="#14FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="#1E2A44"/>
+                                <Setter TargetName="b" Property="BorderBrush" Value="#5B8CFF"/>
+                                <Setter TargetName="b" Property="BorderThickness" Value="1"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -440,6 +518,12 @@
                         <StackPanel>
                             <TextBlock Text="⇄" FontSize="17" HorizontalAlignment="Center"/>
                             <TextBlock Text="联机" FontSize="10.5" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="NavFun" Style="{StaticResource RailButton}" Tag="8" Click="OnNavClick" Margin="0,6,0,0">
+                        <StackPanel>
+                            <TextBlock Text="♫" FontSize="17" HorizontalAlignment="Center"/>
+                            <TextBlock Text="娱乐" FontSize="10.5" HorizontalAlignment="Center" Margin="0,4,0,0"/>
                         </StackPanel>
                     </Button>
                     <Button x:Name="NavAccount" Style="{StaticResource RailButton}" Tag="3" Click="OnNavClick" Margin="0,6,0,0">
@@ -1450,6 +1534,28 @@
                                     <TextBlock x:Name="SaveStatus" Margin="14,0,0,0" VerticalAlignment="Center"
                                                Foreground="{StaticResource InkDim}" FontSize="11.5"/>
                                 </StackPanel>
+
+                                <Border CornerRadius="16" Background="{StaticResource Glass}"
+                                        BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="22,18"
+                                        Margin="0,12,0,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="FOR STONEFISH8" FontSize="21" FontWeight="Bold"
+                                                       FontFamily="{StaticResource FontHead}"
+                                                       Foreground="{StaticResource TitleGrad}"/>
+                                            <TextBlock Text="石余制作" FontSize="13" Foreground="{StaticResource InkDim}"
+                                                       Margin="0,7,0,0"/>
+                                            <TextBlock Text="MAKE WITH LOVE" FontSize="10" Foreground="{StaticResource InkFaint}"
+                                                       Margin="0,12,0,0"/>
+                                        </StackPanel>
+                                        <Button Grid.Column="1" Content="我的 B 站主页 ↗" Style="{StaticResource GlassButton}"
+                                                VerticalAlignment="Center" Margin="16,0,0,0" Click="OnOpenBiliSpace"/>
+                                    </Grid>
+                                </Border>
                             </StackPanel>
                         </ScrollViewer>
                     </Grid>
@@ -1473,6 +1579,215 @@
                         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="26,0,0,0">
                             <StackPanel x:Name="UpdateList" MaxWidth="780" HorizontalAlignment="Left"/>
                         </ScrollViewer>
+                    </Grid>
+
+                    <!-- ========== 娱乐页 ========== -->
+                    <Grid x:Name="FunPage" Visibility="Collapsed">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Margin="26,6,0,14">
+                            <TextBlock Text="娱乐" FontSize="32" FontFamily="{StaticResource FontHead}"
+                                       Foreground="{StaticResource TitleGrad}"/>
+                            <Grid Margin="0,10,0,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <Button x:Name="FunTabBili" Content="哔哩哔哩" Style="{StaticResource HeroButton}"
+                                            Height="32" Width="104" Click="OnFunTab"/>
+                                    <Button x:Name="FunTabMusic" Content="音乐" Style="{StaticResource GlassButton}"
+                                            Height="32" Width="104" Margin="10,0,0,0" Click="OnFunTab"/>
+                                </StackPanel>
+                                <TextBlock x:Name="FunStatus" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                           FontSize="11.5" Foreground="{StaticResource InkFaint}"
+                                           TextTrimming="CharacterEllipsis" MaxWidth="430"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <Grid Grid.Row="1" Margin="26,0,0,0">
+
+                            <!-- 哔哩哔哩 -->
+                            <Grid x:Name="BiliPane">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                                    <Button Content="←" Style="{StaticResource GlassButton}" Width="36" Height="28"
+                                            Padding="0" FontSize="12" Click="OnBiliBack" ToolTip="后退"/>
+                                    <Button Content="→" Style="{StaticResource GlassButton}" Width="36" Height="28"
+                                            Padding="0" FontSize="12" Margin="6,0,0,0" Click="OnBiliForward" ToolTip="前进"/>
+                                    <Button Content="⟳" Style="{StaticResource GlassButton}" Width="36" Height="28"
+                                            Padding="0" FontSize="13" Margin="6,0,0,0" Click="OnBiliReload" ToolTip="刷新"/>
+                                    <Button Content="首页" Style="{StaticResource GlassButton}" Height="28"
+                                            Padding="12,0" FontSize="11" Margin="6,0,0,0" Click="OnBiliHome"/>
+                                    <Button Content="－" Style="{StaticResource GlassButton}" Width="30" Height="28"
+                                            Padding="0" FontSize="12" Margin="12,0,0,0" Click="OnBiliZoomOut"
+                                            ToolTip="缩小网页"/>
+                                    <Button Content="＋" Style="{StaticResource GlassButton}" Width="30" Height="28"
+                                            Padding="0" FontSize="12" Margin="4,0,0,0" Click="OnBiliZoomIn"
+                                            ToolTip="放大网页"/>
+                                    <Button Content="适应" Style="{StaticResource GlassButton}" Height="28"
+                                            Padding="10,0" FontSize="11" Margin="4,0,0,0" Click="OnBiliZoomFit"
+                                            ToolTip="让整页宽度铺满窗口"/>
+                                    <TextBlock x:Name="BiliZoomText" Text="100%" FontSize="10.5"
+                                               Foreground="{StaticResource InkFaint}" VerticalAlignment="Center"
+                                               Margin="8,0,0,0"/>
+                                    <TextBlock x:Name="BiliUrl" FontSize="10.5" Foreground="{StaticResource InkFaint}"
+                                               VerticalAlignment="Center" Margin="14,0,0,0"
+                                               TextTrimming="CharacterEllipsis" MaxWidth="420"/>
+                                </StackPanel>
+
+                                <Border Grid.Row="1" CornerRadius="14" Background="#FF0B0E13"
+                                        BorderBrush="{StaticResource GlassLine}" BorderThickness="1" ClipToBounds="True"
+                                        SizeChanged="OnBiliSizeChanged">
+                                    <Grid>
+                                        <wv2:WebView2 x:Name="BiliWeb" DefaultBackgroundColor="#FF0B0E13"/>
+                                    </Grid>
+                                </Border>
+
+                                <TextBlock Grid.Row="2" x:Name="BiliHint"
+                                           Text="第一次进来自动加载 B 站，登录一下就能看番；播放器声音走系统音量"
+                                           FontSize="10.5" Foreground="{StaticResource InkFaint}" Margin="2,6,0,12"
+                                           TextWrapping="Wrap"/>
+                            </Grid>
+
+                            <!-- 音乐 -->
+                            <Grid x:Name="MusicPane" Visibility="Collapsed">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="306"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <Border Grid.Column="0" CornerRadius="16" Background="{StaticResource Glass}"
+                                        BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="14,12">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <StackPanel Grid.Row="0">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Button Content="添加音乐" Style="{StaticResource HeroButton}"
+                                                        Height="30" Padding="14,0" FontSize="11.5" Click="OnMusicAdd"/>
+                                                <Button Content="添加文件夹" Style="{StaticResource GlassButton}"
+                                                        Height="30" Padding="12,0" FontSize="11.5" Margin="8,0,0,0"
+                                                        Click="OnMusicAddFolder"/>
+                                            </StackPanel>
+                                            <TextBlock x:Name="PlaylistHint" Text="也可以把音乐文件直接拖进列表"
+                                                       FontSize="10.5" Foreground="{StaticResource InkFaint}"
+                                                       Margin="0,8,0,0" TextWrapping="Wrap"/>
+                                        </StackPanel>
+
+                                        <ListBox x:Name="SongList" Grid.Row="1" Margin="0,10,0,0"
+                                                 Background="Transparent" BorderThickness="0"
+                                                 Foreground="{StaticResource Ink}"
+                                                 ItemContainerStyle="{StaticResource TrackItem}"
+                                                 SelectionChanged="OnSongSelected"
+                                                 AllowDrop="True" Drop="OnSongDrop" DragOver="OnSongDragOver"
+                                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Margin="4,6">
+                                                        <TextBlock Text="{Binding Title}" FontSize="12"
+                                                                   TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Text="{Binding Sub}" FontSize="10"
+                                                                   Foreground="{StaticResource InkFaint}"
+                                                                   TextTrimming="CharacterEllipsis"/>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+
+                                        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,10,0,0">
+                                            <Button Content="清空列表" Style="{StaticResource GlassButton}"
+                                                    Padding="10,4" FontSize="10.5" Click="OnMusicClear"/>
+                                            <TextBlock x:Name="SongCountText" Text="0 首" FontSize="10.5"
+                                                       Foreground="{StaticResource InkFaint}" Margin="10,0,0,0"
+                                                       VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <Border Grid.Column="1" Margin="14,0,0,0" CornerRadius="16"
+                                        Background="{StaticResource Glass}" BorderBrush="{StaticResource GlassLine}"
+                                        BorderThickness="1" Padding="20,14">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <StackPanel Grid.Row="0">
+                                            <TextBlock x:Name="NowTitle" Text="还没有选歌" FontSize="18" FontWeight="SemiBold"
+                                                       Foreground="{StaticResource Ink}" TextTrimming="CharacterEllipsis"/>
+                                            <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                                                <TextBlock x:Name="NowArtist" Text="左边挑一首，或者把音乐拖进来"
+                                                           FontSize="11" Foreground="{StaticResource InkFaint}"
+                                                           TextTrimming="CharacterEllipsis" MaxWidth="420"/>
+                                                <TextBlock x:Name="LyricSource" Text="" FontSize="10"
+                                                           Foreground="#FF7FA6FF" Margin="10,1,0,0"
+                                                           VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </StackPanel>
+
+                                        <ScrollViewer x:Name="LyricScroll" Grid.Row="1" Margin="0,10,0,0"
+                                                      VerticalScrollBarVisibility="Hidden"
+                                                      HorizontalScrollBarVisibility="Disabled"
+                                                      PanningMode="VerticalOnly">
+                                            <StackPanel x:Name="LyricPanel" Margin="2,40,2,60"/>
+                                        </ScrollViewer>
+
+                                        <StackPanel Grid.Row="2" Margin="0,10,0,0">
+                                            <Slider x:Name="SeekBar" Style="{StaticResource TrackSlider}"
+                                                    Minimum="0" Maximum="1" Value="0" IsMoveToPointEnabled="True"
+                                                    ValueChanged="OnSeekChanged"
+                                                    Thumb.DragStarted="OnSeekDragStart"
+                                                    Thumb.DragCompleted="OnSeekDragEnd"/>
+                                            <Grid Margin="2,2,2,0">
+                                                <TextBlock x:Name="TimeNow" Text="0:00" FontSize="10.5"
+                                                           Foreground="{StaticResource InkFaint}"/>
+                                                <TextBlock x:Name="TimeTotal" Text="0:00" FontSize="10.5"
+                                                           Foreground="{StaticResource InkFaint}" HorizontalAlignment="Right"/>
+                                            </Grid>
+
+                                            <Grid Margin="0,8,0,0">
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                    <Button Content="◀◀" Style="{StaticResource GlassButton}" Width="54"
+                                                            Height="34" Padding="0" FontSize="10" ToolTip="上一首"
+                                                            Click="OnMusicPrev"/>
+                                                    <Button x:Name="PlayButton" Content="▶" Style="{StaticResource HeroButton}"
+                                                            Width="78" Height="34" Margin="8,0,0,0" Padding="0" FontSize="13"
+                                                            ToolTip="播放 / 暂停" Click="OnMusicPlayPause"/>
+                                                    <Button Content="▶▶" Style="{StaticResource GlassButton}" Width="54"
+                                                            Height="34" Padding="0" FontSize="10" Margin="8,0,0,0"
+                                                            ToolTip="下一首" Click="OnMusicNext"/>
+                                                </StackPanel>
+
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
+                                                            VerticalAlignment="Center">
+                                                    <TextBlock Text="音量" FontSize="10.5"
+                                                               Foreground="{StaticResource InkFaint}"
+                                                               VerticalAlignment="Center"/>
+                                                    <Slider x:Name="VolumeBar" Style="{StaticResource TrackSlider}"
+                                                            Width="86" Margin="8,0,0,0" Minimum="0" Maximum="100"
+                                                            Value="70" IsMoveToPointEnabled="True"
+                                                            ValueChanged="OnVolumeChanged"/>
+                                                    <TextBlock x:Name="VolText" Text="70%" FontSize="10.5" Width="34"
+                                                               Margin="8,0,0,0" TextAlignment="Right"
+                                                               Foreground="{StaticResource InkFaint}"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </Grid>
+                        </Grid>
                     </Grid>
                 </Grid>
             </Grid>
