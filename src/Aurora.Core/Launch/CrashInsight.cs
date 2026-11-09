@@ -133,6 +133,26 @@ public static class CrashInspector
         new()
         {
             Category = "模组",
+            Headline = "Forge / NeoForge 的核心库没准备好",
+            Verdict = "报错里的 BootstrapLauncher / securejarhandler 不是模组，是 Forge 自己的启动核心；找不到说明 -p 模块路径里的库缺失或路径不对。",
+            Patterns = new[]
+            {
+                @"cpw\.mods\.bootstraplauncher",
+                @"BootstrapLauncher",
+                @"securejarhandler",
+                @"Unknown module: cpw\.mods",
+            },
+            Suggestions = new[]
+            {
+                "在「内容 → 安装版本」里用同一个版本重装一次，把缺失的库补齐（启动器现在也会在启动前自动补）。",
+                "确认游戏目录选的是这个版本所在的 .minecraft，libraries 就在它下面。",
+                "别把 PCL2 / HMCL 的版本目录和另一个 .minecraft 混着用。",
+            },
+            Strong = true,
+        },
+        new()
+        {
+            Category = "模组",
             Headline = "模组之间冲突了（Mixin 注入失败）",
             Verdict = "有两个模组都想改同一段代码，改崩了。",
             Patterns = new[]

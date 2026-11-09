@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.1";
+    private const string AppVersion = "0.15.2";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -368,6 +368,16 @@ public partial class MainWindow : Window
             {
                 SetStatus("找不到这个版本：" + card.Summary.Id);
                 return;
+            }
+
+            // 先把缺的库补齐（Forge/NeoForge 最容易缺 bootstraplauncher 这类核心库）
+            SetStatus("检查版本文件…");
+            var missingLibs = await _service.EnsureLibrariesAsync(versionInfo,
+                new Progress<string>(t => SetStatus(t)));
+            if (missingLibs.Count > 0)
+            {
+                SetStatus($"缺 {missingLibs.Count} 个库文件，启动多半会失败");
+                ShowToast("库文件不全", "建议在「内容 → 安装版本」里重装这个版本", "⚠", 5200);
             }
 
             // Java 先挑一遍：没有就提示去设置，版本不对就问一句再启动

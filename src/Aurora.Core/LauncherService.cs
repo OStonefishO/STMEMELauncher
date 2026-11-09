@@ -131,6 +131,71 @@ public sealed partial class LauncherService
     public AuthlibInjectorInstaller CreateInjectorInstaller() => new();
 
     /// <summary>
+    /// 启动前补齐这个版本缺的库文件（Forge/NeoForge 的 bootstraplauncher、securejarhandler 这些）。
+    /// 返回补不上的文件列表，空表示齐了。
+    /// </summary>
+    public async Task<List<string>> EnsureLibrariesAsync(ResolvedVersion version, IProgress<string>? progress = null,
+        CancellationToken ct = default)
+    {
+        var missing = new List<string>();
+        var features = new Aurora.Core.Versions.FeatureSet();
+
+        foreach (var lib in version.Libraries)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            try
+            {
+                if (!Aurora.Core.Versions.RuleEvaluator.IsAllowed(lib.Rules, features))
+                {
+                    continue;
+                }
+
+                // 只有 natives 的库不参与 classpath
+                if (lib.Natives != null && lib.Downloads?.Artifact == null)
+                {
+                    continue;
+                }
+
+                var path = Aurora.Core.Versions.MavenHelper.ResolveArtifactPath(lib, Versions.LibrariesDirectory);
+                if (string.IsNullOrEmpty(path) || File.Exists(path))
+                {
+                    continue;
+                }
+
+                var url = lib.Downloads?.Artifact?.Url;
+                if (string.IsNullOrEmpty(url) && !string.IsNullOrEmpty(lib.Url))
+                {
+                    var coordinate = Aurora.Core.Versions.MavenHelper.Parse(lib.Name);
+                    if (coordinate != null)
+                    {
+                        url = lib.Url!.TrimEnd('/') + "/" + coordinate.RelativePath.Replace('\\', '/');
+                    }
+                }
+
+                if (string.IsNullOrEmpty(url))
+                {
+                    missing.Add(path);
+                    continue;
+                }
+
+                progress?.Report("补下载 " + Path.GetFileName(path));
+                await SharedDownloader.DownloadFileAsync(url, path, ct: ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch
+            {
+                missing.Add(lib.Name ?? "未知库");
+            }
+        }
+
+        return missing;
+    }
+
+    /// <summary>
     /// 启动前把外置登录准备好：token 失效就自动 refresh，authlib-injector 缺了就下下来。
     /// 任何一步失败都会返回原因，调用方据此提示玩家重新登录。
     /// </summary>
