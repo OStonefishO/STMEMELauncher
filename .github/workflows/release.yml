@@ -206,7 +206,7 @@ jobs:
             '  certutil -hashfile "MEME 启动器.exe" SHA256',
             "  与同名 .sha256.txt 里的值对比。"
           )
-          Set-Content -Path "使用说明-v$v.txt" -Value $lines -Encoding UTF8
+          Set-Content -Path "README-v$v.txt" -Value $lines -Encoding UTF8
 
       - name: 创建 GitHub Release
         env:
@@ -236,12 +236,12 @@ jobs:
             Write-Host "Release $tag 已存在，改为覆盖资产"
             gh release upload $tag $exe `
               "MEME-Launcher-v${{ needs.build.outputs.version }}.sha256.txt" `
-              "使用说明-v${{ needs.build.outputs.version }}.txt" --clobber
+              "README-v${{ needs.build.outputs.version }}.txt" --clobber
           }
           else {
             gh release create $tag $exe `
               "MEME-Launcher-v${{ needs.build.outputs.version }}.sha256.txt" `
-              "使用说明-v${{ needs.build.outputs.version }}.txt" `
+              "README-v${{ needs.build.outputs.version }}.txt" `
               --title "MEME Launcher $tag" --notes-file notes.md
           }
 
