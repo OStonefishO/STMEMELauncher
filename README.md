@@ -26,6 +26,12 @@ https://gh-proxy.com/https://github.com/OStonefishO/STMEMELauncher/releases/down
 
 > 启动器内置的「一键更新」也会自动依次尝试 直连 → gh-proxy → ghfast，国内网络下不用手动找镜像。
 
+### ⚠️ 双击没反应 / 提示「智能应用控制已阻止」
+
+Windows 11 的 **Smart App Control** 会拦掉所有没有数字签名的 exe，弹窗里还没有「仍要运行」。
+这不是病毒，是没买代码签名证书。处理办法（关闭 SAC / 换机器 / 等微软审核）写在
+[docs/SMART-APP-CONTROL.md](docs/SMART-APP-CONTROL.md)，每次发版也会附带 `使用说明-<版本>.txt` 和 `SHA256` 校验值。
+
 ---
 
 ## 现在能做什么

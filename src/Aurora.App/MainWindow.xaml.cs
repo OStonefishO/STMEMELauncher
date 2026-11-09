@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.13.2";
+    private const string AppVersion = "0.13.3";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -392,6 +392,22 @@ public partial class MainWindow : Window
         {
             _busy = false;
             LaunchButton.IsEnabled = true;
+        }
+    }
+
+    private void OnOpenBlockedGuide(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo(
+                "https://github.com/OStonefishO/STMEMELauncher/blob/main/docs/SMART-APP-CONTROL.md")
+            {
+                UseShellExecute = true,
+            });
+        }
+        catch (Exception ex)
+        {
+            SetStatus("打不开浏览器：" + ex.Message);
         }
     }
 

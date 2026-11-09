@@ -1516,6 +1516,10 @@
                                         </StackPanel>
                                         <TextBlock x:Name="UpdateStatus" Text="" FontSize="11" Margin="0,8,0,0"
                                                    Foreground="{StaticResource InkFaint}" TextWrapping="Wrap"/>
+                                        <Button Content="别人打不开？Windows 把它拦了怎么办"
+                                                Style="{StaticResource GlassButton}" HorizontalAlignment="Left"
+                                                Padding="12,4" FontSize="10.5" Margin="0,10,0,0"
+                                                Click="OnOpenBlockedGuide"/>
                                     </StackPanel>
                                 </Border>
 
