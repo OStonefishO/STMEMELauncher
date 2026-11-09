@@ -69,6 +69,8 @@ internal static class Program
                 return await SkinAsync(service, positional, flags).ConfigureAwait(false);
             case "server":
                 return await ServerAsync(service, positional, flags).ConfigureAwait(false);
+            case "upnp":
+                return await UpnpAsync(service, positional, flags).ConfigureAwait(false);
             default:
                 PrintHelp();
                 return 0;
@@ -561,6 +563,43 @@ internal static class Program
         return 0;
     }
 
+    private static async Task<int> UpnpAsync(LauncherService service, List<string> positional,
+        Dictionary<string, string> flags)
+    {
+        var port = flags.TryGetValue("port", out var pt) && int.TryParse(pt, out var pv) ? pv : 25565;
+        var client = new Aurora.Core.Network.UpnpClient();
+
+        Console.WriteLine("发现 UPnP 网关…");
+        var found = await client.DiscoverAsync().ConfigureAwait(false);
+        Console.WriteLine("发现: " + (found ? "是" : "否（路由器可能关闭了 UPnP）"));
+        if (!found)
+        {
+            return 2;
+        }
+
+        try
+        {
+            var ip = await client.GetExternalIpAsync().ConfigureAwait(false);
+            Console.WriteLine("外网 IP: " + ip);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("取外网 IP 失败: " + ex.Message);
+        }
+
+        if (flags.ContainsKey("unmap"))
+        {
+            var ok = await client.UnmapPortAsync(port).ConfigureAwait(false);
+            Console.WriteLine("删除映射: " + (ok ? "成功" : "失败"));
+            return ok ? 0 : 3;
+        }
+
+        var result = await client.MapPortAsync(port, "MEME Launcher").ConfigureAwait(false);
+        Console.WriteLine($"映射: {(result.Success ? "成功" : "失败")} · {result.Message}");
+        Console.WriteLine($"内网 {result.LocalIp}:{port} · 外网 {result.ExternalIp}:{port}");
+        return result.Success ? 0 : 3;
+    }
+
     private static void PrintHelp()
     {
         Console.WriteLine(@"Aurora Launcher CLI (框架/自检工具)
@@ -579,6 +618,7 @@ internal static class Program
   aurora pack <关键词> [--mc 1.21.1] [--loader fabric]
   aurora skin <png> <账号名> --dir <目录> [--mc 26.2] [--loader fabric]
   aurora server <版本id> --dir <目录> [--port 25599] [--memory 1024] [--timeout 60]
+  aurora upnp [--port 25565] [--unmap]
 
 公共参数:
   --game <目录>                      临时指定 .minecraft 目录");

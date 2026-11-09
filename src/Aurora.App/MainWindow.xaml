@@ -831,6 +831,16 @@
                                                 <Button Content="刷新地址" Style="{StaticResource GlassButton}" Margin="10,0,0,0" Click="OnRefreshAddresses"/>
                                             </StackPanel>
 
+                                            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                                <Button Content="UPnP 开端口" Style="{StaticResource GlassButton}" Click="OnUpnpMap"/>
+                                                <Button Content="取消映射" Style="{StaticResource GlassButton}" Margin="8,0,0,0"
+                                                        Click="OnUpnpUnmap"/>
+                                            </StackPanel>
+
+                                            <TextBlock x:Name="UpnpStatus" Text="UPnP 没试过：路由器支持的话，IPv4 也能直接连"
+                                                       FontSize="11" Foreground="{StaticResource InkFaint}" Margin="0,8,0,0"
+                                                       TextWrapping="Wrap"/>
+
                                             <StackPanel x:Name="AddressList" Margin="0,14,0,0"/>
                                         </StackPanel>
                                     </Border>

@@ -29,10 +29,11 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.5.3";
+    private const string AppVersion = "0.5.4";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
+    private readonly UpnpClient _upnp = new();
     private ServerManager? _server;
     private string _serverDirectory = string.Empty;
     private bool _serverVersionsLoaded;
@@ -976,6 +977,53 @@ public partial class MainWindow : Window
         else if (line.Contains("error", StringComparison.OrdinalIgnoreCase))
         {
             TunnelStatus.Text = "frpc 报错，看日志";
+        }
+    }
+
+    // ---------------- UPnP ----------------
+
+    private async void OnUpnpMap(object sender, RoutedEventArgs e)
+    {
+        var port = Port;
+        UpnpStatus.Text = "正在找路由器（SSDP 发现）…";
+
+        try
+        {
+            var discovered = await _upnp.DiscoverAsync();
+            if (!discovered)
+            {
+                UpnpStatus.Text = "路由器没有响应 UPnP 发现。可能关了这个功能，或者你在校园网/公司网里（这种网络一般不给 UPnP）。";
+                return;
+            }
+
+            UpnpStatus.Text = "正在添加端口映射…";
+            var result = await _upnp.MapPortAsync(port, "MEME Launcher", ct: default);
+            if (!result.Success)
+            {
+                UpnpStatus.Text = "映射失败：" + result.Message;
+                return;
+            }
+
+            UpnpStatus.Text = string.IsNullOrEmpty(result.ExternalIp)
+                ? $"映射成功：{result.LocalIp}:{port} → 外网 {port}（没拿到公网 IP，去 ip.sb 看一下）"
+                : $"映射成功！朋友可以连 {result.ExternalIp}:{port}";
+        }
+        catch (Exception ex)
+        {
+            UpnpStatus.Text = "UPnP 出错：" + ex.Message;
+        }
+    }
+
+    private async void OnUpnpUnmap(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var ok = await _upnp.UnmapPortAsync(Port);
+            UpnpStatus.Text = ok ? "已删除端口映射" : "删除失败（可能本来就没有映射）";
+        }
+        catch (Exception ex)
+        {
+            UpnpStatus.Text = "删除出错：" + ex.Message;
         }
     }
 
