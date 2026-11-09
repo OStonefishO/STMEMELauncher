@@ -17,6 +17,7 @@ public sealed class ReleaseInfo
     public DateTimeOffset PublishedAt { get; init; }
     public string HtmlUrl { get; init; } = string.Empty;
     public List<ReleaseAsset> Assets { get; init; } = new();
+    public string Source { get; init; } = string.Empty;
 
     public string VersionText => Tag.TrimStart('v', 'V');
 }
@@ -38,17 +39,26 @@ public sealed class UpdateChecker
 
     public async Task<ReleaseInfo?> GetLatestAsync(CancellationToken ct = default)
     {
-        // 国内优先：先问 Gitee，拿不到再问 GitHub
+        // 两个源都问一遍，谁新用谁（Gitee 镜像可能没同步，不能因为它旧就说“已是最新”）
+        ReleaseInfo? gitee = null;
         if (!string.IsNullOrEmpty(_giteeRepository))
         {
-            var gitee = await GetFromGiteeAsync(ct).ConfigureAwait(false);
-            if (gitee != null)
-            {
-                return gitee;
-            }
+            gitee = await GetFromGiteeAsync(ct).ConfigureAwait(false);
         }
 
-        return await GetFromGithubAsync(ct).ConfigureAwait(false);
+        var github = await GetFromGithubAsync(ct).ConfigureAwait(false);
+
+        if (gitee == null)
+        {
+            return github;
+        }
+
+        if (github == null)
+        {
+            return gitee;
+        }
+
+        return IsNewer(github.Tag, gitee.Tag) ? github : gitee;
     }
 
     /// <summary>GitHub 不通时用 Gitee 的镜像 Release 拿版本信息。</summary>
