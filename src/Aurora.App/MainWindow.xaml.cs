@@ -3389,9 +3389,20 @@ public partial class MainWindow : Window
     private void OnSkinModelToggled(object sender, RoutedEventArgs e)
     {
         _skinSlim = sender is FrameworkElement { Tag: "true" };
-        if (AccountSkinStatus != null)
-        {
+        var model = _skinSlim ? "slim" : "classic";
 
+        try
+        {
+            AccountSkinWeb?.CoreWebView2?.ExecuteScriptAsync($"setModel('{model}')");
+            if (AccountSkinStatus != null)
+            {
+                AccountSkinStatus.Text = (_skinBitmap == null ? "还没有皮肤" : "已加载皮肤") +
+                                         "（" + (_skinSlim ? "Alex 细胳膊" : "Steve 粗胳膊") + "）";
+            }
+        }
+        catch
+        {
+            // 忽略
         }
     }
 

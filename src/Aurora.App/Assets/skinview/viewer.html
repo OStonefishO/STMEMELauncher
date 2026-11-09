@@ -65,7 +65,15 @@
     if (viewer.camera.position.y === 0) { viewer.camera.position.y = 8; }
   } catch (e) { console.error(e); }
 
+  var lastSkin = skinUrl;
+
+  window.setModel = function (type) {
+    var model = (type === 'slim') ? 'slim' : 'classic';
+    viewer.loadSkin(lastSkin, { model: model }).catch(function (e) { console.error(e); });
+  };
+
   window.setSkin = function (dataUrl, capeUrl) {
+    lastSkin = dataUrl;
     viewer.loadSkin(dataUrl).catch(function (e) { console.error(e); });
     try {
       if (capeUrl) {
