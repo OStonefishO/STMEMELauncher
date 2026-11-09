@@ -397,6 +397,12 @@
                             <TextBlock Text="设置" FontSize="10.5" HorizontalAlignment="Center" Margin="0,4,0,0"/>
                         </StackPanel>
                     </Button>
+                    <Button x:Name="NavUpdates" Style="{StaticResource RailButton}" Tag="4" Click="OnNavClick" Margin="0,6,0,0">
+                        <StackPanel>
+                            <TextBlock Text="✧" FontSize="17" HorizontalAlignment="Center"/>
+                            <TextBlock Text="日志" FontSize="10.5" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
 
                 <!-- 页面 -->
@@ -756,6 +762,23 @@
                                                Foreground="{StaticResource InkDim}" FontSize="11.5"/>
                                 </StackPanel>
                             </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+                    <!-- ========== 更新日志 ========== -->
+                    <Grid x:Name="UpdatesPage" Visibility="Collapsed">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Margin="26,6,0,14">
+                            <TextBlock Text="更新日志" FontSize="30" FontWeight="Bold" Foreground="{StaticResource TitleGrad}"/>
+                            <TextBlock x:Name="UpdateSubtitle" Text="每次发版，预览图会跟着版本一起进来"
+                                       FontSize="12.5" Foreground="{StaticResource InkDim}" Margin="0,6,0,0"/>
+                        </StackPanel>
+
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="26,0,0,0">
+                            <StackPanel x:Name="UpdateList" MaxWidth="780" HorizontalAlignment="Left"/>
                         </ScrollViewer>
                     </Grid>
                 </Grid>

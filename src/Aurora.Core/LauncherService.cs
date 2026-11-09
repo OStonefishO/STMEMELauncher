@@ -40,6 +40,8 @@ public sealed class LauncherService
 
     public ModrinthClient CreateModrinth() => new(SharedDownloader);
 
+    public UpdateFeed CreateUpdateFeed() => new(SharedDownloader);
+
     public CurseForgeClient CreateCurseForge() => new(SharedDownloader);
 
     public IReadOnlyList<JavaRuntime> ScanJava()

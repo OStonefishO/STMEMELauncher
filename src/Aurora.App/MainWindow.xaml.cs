@@ -5,6 +5,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Controls.Primitives;
+using System.Windows.Media.Imaging;
 using System.Windows.Media.Media3D;
 using System.Windows.Media;
 using Aurora.Core;
@@ -24,6 +26,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
+    private bool _updatesLoaded;
 
     public MainWindow()
     {
@@ -49,7 +52,7 @@ public partial class MainWindow : Window
         var flag = Array.IndexOf(argv, "--page");
         if (flag >= 0 && flag + 1 < argv.Length && int.TryParse(argv[flag + 1], out var pageIndex))
         {
-            SetPage(Math.Clamp(pageIndex, 0, 3));
+            SetPage(Math.Clamp(pageIndex, 0, 4));
         }
         Loaded += (_, __) => ApplyDarkTitleBar();
     }
@@ -70,6 +73,7 @@ public partial class MainWindow : Window
         InstallPage.Visibility = index == 1 ? Visibility.Visible : Visibility.Collapsed;
         ContentPage.Visibility = index == 2 ? Visibility.Visible : Visibility.Collapsed;
         SettingsPage.Visibility = index == 3 ? Visibility.Visible : Visibility.Collapsed;
+        UpdatesPage.Visibility = index == 4 ? Visibility.Visible : Visibility.Collapsed;
 
         var active = (Brush)FindResource("TextMain");
         var inactive = (Brush)FindResource("TextDim");
@@ -77,10 +81,16 @@ public partial class MainWindow : Window
         NavInstall.Foreground = index == 1 ? active : inactive;
         NavContent.Foreground = index == 2 ? active : inactive;
         NavSettings.Foreground = index == 3 ? active : inactive;
+        NavUpdates.Foreground = index == 4 ? active : inactive;
 
         if (index == 1 && _mcVersions.Count == 0)
         {
             _ = LoadMcVersionsAsync();
+        }
+
+        if (index == 4 && !_updatesLoaded)
+        {
+            _ = LoadUpdatesAsync();
         }
     }
 
@@ -753,6 +763,158 @@ public partial class MainWindow : Window
         catch
         {
             // 老系统忽略
+        }
+    }
+
+    // ---------------- 更新日志 ----------------
+
+    private async Task LoadUpdatesAsync()
+    {
+        try
+        {
+            UpdateSubtitle.Text = "正在从 GitHub 拉取更新日志…";
+            UpdateList.Children.Clear();
+
+            var feed = _service.CreateUpdateFeed();
+            var entries = await feed.FetchAsync();
+
+            if (entries.Count == 0)
+            {
+                UpdateSubtitle.Text = "还没有发布记录";
+                return;
+            }
+
+            foreach (var entry in entries)
+            {
+                UpdateList.Children.Add(BuildUpdateCard(entry, feed));
+            }
+
+            UpdateSubtitle.Text = $"共 {entries.Count} 个版本 · 数据来自 github.com/{feed.Repository}";
+            _updatesLoaded = true;
+        }
+        catch (Exception ex)
+        {
+            UpdateSubtitle.Text = "拉取失败: " + ex.Message;
+        }
+    }
+
+    private Border BuildUpdateCard(UpdateEntry entry, UpdateFeed feed)
+    {
+        var panel = new StackPanel();
+
+        var head = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
+        var badge = new Border
+        {
+            CornerRadius = new CornerRadius(8),
+            Background = new SolidColorBrush(Color.FromArgb(0x33, 0x5B, 0x8C, 0xFF)),
+            Padding = new Thickness(10, 4, 10, 4),
+            Child = new TextBlock
+            {
+                Text = entry.Version,
+                FontSize = 11.5,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(0xB9, 0xC8, 0xFF)),
+            },
+        };
+        head.Children.Add(badge);
+        head.Children.Add(new TextBlock
+        {
+            Text = entry.DateText,
+            FontSize = 11.5,
+            Margin = new Thickness(10, 2, 0, 0),
+            Foreground = (Brush)FindResource("InkFaint"),
+        });
+        panel.Children.Add(head);
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = entry.Title,
+            FontSize = 17,
+            FontWeight = FontWeights.Bold,
+            Foreground = (Brush)FindResource("Ink"),
+            Margin = new Thickness(0, 0, 0, 10),
+            TextWrapping = TextWrapping.Wrap,
+        });
+
+        if (entry.Notes.Count > 0)
+        {
+            panel.Children.Add(new TextBlock
+            {
+                Text = string.Join("\n", entry.Notes),
+                FontSize = 12,
+                LineHeight = 21,
+                Foreground = (Brush)FindResource("InkDim"),
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 14),
+            });
+        }
+
+        if (entry.Images.Count > 0)
+        {
+            var wrap = new WrapPanel();
+            foreach (var url in entry.Images.Take(4))
+            {
+                var image = new Image
+                {
+                    Width = 356,
+                    Height = 229,
+                    Stretch = Stretch.UniformToFill,
+                    Tag = url,
+                };
+
+                var frame = new Border
+                {
+                    Width = 356,
+                    Height = 229,
+                    CornerRadius = new CornerRadius(12),
+                    Background = new SolidColorBrush(Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF)),
+                    Margin = new Thickness(0, 0, 12, 12),
+                    ClipToBounds = true,
+                    Child = image,
+                };
+
+                frame.Child = image;
+                wrap.Children.Add(frame);
+                _ = LoadUpdateImageAsync(image, url, feed);
+            }
+
+            panel.Children.Add(wrap);
+        }
+
+        return new Border
+        {
+            CornerRadius = new CornerRadius(16),
+            Background = (Brush)FindResource("Glass"),
+            BorderBrush = (Brush)FindResource("GlassLine"),
+            BorderThickness = new Thickness(1),
+            Padding = new Thickness(22, 18, 22, 12),
+            Margin = new Thickness(0, 0, 0, 16),
+            Child = panel,
+        };
+    }
+
+    private async Task LoadUpdateImageAsync(Image target, string url, UpdateFeed feed)
+    {
+        try
+        {
+            var bytes = await feed.DownloadImageAsync(url);
+            if (bytes == null || bytes.Length == 0)
+            {
+                return;
+            }
+
+            var bitmap = new BitmapImage();
+            bitmap.BeginInit();
+            bitmap.CacheOption = BitmapCacheOption.OnLoad;
+            bitmap.StreamSource = new MemoryStream(bytes);
+            bitmap.EndInit();
+            bitmap.Freeze();
+
+            target.Source = bitmap;
+        }
+        catch
+        {
+            // 图片失败不影响文字
         }
     }
 
