@@ -3443,6 +3443,7 @@ public partial class MainWindow : Window
         };
         swayRotation.BeginAnimation(AxisAngleRotation3D.AngleProperty, swayAnimation);
 
+        RenderOptions.SetBitmapScalingMode(AccountSkinViewport, BitmapScalingMode.NearestNeighbor);
         AccountSkinViewport.Children.Add(new ModelVisual3D { Content = model });
     }
 

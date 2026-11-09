@@ -112,7 +112,7 @@ internal sealed class SkinModel3D
     {
         new(44, 36, 4, 12),
         new(48, 36, 4, 12),
-        new(56, 36, 4, 12),
+        new(52, 36, 4, 12),
         new(40, 36, 4, 12),
         new(44, 32, 4, 4),
         new(48, 32, 4, 4),
@@ -142,7 +142,7 @@ internal sealed class SkinModel3D
     {
         new(44, 20, 4, 12),
         new(48, 20, 4, 12),
-        new(56, 20, 4, 12),
+        new(52, 20, 4, 12),
         new(40, 20, 4, 12),
         new(44, 16, 4, 4),
         new(48, 16, 4, 4),
@@ -152,7 +152,7 @@ internal sealed class SkinModel3D
     {
         new(44, 20, 3, 12),
         new(47, 20, 4, 12),
-        new(55, 20, 3, 12),
+        new(51, 20, 3, 12),
         new(40, 20, 4, 12),
         new(44, 16, 3, 4),
         new(47, 16, 3, 4),
@@ -202,7 +202,7 @@ internal sealed class SkinModel3D
     {
         new(44, 36, 3, 12),
         new(47, 36, 4, 12),
-        new(55, 36, 3, 12),
+        new(51, 36, 3, 12),
         new(40, 36, 4, 12),
         new(44, 32, 3, 4),
         new(47, 32, 3, 4),
