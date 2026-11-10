@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.28";
+    private const string AppVersion = "0.15.29";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -112,7 +112,7 @@ public partial class MainWindow : Window
             var mobFlag = Array.IndexOf(argv, "--settings-mob");
             if (mobFlag >= 0 && mobFlag + 1 < argv.Length && int.TryParse(argv[mobFlag + 1], out var mobIndex))
             {
-                _settingsMob = (SettingsMob)Math.Clamp(mobIndex, 0, 3);
+                _settingsMob = (SettingsMob)Math.Clamp(mobIndex, 0, 4);
                 InitSettingsScene();
                 ApplySettingsMob();
             }
