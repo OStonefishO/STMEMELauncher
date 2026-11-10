@@ -1470,6 +1470,9 @@
                                                 Height="40" Click="OnYggdrasilLogin"/>
                                         <Button x:Name="LoginButton" Content="微软账号登录（等待白名单）" Style="{StaticResource GlassButton}"
                                                 Margin="0,10,0,0" Click="OnLogin"/>
+                                        <Button Content="微软登录诊断" Style="{StaticResource GlassButton}" Margin="0,8,0,0"
+                                                Padding="14,6" FontSize="11" Click="OnMsaDiagnostics"
+                                                ToolTip="跑一遍四步：微软账号 → Xbox Live → XSTS → Minecraft Services（第 4 步就是白名单检查）"/>
                                         <Expander Header="高级：Azure ClientId" Margin="0,12,0,0" Foreground="{StaticResource InkFaint}">
                                             <TextBox x:Name="ClientIdBox" Margin="0,8,0,0"/>
                                         </Expander>

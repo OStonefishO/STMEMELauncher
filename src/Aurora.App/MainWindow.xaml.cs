@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.25";
+    private const string AppVersion = "0.15.26";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -108,6 +108,14 @@ public partial class MainWindow : Window
                 _ = Task.Delay(600).ContinueWith(_ => Dispatcher.BeginInvoke(() => ScrollSettingsToBottom()));
             }
 
+            // 调试用：--msa-diag 直接打开微软登录诊断窗口（截图用）
+            if (argv.Contains("--msa-diag"))
+            {
+                _ = Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    new MsaDiagWindow(_settings.MicrosoftClientId) { Owner = this }.Show();
+                }), System.Windows.Threading.DispatcherPriority.Background);
+            }
             // 调试用：--biome 0/1/2，直接切到某个群系（截图用）
             var biomeFlag = Array.IndexOf(argv, "--biome");
             if (biomeFlag >= 0 && biomeFlag + 1 < argv.Length &&
@@ -578,6 +586,22 @@ public partial class MainWindow : Window
     }
 
     /// <summary>打开宣传站（GitHub Pages）。</summary>
+    /// <summary>账号页的「微软登录诊断」：四步跑一遍，第 4 步就是 Mojang 白名单检查点。</summary>
+    private void OnMsaDiagnostics(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var clientId = string.IsNullOrWhiteSpace(_settings.MicrosoftClientId)
+                ? "52fb2aba-9fa1-4605-be0d-431776c0880d"
+                : _settings.MicrosoftClientId;
+
+            new MsaDiagWindow(clientId) { Owner = this }.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            SetStatus("诊断窗口打不开: " + ex.Message);
+        }
+    }
     private void OnOpenWebsite(object sender, RoutedEventArgs e) => OpenUrl("https://ostonefisho.github.io/STMEMELauncher/", "宣传站");
 
     private void OnOpenGitHub(object sender, RoutedEventArgs e) => OpenUrl("https://github.com/OStonefishO/STMEMELauncher", "GitHub 项目");

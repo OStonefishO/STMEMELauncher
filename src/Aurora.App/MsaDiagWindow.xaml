@@ -1,0 +1,100 @@
+<Window x:Class="Aurora.App.MsaDiagWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="微软登录诊断" Width="760" MaxHeight="760"
+        SizeToContent="Height"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ResizeMode="NoResize" WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        FontFamily="Microsoft YaHei UI">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="Ink" Color="#FFE6EAF2"/>
+        <SolidColorBrush x:Key="InkDim" Color="#FF99A2B5"/>
+        <SolidColorBrush x:Key="InkFaint" Color="#FF6D7588"/>
+        <LinearGradientBrush x:Key="AccentGrad" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#FF5B8CFF" Offset="0"/>
+            <GradientStop Color="#FF37D6E0" Offset="1"/>
+        </LinearGradientBrush>
+
+        <Style x:Key="SoftButton" TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="14,7"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="b" CornerRadius="10" Background="#14FFFFFF"
+                                BorderBrush="#26FFFFFF" BorderThickness="1"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="#2EFFFFFF"/>
+                                <Setter TargetName="b" Property="BorderBrush" Value="#5B8CFF"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Border Margin="16" CornerRadius="18" Background="#F00B101C" BorderBrush="#33FFFFFF" BorderThickness="1">
+        <Border.Effect>
+            <DropShadowEffect Color="#000000" BlurRadius="40" ShadowDepth="0" Opacity="0.55"/>
+        </Border.Effect>
+        <Grid Margin="26,22,26,20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0">
+                <TextBlock Text="微软登录诊断" FontSize="20" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
+                <TextBlock Text="跑一遍 微软账号 → Xbox Live → XSTS → Minecraft Services 四步，第 4 步就是白名单检查点"
+                           FontSize="11.5" Foreground="{StaticResource InkDim}" Margin="0,6,0,0" TextWrapping="Wrap"/>
+            </StackPanel>
+
+            <!-- 设备码 -->
+            <Border Grid.Row="1" CornerRadius="12" Background="#12FFFFFF" BorderBrush="#22FFFFFF"
+                    BorderThickness="1" Padding="16,12" Margin="0,16,0,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="在浏览器打开下面的网址，输入这段代码" FontSize="11" Foreground="{StaticResource InkFaint}"/>
+                        <TextBlock x:Name="UrlText" Text="https://www.microsoft.com/link" FontSize="12.5"
+                                   Foreground="{StaticResource InkDim}" Margin="0,4,0,0"/>
+                        <TextBlock x:Name="CodeText" Text="----" FontSize="26" FontWeight="Bold"
+                                   FontFamily="Consolas" Foreground="{StaticResource Ink}" Margin="0,4,0,0"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <Button x:Name="CopyButton" Content="复制代码" Style="{StaticResource SoftButton}" Click="OnCopyCode"/>
+                        <Button Content="打开登录页" Style="{StaticResource SoftButton}" Margin="0,8,0,0" Click="OnOpenLink"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- 步骤 -->
+            <StackPanel x:Name="StepPanel" Grid.Row="2" Margin="0,16,0,0"/>
+
+            <TextBlock x:Name="StatusText" Grid.Row="3" Text="准备中…" FontSize="11.5"
+                       Foreground="{StaticResource InkDim}" Margin="0,14,0,0" TextWrapping="Wrap"/>
+
+            <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,18,0,0">
+                <Button x:Name="RestartButton" Content="重新诊断" Style="{StaticResource SoftButton}" Click="OnRestart"/>
+                <Button Content="关闭" Style="{StaticResource SoftButton}" Margin="10,0,0,0" Click="OnClose"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>
