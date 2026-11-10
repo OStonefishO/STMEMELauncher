@@ -53,34 +53,6 @@ public partial class MainWindow
 
         PackCandidateList.ItemsSource = _packRows;
 
-        // 数据包模板
-        if (DataTemplateCombo.Items.Count == 0)
-        {
-            foreach (var (text, value) in new (string, DatapackTemplate)[]
-                     {
-                         ("空数据包（只生成 pack.mcmeta）", DatapackTemplate.Empty),
-                         ("打招呼（进游戏自动执行一次）", DatapackTemplate.Hello),
-                         ("示例合成配方", DatapackTemplate.Recipe),
-                         ("示例进度 / 成就", DatapackTemplate.Advancement),
-                         ("循环 tick（每秒执行）", DatapackTemplate.TickLoad),
-                     })
-            {
-                DataTemplateCombo.Items.Add(new ComboBoxItem { Content = text, Tag = value });
-            }
-
-            DataTemplateCombo.SelectedIndex = 1;
-        }
-
-        // 窗口真正加载完（设置已就绪）再刷一次版本，避免启动早期扫不到
-        Loaded += (_, _) =>
-        {
-            var list = RefreshCreationVersions();
-            if (list.Count > 0 && PackVersionCombo.SelectedItem == null)
-            {
-                PackVersionCombo.SelectedIndex = 0;
-            }
-        };
-
         // 版本下拉（顺便拿第一项做默认）
         var versions = RefreshCreationVersions();
 
@@ -122,18 +94,6 @@ public partial class MainWindow
         }
 
         return versions;
-    }
-
-    private void OnCreationTab(object sender, RoutedEventArgs e)
-    {
-        var pack = ReferenceEquals(sender, CreateTabPack);
-        CreatePackPanel.Visibility = pack ? Visibility.Visible : Visibility.Collapsed;
-        CreateDataPanel.Visibility = pack ? Visibility.Collapsed : Visibility.Visible;
-
-        CreateTabPack.Style = (Style)FindResource(pack ? "HeroButton" : "GlassButton");
-        CreateTabData.Style = (Style)FindResource(pack ? "GlassButton" : "HeroButton");
-
-        CreationStatus.Text = pack ? "把当前版本打包成整合包，可自选内容" : "生成数据包：pack.mcmeta + 函数/配方/进度";
     }
 
     private void OnPackVersionChanged(object sender, SelectionChangedEventArgs e)
@@ -292,88 +252,4 @@ public partial class MainWindow
         return text;
     }
 
-    // ---------------- 数据包 ----------------
-
-    private void OnDataVersionChanged(object sender, TextChangedEventArgs e)
-    {
-        UpdateDataFormatPreview();
-    }
-
-    private void UpdateDataFormatPreview()
-    {
-        if (DataFormatText == null) return;
-        var format = DatapackBuilder.PackFormatFor(DataVersionBox.Text);
-        var folder = DatapackBuilder.UsesSingularFunctionFolder(DataVersionBox.Text) ? "function" : "functions";
-        DataFormatText.Text = $"{format}（data/…/{folder}/）";
-    }
-
-    private void OnDataTemplateChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (DataTemplateCombo.SelectedItem is not ComboBoxItem item || item.Tag is not DatapackTemplate template)
-        {
-            return;
-        }
-
-        DataTemplateHint.Text = DatapackBuilder.Describe(template);
-        if (string.IsNullOrWhiteSpace(DataFunctionBox.Text))
-        {
-            DataFunctionBox.Text = template switch
-            {
-                DatapackTemplate.Hello => "say 欢迎来到我的世界！",
-                DatapackTemplate.TickLoad => "# 每秒执行一次\nsay tick",
-                DatapackTemplate.Recipe => "say 自定义配方已加载",
-                _ => string.Empty,
-            };
-        }
-    }
-
-    private void OnDataExport(object sender, RoutedEventArgs e)
-    {
-        if (DataTemplateCombo.SelectedItem is not ComboBoxItem item || item.Tag is not DatapackTemplate template)
-        {
-            template = DatapackTemplate.Hello;
-        }
-
-        var dialog = new Microsoft.Win32.SaveFileDialog
-        {
-            Title = "导出数据包",
-            Filter = "数据包 zip|*.zip",
-            FileName = SanitizeFileName(DataNameBox.Text) + ".zip",
-        };
-
-        if (dialog.ShowDialog() != true)
-        {
-            return;
-        }
-
-        int? overrideFormat = null;
-        if (int.TryParse(DataFormatOverride.Text.Trim(), out var parsed) && parsed > 0)
-        {
-            overrideFormat = parsed;
-        }
-
-        var request = new DatapackRequest
-        {
-            OutputPath = dialog.FileName,
-            Name = string.IsNullOrWhiteSpace(DataNameBox.Text) ? "我的数据包" : DataNameBox.Text.Trim(),
-            Description = DataDescBox.Text.Trim(),
-            Namespace = DatapackBuilder.NormalizeNamespace(DataNamespaceBox.Text),
-            McVersion = DataVersionBox.Text.Trim(),
-            PackFormatOverride = overrideFormat,
-            Template = template,
-            FunctionBody = DataFunctionBox.Text,
-        };
-
-        try
-        {
-            var result = DatapackBuilder.Build(request);
-            DataResult.Text = $"已生成 {result.Entries.Count} 个文件 · pack_format {result.PackFormat}";
-            CreationStatus.Text = result.Path;
-            ShowToast("数据包已导出", "放进存档 datapacks 目录后 /reload", "✓", 5000);
-        }
-        catch (Exception ex)
-        {
-            DataResult.Text = "生成失败: " + ex.Message;
-        }
-    }
 }

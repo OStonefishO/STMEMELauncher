@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.23";
+    private const string AppVersion = "0.15.24";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -131,12 +131,6 @@ public partial class MainWindow : Window
             catch
             {
                 // 读不到就算了
-            }
-            // 调试用：--create data 直接切到数据包面板（截图用）
-            if (argv.Contains("--create") && Array.IndexOf(argv, "data") >= 0)
-            {
-                InitCreation();
-                OnCreationTab(CreateTabData, new RoutedEventArgs());
             }
             // 调试用：--query "钠"，预填搜索词（验证中文搜索）
             var queryFlag = Array.IndexOf(argv, "--query");
