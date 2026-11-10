@@ -43,6 +43,13 @@ public partial class MainWindow
             if (ContentList?.Items.Count > 0 && ContentList.Items[0] is ContentCard card)
             {
                 await ShowContentDetailAsync(card.Item);
+
+                // 调试：--demo-detail 之后自动点一次「翻译为中文」
+                if (_demoTranslate)
+                {
+                    await Task.Delay(800);
+                    OnDetailTranslate(this, new RoutedEventArgs());
+                }
             }
         }
         catch

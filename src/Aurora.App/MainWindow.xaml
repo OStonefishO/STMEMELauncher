@@ -886,9 +886,6 @@
                                                    Foreground="{StaticResource InkFaint}"/>
                                     </Grid>
                                     <Button Content="搜索" Style="{StaticResource GlassButton}" Margin="8,0,0,0" Click="OnSearch"/>
-                                    <Button x:Name="TranslateButton" Content="中文翻译：关" Style="{StaticResource GlassButton}"
-                                            Margin="8,0,0,0" Padding="12,6" Click="OnToggleTranslate"
-                                            ToolTip="打开后简介和分类标签自动翻成中文（标签用内置词表，句子走免费翻译）"/>
 
                                     <TextBlock x:Name="PageText" Text="" FontSize="11.5" Margin="18,0,0,0"
                                                VerticalAlignment="Center" Foreground="{StaticResource InkFaint}"/>
@@ -924,6 +921,8 @@
                                     BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="6">
                                 <ListBox x:Name="ContentList" Background="Transparent" BorderThickness="0"
                                          Foreground="{StaticResource Ink}" SelectionChanged="OnContentSelected"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                         ScrollViewer.VerticalScrollBarVisibility="Auto"
                                          PreviewMouseLeftButtonUp="OnContentListClick">
                                     <ListBox.ItemContainerStyle>
                                         <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
@@ -1058,6 +1057,9 @@
                                     <Button Content="‹ 返回" Style="{StaticResource GlassButton}" Click="OnCloseContentDetail"/>
                                     <Button x:Name="DetailMcmodButton" Content="MC 百科" Style="{StaticResource GlassButton}" Margin="8,0,0,0"
                                             Click="OnOpenMcmodForDetail" ToolTip="在 MC 百科查这个模组（有对应页面就直接跳过去）"/>
+                                    <Button x:Name="DetailTranslateButton" Content="翻译为中文" Style="{StaticResource GlassButton}"
+                                            Margin="8,0,0,0" Click="OnDetailTranslate"
+                                            ToolTip="翻译这个模组的简介（优先用 MC 百科的中文，没有就机翻）"/>
                                     <Border Width="44" Height="44" CornerRadius="12" Background="#14FFFFFF" Margin="16,0,0,0">
                                         <Image x:Name="DetailIcon" Stretch="UniformToFill"/>
                                     </Border>

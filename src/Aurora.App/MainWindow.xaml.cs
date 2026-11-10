@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.16";
+    private const string AppVersion = "0.15.17";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -125,6 +125,7 @@ public partial class MainWindow : Window
                 KindCombo.SelectedIndex = Math.Clamp(kindIndex, 0, 4);
             }
             // 调试用：--demo-detail，自动打开内容页第一个项目的详情（看加载器分类）
+            _demoTranslate = argv.Contains("--demo-translate");
             if (argv.Contains("--demo-detail"))
             {
                 _ = OpenFirstContentDetailAsync();
@@ -1019,6 +1020,85 @@ public partial class MainWindow : Window
             // 查不到就保持原样
         }
     }
+    private bool _demoTranslate;
+
+    private bool _detailShowingZh;
+    private string _detailOriginalTitle = string.Empty;
+    private string _detailOriginalSummary = string.Empty;
+
+    /// <summary>详情页「翻译为中文 / 显示原文」开关：优先用 MC 百科的中文，查不到再机翻。</summary>
+    private void OnDetailTranslate(object sender, RoutedEventArgs e)
+    {
+        if (_detailCurrent == null || DetailTranslateButton == null)
+        {
+            return;
+        }
+
+        if (_detailShowingZh)
+        {
+            DetailTitle.Text = _detailOriginalTitle;
+            DetailSummary.Text = _detailOriginalSummary;
+            DetailTranslateButton.Content = "翻译为中文";
+            _detailShowingZh = false;
+            DetailStatus.Text = "已切回原文";
+            return;
+        }
+
+        _ = TranslateDetailAsync(_detailCurrent.Title, _detailOriginalSummary);
+    }
+
+    private async Task TranslateDetailAsync(string title, string summary)
+    {
+        DetailTranslateButton.IsEnabled = false;
+        DetailTranslateButton.Content = "翻译中…";
+        DetailStatus.Text = "正在识别并翻译…";
+
+        try
+        {
+            var entry = Aurora.Core.Net.McmodLookup.Cached(title)
+                        ?? await Aurora.Core.Net.McmodLookup.FindAsync(title);
+
+            if (entry != null && !string.IsNullOrWhiteSpace(entry.Summary))
+            {
+                DetailMcmodButton.Tag = entry.Url;
+                DetailMcmodButton.Content = "MC 百科：" + entry.Name;
+                DetailTitle.Text = entry.Name + "  ·  " + title;
+                DetailSummary.Text = entry.Summary;
+                DetailStatus.Text = "已用 MC 百科的中文资料";
+            }
+            else
+            {
+                var zh = await Aurora.Core.Net.Translator.TextAsync(summary);
+                if (!string.IsNullOrWhiteSpace(zh) && zh != summary)
+                {
+                    DetailSummary.Text = zh;
+                    DetailStatus.Text = "已机器翻译（MC 百科没收录这个模组）";
+                }
+                else
+                {
+                    DetailStatus.Text = "翻译失败：今天免费额度用完了，去设置里填自己的 Key 更稳";
+                    DetailTranslateButton.Content = "翻译为中文";
+                    DetailTranslateButton.IsEnabled = true;
+                    return;
+                }
+            }
+
+            DetailTranslateButton.Content = "显示原文";
+            _detailShowingZh = true;
+        }
+        catch (Exception ex)
+        {
+            DetailStatus.Text = "翻译失败: " + ex.Message;
+            DetailTranslateButton.Content = "翻译为中文";
+        }
+        finally
+        {
+            if (DetailTranslateButton != null)
+            {
+                DetailTranslateButton.IsEnabled = true;
+            }
+        }
+    }
     /// <summary>模组详情里跳 MC 百科（中文资料最全，查前置/兼容性很方便）。</summary>
     private void OnOpenMcmodForDetail(object sender, RoutedEventArgs e)
     {
@@ -1115,11 +1195,6 @@ public partial class MainWindow : Window
             ContentList.ItemsSource = cards;
             UpdatePager();
 
-            if (_settings.TranslateContent)
-            {
-                _ = TranslateCardsAsync(cards);
-            }
-
             ContentStatus.Text = cards.Count == 0
                 ? "没有结果，换个关键词或放宽筛选"
                 : relaxedNote
@@ -1182,30 +1257,6 @@ public partial class MainWindow : Window
 
         await Task.Delay(200);
     }
-    private void OnToggleTranslate(object sender, RoutedEventArgs e)
-    {
-        _settings.TranslateContent = !_settings.TranslateContent;
-        ConfigStore.Save(_settings);
-        SettingsTranslateKey.Text = _settings.TranslateApiKey;
-        SettingsTranslateBaseUrl.Text = _settings.TranslateBaseUrl;
-        SettingsTranslateModel.Text = _settings.TranslateModel;
-        Aurora.Core.Net.Translator.Configure(_settings.TranslateApiKey, _settings.TranslateBaseUrl, _settings.TranslateModel);
-        UpdateTranslateButton();
-
-        if (_settings.TranslateContent)
-        {
-            _ = LoadContentPageAsync();
-        }
-    }
-
-    private void UpdateTranslateButton()
-    {
-        if (TranslateButton == null) return;
-        TranslateButton.Content = _settings.TranslateContent ? "中文翻译：开" : "中文翻译：关";
-        TranslateButton.Style = (Style)FindResource(_settings.TranslateContent ? "HeroButton" : "GlassButton");
-        TranslateButton.Padding = new Thickness(12, 6, 12, 6);
-    }
-
     private void UpdatePager()
     {
         var pages = Math.Max(1, (int)Math.Ceiling(_contentTotal / (double)ContentPageSize));
@@ -4224,7 +4275,6 @@ public partial class MainWindow : Window
         SettingsTranslateBaseUrl.Text = _settings.TranslateBaseUrl;
         SettingsTranslateModel.Text = _settings.TranslateModel;
         Aurora.Core.Net.Translator.Configure(_settings.TranslateApiKey, _settings.TranslateBaseUrl, _settings.TranslateModel);
-        UpdateTranslateButton();
     }
 
     private Border BuildAccountCard(SavedAccount account, bool isActive)
@@ -4841,7 +4891,6 @@ public partial class MainWindow : Window
         SettingsTranslateBaseUrl.Text = _settings.TranslateBaseUrl;
         SettingsTranslateModel.Text = _settings.TranslateModel;
         Aurora.Core.Net.Translator.Configure(_settings.TranslateApiKey, _settings.TranslateBaseUrl, _settings.TranslateModel);
-        UpdateTranslateButton();
     }
 
     private void OnSaveSettings(object sender, RoutedEventArgs e)
@@ -4904,7 +4953,6 @@ public partial class MainWindow : Window
         SettingsTranslateBaseUrl.Text = _settings.TranslateBaseUrl;
         SettingsTranslateModel.Text = _settings.TranslateModel;
         Aurora.Core.Net.Translator.Configure(_settings.TranslateApiKey, _settings.TranslateBaseUrl, _settings.TranslateModel);
-        UpdateTranslateButton();
             SaveStatus.Text = "已保存 · " + ConfigStore.ConfigPath;
             SetStatus("设置已保存");
         }
