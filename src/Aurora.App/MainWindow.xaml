@@ -492,12 +492,13 @@
             <!-- ===== 主体 ===== -->
             <Grid Grid.Row="1">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="74"/>
+                    <ColumnDefinition x:Name="RailColumn" Width="74"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- 导航栏 -->
-                <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,0,40">
+                <StackPanel x:Name="RailPanel" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,0,40"
+                            MouseEnter="OnRailEnter" MouseLeave="OnRailLeave">
                     <Button x:Name="NavLaunch" Style="{StaticResource RailButton}" Tag="0" Click="OnNavClick">
                         <StackPanel>
                             <TextBlock Text="◈" FontSize="18" HorizontalAlignment="Center"/>
@@ -558,6 +559,36 @@
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
+                        <!-- 极光背景（仅新版布局显示） -->
+                        <Canvas x:Name="AuroraLayer" Grid.RowSpan="3" IsHitTestVisible="False" ClipToBounds="True">
+                            <Ellipse x:Name="AuroraA" Width="620" Height="620" Canvas.Left="-120" Canvas.Top="-160">
+                                <Ellipse.Fill>
+                                    <RadialGradientBrush>
+                                        <GradientStop Color="#66FF3D8B" Offset="0"/>
+                                        <GradientStop Color="#00FF3D8B" Offset="1"/>
+                                    </RadialGradientBrush>
+                                </Ellipse.Fill>
+                                <Ellipse.Effect><BlurEffect Radius="90"/></Ellipse.Effect>
+                            </Ellipse>
+                            <Ellipse x:Name="AuroraB" Width="720" Height="720" Canvas.Left="360" Canvas.Top="-120">
+                                <Ellipse.Fill>
+                                    <RadialGradientBrush>
+                                        <GradientStop Color="#557A3CFF" Offset="0"/>
+                                        <GradientStop Color="#007A3CFF" Offset="1"/>
+                                    </RadialGradientBrush>
+                                </Ellipse.Fill>
+                                <Ellipse.Effect><BlurEffect Radius="110"/></Ellipse.Effect>
+                            </Ellipse>
+                            <Ellipse x:Name="AuroraC" Width="560" Height="560" Canvas.Left="140" Canvas.Top="180">
+                                <Ellipse.Fill>
+                                    <RadialGradientBrush>
+                                        <GradientStop Color="#4400E5FF" Offset="0"/>
+                                        <GradientStop Color="#0000E5FF" Offset="1"/>
+                                    </RadialGradientBrush>
+                                </Ellipse.Fill>
+                                <Ellipse.Effect><BlurEffect Radius="80"/></Ellipse.Effect>
+                            </Ellipse>
+                        </Canvas>
 
                         <Border x:Name="UpdateBanner" Grid.Row="0" Visibility="Collapsed" CornerRadius="12"
                                 Background="#1E2A44" BorderBrush="#505B8CFF" BorderThickness="1"
@@ -586,8 +617,15 @@
                             <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="26,0,0,10">
                                 <TextBlock Text="CURRENT VERSION" FontSize="10.5" Foreground="{DynamicResource InkFaint}"
                                            FontWeight="SemiBold" Margin="0,0,0,6"/>
-                                <TextBlock x:Name="BigVersion" Text="—" FontSize="62" FontFamily="{StaticResource FontNum}"
+                                <Grid Margin="0,2,0,0">
+                                    <TextBlock x:Name="BigVersionGlow" FontSize="96" FontFamily="{StaticResource FontNum}"
+                                               FontWeight="Black" Foreground="{DynamicResource AccentGrad}" Opacity="0.55"
+                                               Text="{Binding Text, ElementName=BigVersion}" IsHitTestVisible="False">
+                                        <TextBlock.Effect><BlurEffect Radius="26"/></TextBlock.Effect>
+                                    </TextBlock>
+                                <TextBlock x:Name="BigVersion" Text="—" FontSize="96" FontFamily="{StaticResource FontNum}"
                                            FontWeight="SemiBold" Foreground="{DynamicResource TitleGrad}"/>
+                                </Grid>
                                 <TextBlock x:Name="DetName" Text="选择一个版本" FontSize="17" FontWeight="SemiBold"
                                            Foreground="{DynamicResource Ink}" Margin="0,4,0,0"
                                            TextTrimming="CharacterEllipsis"/>
@@ -1547,6 +1585,20 @@
                                             <ComboBoxItem Content="新版（动感 / 高对比）" Tag="vivid"/>
                                             <ComboBoxItem Content="经典（旧版布局）" Tag="classic"/>
                                         </ComboBox>
+                                        <Grid Margin="0,12,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="主题色相" FontSize="11.5" Foreground="{DynamicResource InkDim}"
+                                                       VerticalAlignment="Center"/>
+                                            <Slider x:Name="HueSlider" Grid.Column="1" Minimum="-160" Maximum="160" Value="0"
+                                                    Margin="12,0,12,0" VerticalAlignment="Center"
+                                                    ValueChanged="OnHueChanged" IsSnapToTickEnabled="True" TickFrequency="5"/>
+                                            <TextBlock x:Name="HueText" Grid.Column="2" Text="0°" FontSize="11.5"
+                                                       Foreground="{DynamicResource InkDim}" VerticalAlignment="Center" Width="34"/>
+                                        </Grid>
                                     </StackPanel>
                                 </Border>
 

@@ -88,6 +88,9 @@ public sealed class LauncherSettings
     /// <summary>界面布局：vivid（新版动感）/ classic（经典旧版）。</summary>
     public string UiLayout { get; set; } = "vivid";
 
+    /// <summary>新版布局的主题色相偏移（-160..160）。</summary>
+    public int UiHue { get; set; }
+
     /// <summary>翻译用的大模型 Key（OpenAI 兼容，例如 DeepSeek）；留空就用免费接口</summary>
     public string TranslateApiKey { get; set; } = string.Empty;
 

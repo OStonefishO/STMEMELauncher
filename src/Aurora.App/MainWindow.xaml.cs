@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.33";
+    private const string AppVersion = "0.15.34";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -54,6 +54,13 @@ public partial class MainWindow : Window
         _settings = ConfigStore.Load();
 
         // 调试用：--ui classic / vivid 强制指定布局（截图用）
+        var hueFlag = Array.IndexOf(Environment.GetCommandLineArgs(), "--hue");
+        if (hueFlag >= 0 && hueFlag + 1 < Environment.GetCommandLineArgs().Length &&
+            int.TryParse(Environment.GetCommandLineArgs()[hueFlag + 1], out var hueValue))
+        {
+            _settings.UiHue = hueValue;
+        }
+
         var uiFlag = Array.IndexOf(Environment.GetCommandLineArgs(), "--ui");
         if (uiFlag >= 0 && uiFlag + 1 < Environment.GetCommandLineArgs().Length)
         {
@@ -317,6 +324,7 @@ public partial class MainWindow : Window
             _ => null,
         };
         AnimatePageIn(target);
+        AttachMotionHooks(target);
 
         if (index == 1 && _mcVersions.Count == 0)
         {
@@ -5469,7 +5477,21 @@ public partial class MainWindow : Window
     {
         _vivid = !string.Equals(layout, "classic", StringComparison.OrdinalIgnoreCase);
 
-        var res = Application.Current.Resources;
+        _hueShift = _settings.UiHue;
+        _syncingHue = true;
+        if (HueSlider != null)
+        {
+            HueSlider.Value = _hueShift;
+        }
+
+        if (HueText != null)
+        {
+            HueText.Text = _hueShift.Text();
+        }
+
+        _syncingHue = false;
+
+        var res = Resources;   // 主题画刷定义在 Window.Resources 里
         void Set(string key, Color from, Color to, Color? mid = null)
             => res[key] = MakeGradient(from, to, mid);
 
@@ -5496,6 +5518,12 @@ public partial class MainWindow : Window
             res["InkFaint"] = Frozen(Color.FromRgb(0x6D, 0x75, 0x88));
         }
 
+        // 色相偏移：在基础配色上整体旋转
+        if (_hueShift != 0)
+        {
+            HueShiftResources(_hueShift);
+        }
+
         // 同步下拉框选中项
         if (UiLayoutCombo != null)
         {
@@ -5504,6 +5532,7 @@ public partial class MainWindow : Window
 
         // 让当前页重新高亮一次（胶囊只在 vivid 下出现）
         SetPage(_currentPage);
+        RefreshMotionLayer();
     }
 
     private static SolidColorBrush Frozen(Color color)
