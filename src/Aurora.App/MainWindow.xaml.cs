@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.17";
+    private const string AppVersion = "0.15.19";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -117,6 +117,12 @@ public partial class MainWindow : Window
                 ApplyHeroBiome();
             }
 
+            // 调试用：--query "钠"，预填搜索词（验证中文搜索）
+            var queryFlag = Array.IndexOf(argv, "--query");
+            if (queryFlag >= 0 && queryFlag + 1 < argv.Length && QueryBox != null)
+            {
+                QueryBox.Text = argv[queryFlag + 1];
+            }
             // 调试用：--kind 0..4，内容页预选分类（截图用）
             var kindFlag = Array.IndexOf(argv, "--kind");
             if (kindFlag >= 0 && kindFlag + 1 < argv.Length &&
@@ -946,7 +952,11 @@ public partial class MainWindow : Window
             var source = SelectedSource();
             var tags = await source.GetCategoriesAsync(SelectedKind());
             var list = new List<ContentTag> { new() { Id = string.Empty, Name = "全部分类" } };
-            list.AddRange(tags);
+            foreach (var tag in tags)
+            {
+                // 分类也走中文词表（ContentTag.Name 是 init-only，只能新建一个）
+                list.Add(new ContentTag { Id = tag.Id, Name = Aurora.Core.Net.Translator.Tag(tag.Name) });
+            }
             CategoryCombo.ItemsSource = list;
             CategoryCombo.SelectedIndex = 0;
         }
@@ -1152,10 +1162,30 @@ public partial class MainWindow : Window
         try
         {
             ContentStatus.Text = "搜索中…";
+            var rawQuery = QueryBox.Text?.Trim() ?? string.Empty;
+
+            // 中文搜索：先问 MC 百科「钠 → Sodium」，再用英文去搜 Modrinth / CurseForge
+            if (rawQuery.Length > 0 && System.Text.RegularExpressions.Regex.IsMatch(rawQuery, "[\u4e00-\u9fa5]"))
+            {
+                try
+                {
+                    ContentStatus.Text = "识别中文名…";
+                    var english = await Aurora.Core.Net.McmodLookup.ToEnglishAsync(rawQuery);
+                    if (!string.IsNullOrWhiteSpace(english))
+                    {
+                        rawQuery = english;
+                    }
+                }
+                catch
+                {
+                    // 识别失败就用原文搜
+                }
+            }
+
             var query = new ContentQuery
             {
                 Kind = SelectedKind(),
-                Query = QueryBox.Text?.Trim() ?? string.Empty,
+                Query = rawQuery,
                 McVersion = EffectiveVersion(),
                 Loader = EffectiveLoader(),
                 Category = EffectiveCategory(),
@@ -1192,8 +1222,20 @@ public partial class MainWindow : Window
             _contentTotal = result.Total;
 
             var cards = result.Items.Select(i => new ContentCard(i)).ToList();
+
+            // MC 百科有记录的，默认就显示中文（缓存命中立即换，没命中后台补）
+            foreach (var card in cards)
+            {
+                var hit = Aurora.Core.Net.McmodLookup.Cached(card.Item.Title);
+                if (hit != null)
+                {
+                    card.ApplyMcmod(hit);
+                }
+            }
+
             ContentList.ItemsSource = cards;
             UpdatePager();
+            _ = FillMcmodNamesAsync(cards);
 
             ContentStatus.Text = cards.Count == 0
                 ? "没有结果，换个关键词或放宽筛选"
@@ -1204,6 +1246,31 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             ContentStatus.Text = "搜索失败: " + ex.Message;
+        }
+    }
+
+    /// <summary>列表里没有被百科缓存过的前 10 个，后台慢慢补中文名（不阻塞界面）。</summary>
+    private async Task FillMcmodNamesAsync(List<ContentCard> cards)
+    {
+        foreach (var card in cards.Take(10))
+        {
+            if (Aurora.Core.Net.McmodLookup.Cached(card.Item.Title) != null)
+            {
+                continue;
+            }
+
+            try
+            {
+                var entry = await Aurora.Core.Net.McmodLookup.FindAsync(card.Item.Title);
+                if (entry != null)
+                {
+                    card.ApplyMcmod(entry);
+                }
+            }
+            catch
+            {
+                // 忽略
+            }
         }
     }
 
@@ -5466,6 +5533,17 @@ public partial class MainWindow : Window
         public string Title => string.IsNullOrEmpty(_title) ? Item.Title : _title;
 
         private string _title = string.Empty;
+
+        /// <summary>套用 MC 百科的中文名 + 中文简介。</summary>
+        public void ApplyMcmod(Aurora.Core.Net.McmodEntry entry)
+        {
+            if (entry == null) return;
+            SetTitle(entry.Name);
+            if (!string.IsNullOrWhiteSpace(entry.Summary))
+            {
+                SetSummary(entry.Summary);
+            }
+        }
 
         public void SetTitle(string value)
         {

@@ -78,6 +78,24 @@ public static class McmodLookup
         }
     }
 
+    /// <summary>从「钠 (Sodium)」这种名字里抽出英文名，用来做中文搜索的回退。</summary>
+    public static string? EnglishName(McmodEntry? entry)
+    {
+        if (entry == null || string.IsNullOrWhiteSpace(entry.Name))
+        {
+            return null;
+        }
+
+        var match = Regex.Match(entry.Name, @"\(([^()]{2,60})\)");
+        return match.Success ? match.Groups[1].Value.Trim() : null;
+    }
+
+    /// <summary>中文名反查英文名（用于用中文搜索 Modrinth 这类纯英文源）。</summary>
+    public static async Task<string?> ToEnglishAsync(string chinese, CancellationToken ct = default)
+    {
+        var entry = await FindAsync(chinese, ct).ConfigureAwait(false);
+        return EnglishName(entry);
+    }
     public static McmodEntry? Cached(string title) =>
         !string.IsNullOrWhiteSpace(title) && Cache.TryGetValue(title.Trim(), out var hit) ? hit : null;
 

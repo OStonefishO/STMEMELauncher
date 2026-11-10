@@ -109,13 +109,6 @@ jobs:
           name: unsigned-exe
           path: dist
 
-      - name: 取回签名产物
-        if: ${{ build.result == 'success' }}
-        uses: actions/download-artifact@v4
-        with:
-          name: signed-exe
-          path: signed
-
       - name: 解压并挑选最终的 exe
         id: pick
         shell: pwsh
