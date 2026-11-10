@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.14";
+    private const string AppVersion = "0.15.16";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -986,6 +986,39 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>详情页打开后去 MC 百科查一下：查到就用它的中文名和中文简介，按钮也变成直达链接。</summary>
+    private async Task ApplyMcmodToDetailAsync(string title)
+    {
+        if (DetailMcmodButton == null || string.IsNullOrWhiteSpace(title))
+        {
+            return;
+        }
+
+        try
+        {
+            var entry = Aurora.Core.Net.McmodLookup.Cached(title)
+                        ?? await Aurora.Core.Net.McmodLookup.FindAsync(title);
+
+            if (entry == null || DetailMcmodButton == null)
+            {
+                return;
+            }
+
+            DetailMcmodButton.Tag = entry.Url;
+            DetailMcmodButton.Content = "MC 百科：" + entry.Name;
+
+            if (_settings.TranslateContent && !string.IsNullOrWhiteSpace(entry.Summary) &&
+                !string.IsNullOrWhiteSpace(entry.Name) && entry.Name != title)
+            {
+                DetailTitle.Text = entry.Name + "  ·  " + title;
+                DetailSummary.Text = entry.Summary;
+            }
+        }
+        catch
+        {
+            // 查不到就保持原样
+        }
+    }
     /// <summary>模组详情里跳 MC 百科（中文资料最全，查前置/兼容性很方便）。</summary>
     private void OnOpenMcmodForDetail(object sender, RoutedEventArgs e)
     {
@@ -1101,19 +1134,39 @@ public partial class MainWindow : Window
 
     private async Task TranslateCardsAsync(List<ContentCard> cards)
     {
-        // 一条一条翻，最多 5 条并发；单条失败保留英文，不拖累其它
-        var gate = new SemaphoreSlim(5);
-        var jobs = cards
-            .Where(c => !string.IsNullOrWhiteSpace(c.Item.Summary))
-            .Select(card => Task.Run(async () =>
+        // 先问 MC 百科（有中文名就直接用，比机翻准），没有再退回翻译接口
+        var gate = new SemaphoreSlim(2);
+
+        foreach (var card in cards.Take(12))
+        {
+            var title = card.Item.Title;
+            var summary = card.Item.Summary;
+
+            _ = Task.Run(async () =>
             {
                 await gate.WaitAsync();
                 try
                 {
-                    var zh = await Aurora.Core.Net.Translator.TextAsync(card.Item.Summary);
-                    if (!string.IsNullOrWhiteSpace(zh) && zh != card.Item.Summary)
+                    var entry = Aurora.Core.Net.McmodLookup.Cached(title)
+                                ?? await Aurora.Core.Net.McmodLookup.FindAsync(title);
+
+                    if (entry != null)
                     {
-                        card.SetSummary(zh);
+                        card.SetTitle(entry.Name);
+                        if (!string.IsNullOrWhiteSpace(entry.Summary))
+                        {
+                            card.SetSummary(entry.Summary);
+                            return;
+                        }
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(summary))
+                    {
+                        var zh = await Aurora.Core.Net.Translator.TextAsync(summary);
+                        if (!string.IsNullOrWhiteSpace(zh) && zh != summary)
+                        {
+                            card.SetSummary(zh);
+                        }
                     }
                 }
                 catch
@@ -1124,10 +1177,10 @@ public partial class MainWindow : Window
                 {
                     gate.Release();
                 }
-            }))
-            .ToList();
+            });
+        }
 
-        await Task.WhenAll(jobs);
+        await Task.Delay(200);
     }
     private void OnToggleTranslate(object sender, RoutedEventArgs e)
     {
@@ -2386,6 +2439,9 @@ public partial class MainWindow : Window
         ContentDetailPanel.Visibility = Visibility.Visible;
         DetailTitle.Text = item.Title;
         DetailSummary.Text = item.Summary;
+        DetailMcmodButton.Tag = null;
+        DetailMcmodButton.Content = "MC 百科";
+        _ = ApplyMcmodToDetailAsync(item.Title);
         DetailStatus.Text = "读取版本列表…";
         DetailBody.Children.Clear();
         expanderCount = 0;
@@ -5359,7 +5415,16 @@ public partial class MainWindow : Window
 
         public ContentItem Item { get; }
 
-        public string Title => Item.Title;
+        public string Title => string.IsNullOrEmpty(_title) ? Item.Title : _title;
+
+        private string _title = string.Empty;
+
+        public void SetTitle(string value)
+        {
+            if (string.IsNullOrEmpty(value) || value == _title) return;
+            _title = value;
+            PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(Title)));
+        }
 
         private string _summary = string.Empty;
         public string Summary => _summary;

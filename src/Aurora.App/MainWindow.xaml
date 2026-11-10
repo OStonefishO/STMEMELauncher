@@ -1056,8 +1056,8 @@
                             <Grid Grid.Row="0" Margin="26,16,0,10">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <Button Content="‹ 返回" Style="{StaticResource GlassButton}" Click="OnCloseContentDetail"/>
-                                    <Button Content="MC 百科" Style="{StaticResource GlassButton}" Margin="8,0,0,0"
-                                            Click="OnOpenMcmodForDetail" ToolTip="在 MC 百科搜索这个模组的中文资料"/>
+                                    <Button x:Name="DetailMcmodButton" Content="MC 百科" Style="{StaticResource GlassButton}" Margin="8,0,0,0"
+                                            Click="OnOpenMcmodForDetail" ToolTip="在 MC 百科查这个模组（有对应页面就直接跳过去）"/>
                                     <Border Width="44" Height="44" CornerRadius="12" Background="#14FFFFFF" Margin="16,0,0,0">
                                         <Image x:Name="DetailIcon" Stretch="UniformToFill"/>
                                     </Border>
