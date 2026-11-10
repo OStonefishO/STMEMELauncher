@@ -137,6 +137,7 @@ public partial class MainWindow
             HeroGrid.Visibility = Visibility.Collapsed;
             DashboardGrid.Visibility = Visibility.Visible;
             SetPagesTopInset(72);
+            InitDashboardScene();
             UpdateDock(_currentPage);
         }
         else
@@ -167,6 +168,59 @@ public partial class MainWindow
             var m = page.Margin;
             page.Margin = new Thickness(m.Left, top, m.Right, m.Bottom);
         }
+    }
+
+
+    // ---------------- 仪表盘上的 3D 方块岛 ----------------
+
+    private bool _dashSceneReady;
+
+    private void InitDashboardScene()
+    {
+        if (_dashSceneReady || DashViewport == null)
+        {
+            return;
+        }
+
+        _dashSceneReady = true;
+        var cam = HeroScene.Camera();
+        cam.Width *= 1.45;   // 小卡片里把视野放宽一点，岛不会被裁掉
+        DashViewport.Camera = cam;
+        RefreshDashboardScene();
+    }
+
+    private void RefreshDashboardScene()
+    {
+        if (DashViewport == null)
+        {
+            return;
+        }
+
+        DashViewport.Children.Clear();
+        DashViewport.Children.Add(new ModelVisual3D { Content = HeroScene.Lights(_heroBiome) });
+        DashViewport.Children.Add(HeroScene.Build(_heroBiome));
+        if (DashBiomeText != null)
+        {
+            DashBiomeText.Text = HeroScene.BiomeName(_heroBiome) + " · 点一下换群系";
+        }
+    }
+
+    private void OnDashboardBiomeClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        _heroBiome = _heroBiome switch
+        {
+            HeroBiome.Overworld => HeroBiome.Nether,
+            HeroBiome.Nether => HeroBiome.End,
+            _ => HeroBiome.Overworld,
+        };
+
+        RefreshDashboardScene();
+        if (HeroViewport != null)
+        {
+            ApplyHeroBiome();
+        }
+
+        ShowToast(HeroScene.BiomeName(_heroBiome), HeroScene.BiomeHint(_heroBiome), "✦", 2200);
     }
 
     // ---------------- 音效 ----------------
