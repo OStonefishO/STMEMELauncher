@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MEME Launcher · 从零写的 Minecraft 启动器</title>
+<meta name="description" content="MEME Launcher 是一个从零写起的 Minecraft: Java 版启动器：可点的 3D 主界面、内容站一键安装、MC百科中文化、崩溃诊断、缺 Java 自动装。">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='24' fill='%237c5cff'/><text x='50' y='70' font-size='58' font-family='Arial' font-weight='bold' fill='white' text-anchor='middle'>M</text></svg>">
+<style>
+:root{
+  --bg:#070a12; --bg2:#0b1020;
+  --ink:#e8ecf7; --dim:#9aa6c4; --faint:#667293;
+  --purple:#7c5cff; --cyan:#4fd6ff; --green:#57d68a;
+  --glass:rgba(255,255,255,.045); --line:rgba(255,255,255,.09);
+  --radius:20px; --max:1180px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei UI","Microsoft YaHei",system-ui,-apple-system,"Segoe UI",sans-serif;
+  line-height:1.6; -webkit-font-smoothing:antialiased; overflow-x:hidden;
+}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:var(--max);margin:0 auto;padding:0 24px}
+.glow{position:fixed;border-radius:50%;filter:blur(90px);pointer-events:none;z-index:0;opacity:.55}
+.g1{width:640px;height:640px;background:#4a2fff;top:-260px;left:-160px}
+.g2{width:520px;height:520px;background:#0b6a8a;top:120px;right:-220px;opacity:.4}
+.g3{width:700px;height:700px;background:#2b1a6e;bottom:-320px;left:30%;opacity:.35}
+main,header,footer{position:relative;z-index:1}
+
+/* nav */
+header{position:sticky;top:0;z-index:50;backdrop-filter:blur(18px);background:rgba(7,10,18,.72);border-bottom:1px solid rgba(255,255,255,.06)}
+nav{display:flex;align-items:center;gap:28px;height:66px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.5px}
+.mark{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--purple),var(--cyan));display:grid;place-items:center;font-size:16px;font-weight:800;color:#fff;box-shadow:0 6px 18px rgba(124,92,255,.45)}
+nav .links{display:flex;gap:22px;margin-left:auto}
+nav .links a{color:var(--dim);font-size:14px;transition:.2s}
+nav .links a:hover{color:#fff}
+nav .icons{display:flex;gap:10px}
+.icon-btn{width:34px;height:34px;border-radius:10px;border:1px solid var(--line);background:var(--glass);display:grid;place-items:center;transition:.2s}
+.icon-btn:hover{border-color:rgba(124,92,255,.6);transform:translateY(-1px)}
+.icon-btn svg{width:17px;height:17px;fill:var(--dim);transition:.2s}
+.icon-btn:hover svg{fill:#fff}
+
+/* hero */
+.hero{padding:76px 0 40px;display:grid;grid-template-columns:1.05fr .95fr;gap:48px;align-items:center}
+.badge{display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:999px;border:1px solid rgba(124,92,255,.35);background:rgba(124,92,255,.12);font-size:12.5px;color:#c9bcff}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green)}
+h1{font-size:57px;line-height:1.06;letter-spacing:-1px;margin:20px 0 16px;font-weight:800}
+h1 .grad{background:linear-gradient(120deg,#fff 10%,#b9a6ff 45%,#7fe6ff 90%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{color:var(--dim);font-size:16.5px;max-width:520px}
+.lead b{color:#dfe6ff;font-weight:600}
+.cta{display:flex;flex-wrap:wrap;gap:12px;margin:28px 0 22px}
+.btn{display:inline-flex;align-items:center;gap:9px;padding:13px 22px;border-radius:14px;font-weight:600;font-size:14.5px;transition:.22s;border:1px solid transparent}
+.btn-primary{background:linear-gradient(135deg,var(--purple),#3ea8ff);box-shadow:0 12px 32px rgba(88,96,255,.42);color:#fff}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 18px 40px rgba(88,96,255,.55)}
+.btn-ghost{border-color:var(--line);background:var(--glass);color:var(--ink)}
+.btn-ghost:hover{border-color:rgba(255,255,255,.28);transform:translateY(-2px)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;color:var(--faint);font-size:12.5px}
+.chip{padding:5px 11px;border-radius:9px;border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.03)}
+
+.shot{position:relative;border-radius:22px;border:1px solid var(--line);background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02));padding:10px;box-shadow:0 40px 90px rgba(0,0,0,.55)}
+.shot img{width:100%;display:block;border-radius:14px;filter:brightness(1.12) contrast(1.03)}
+.shot::after{content:"";position:absolute;inset:-1px;border-radius:22px;background:linear-gradient(140deg,rgba(124,92,255,.5),transparent 45%,rgba(79,214,255,.35));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;padding:1px;pointer-events:none}
+
+/* sections */
+section{padding:76px 0}
+.sec-head{text-align:center;margin-bottom:42px}
+.eyebrow{color:var(--purple);font-size:12.5px;letter-spacing:2.4px;text-transform:uppercase;font-weight:700}
+h2{font-size:34px;margin:12px 0 12px;letter-spacing:-.5px}
+.sec-head p{color:var(--dim);max-width:600px;margin:0 auto;font-size:15px}
+
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.card{padding:24px;border-radius:var(--radius);border:1px solid var(--line);background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.018));transition:.25s;position:relative;overflow:hidden}
+.card:hover{transform:translateY(-4px);border-color:rgba(124,92,255,.45);box-shadow:0 22px 50px rgba(0,0,0,.45)}
+.card .em{width:46px;height:46px;border-radius:14px;margin-bottom:16px;display:grid;place-items:center;font-size:21px;background:linear-gradient(135deg,rgba(124,92,255,.35),rgba(79,214,255,.16));border:1px solid rgba(255,255,255,.13)}
+.card h3{font-size:16.5px;margin-bottom:8px}
+.card p{color:var(--dim);font-size:13.8px}
+.card .tag{position:absolute;top:18px;right:18px;font-size:10.5px;color:#a99bff;border:1px solid rgba(124,92,255,.35);background:rgba(124,92,255,.14);padding:2px 8px;border-radius:7px}
+
+/* gallery */
+.gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.gitem{border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#0a0f1c;position:relative;aspect-ratio:16/10;cursor:pointer}
+.gitem img{width:100%;height:100%;object-fit:cover;transition:.5s;opacity:.94}
+.gitem:hover img{transform:scale(1.06);opacity:1}
+.gitem span{position:absolute;left:12px;bottom:10px;font-size:12px;color:#dbe2f5;background:rgba(5,8,16,.7);padding:4px 9px;border-radius:8px;border:1px solid rgba(255,255,255,.1)}
+.gitem.big{grid-column:span 1}
+
+/* download */
+.dl{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.dl-card{padding:28px;border-radius:var(--radius);border:1px solid var(--line);background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));position:relative;overflow:hidden}
+.dl-card h3{font-size:19px;display:flex;align-items:center;gap:10px}
+.dl-card .ver{font-size:12px;color:#9fe8c8;border:1px solid rgba(87,214,138,.35);background:rgba(87,214,138,.12);padding:2px 9px;border-radius:8px}
+.dl-card p{color:var(--dim);font-size:13.5px;margin:10px 0 18px}
+.dl-card .btn{width:100%;justify-content:center}
+.note{margin-top:18px;padding:14px 16px;border-radius:14px;border:1px dashed rgba(255,255,255,.14);color:var(--faint);font-size:12.8px}
+
+/* faq */
+details{border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.03);padding:16px 20px;margin-bottom:10px}
+details summary{cursor:pointer;font-weight:600;font-size:14.5px;list-style:none}
+details summary::-webkit-details-marker{display:none}
+details summary::after{content:"+";float:right;color:var(--purple);font-weight:700}
+details[open] summary::after{content:"–"}
+details p{color:var(--dim);font-size:13.6px;margin-top:10px}
+
+/* footer */
+footer{border-top:1px solid rgba(255,255,255,.07);padding:46px 0 34px;margin-top:30px}
+.foot{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.avatar{width:62px;height:62px;border-radius:50%;padding:2px;background:linear-gradient(135deg,var(--purple),var(--cyan))}
+.avatar img{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block}
+.who{font-weight:700;letter-spacing:.4px}
+.who small{display:block;color:var(--faint);font-weight:500;font-size:12.5px;letter-spacing:2px;margin-top:2px}
+.love{margin-left:auto;color:var(--faint);font-size:12.5px;letter-spacing:2px}
+.love b{color:#ff8fb1}
+.fnav{display:flex;gap:18px;color:var(--dim);font-size:13px;margin-top:22px;flex-wrap:wrap}
+.fnav a:hover{color:#fff}
+
+/* reveal */
+.rv{transition:.7s cubic-bezier(.2,.7,.3,1)}
+html.js .rv{opacity:0;transform:translateY(18px)}
+html.js .rv.in{opacity:1;transform:none}
+
+@media(max-width:980px){
+  .hero{grid-template-columns:1fr;padding-top:44px}
+  h1{font-size:42px}
+  .grid{grid-template-columns:1fr 1fr}
+  .gallery{grid-template-columns:1fr 1fr}
+  .gitem.big{grid-column:span 1}
+  .dl{grid-template-columns:1fr}
+  nav .links{display:none}
+}
+@media(max-width:640px){
+  h1{font-size:34px}.grid{grid-template-columns:1fr}.gallery{grid-template-columns:1fr}
+  .love{margin-left:0;width:100%}
+}
+</style>
+</head>
+<body>
+<div class="glow g1"></div><div class="glow g2"></div><div class="glow g3"></div>
+
+<header>
+  <nav class="wrap">
+    <a class="brand" href="#top"><span class="mark">M</span> MEME Launcher</a>
+    <div class="links">
+      <a href="#features">功能</a>
+      <a href="#shots">截图</a>
+      <a href="#download">下载</a>
+      <a href="#faq">常见问题</a>
+    </div>
+    <div class="icons">
+      <a class="icon-btn" href="https://github.com/OStonefishO/STMEMELauncher" target="_blank" rel="noopener" title="GitHub">
+        <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+      </a>
+      <a class="icon-btn" href="https://gitee.com/stonefish8/STMEMELauncher" target="_blank" rel="noopener" title="Gitee 国内镜像">
+        <svg viewBox="0 0 24 24"><path d="M11.98 2C6.47 2 2 6.48 2 12s4.47 10 9.98 10C17.5 22 22 17.52 22 12S17.5 2 11.98 2zm3.6 13.9c-.3.6-.9 1-1.6 1H8.3c-.6 0-1-.5-1-1V8.3c0-.6.4-1 1-1h8.4c.6 0 1 .4 1 1v2.2c0 .3-.2.5-.5.5h-6c-.3 0-.5.2-.5.5v2c0 .3.2.5.5.5h4.5c.3 0 .5.2.5.5v.4c0 .2-.1.4-.2.6z"/></svg>
+      </a>
+    </div>
+  </nav>
+</header>
+
+<main id="top">
+  <div class="wrap hero">
+    <div>
+      <span class="badge"><span class="dot"></span> v0.15.19 · 单文件免安装</span>
+      <h1>一个从零写起的<br><span class="grad">Minecraft 启动器</span></h1>
+      <p class="lead">
+        可点击切换群系的 <b>3D 主界面</b>、内容站一键安装、<b>MC 百科中文名与中文简介</b>、
+        崩溃一针见血的诊断、缺 Java 自动下载安装。<b>不用装 .NET，不用先配 Java</b>——双击就能玩。
+      </p>
+      <div class="cta">
+        <a class="btn btn-primary" href="#download">↓ 下载最新版</a>
+        <a class="btn btn-ghost" href="https://github.com/OStonefishO/STMEMELauncher" target="_blank" rel="noopener">GitHub 项目</a>
+        <a class="btn btn-ghost" href="https://gitee.com/stonefish8/STMEMELauncher" target="_blank" rel="noopener">Gitee 镜像</a>
+      </div>
+      <div class="chips">
+        <span class="chip">Windows 10 / 11</span>
+        <span class="chip">Fabric · Forge · NeoForge · Quilt</span>
+        <span class="chip">66 MB 单文件</span>
+        <span class="chip">完全开源</span>
+      </div>
+    </div>
+    <div class="shot rv">
+      <img src="assets/home.png" alt="MEME Launcher 主界面">
+    </div>
+  </div>
+
+  <section id="features" class="wrap">
+    <div class="sec-head rv">
+      <div class="eyebrow">FEATURES</div>
+      <h2>该有的都有，还多一点</h2>
+      <p>不是把网页套个壳，主界面、启动、下载、诊断都是自己写的。</p>
+    </div>
+    <div class="grid">
+      <div class="card rv"><span class="tag">彩蛋</span><span class="em">🌳</span>
+        <h3>能点的 3D 方块岛</h3>
+        <p>点一下从主世界切到下界、再到末地，方块配色、打光和文案全跟着变，选过的群系会记住。</p>
+      </div>
+      <div class="card rv"><span class="tag">中文</span><span class="em">🀄</span>
+        <h3>MC 百科联动</h3>
+        <p>有百科页面的模组直接显示中文名和中文简介，详情页一键直达 <code>/class/xxxx.html</code>，还能用「钠」这种中文名搜索。</p>
+      </div>
+      <div class="card rv"><span class="tag">省心</span><span class="em">☕</span>
+        <h3>缺 Java 自动装</h3>
+        <p>识别版本需要的 Java，没有就弹窗问你要不要下载安装 Temurin JRE，不必自己去配环境变量。</p>
+      </div>
+      <div class="card rv"><span class="em">📦</span>
+        <h3>内容站一键安装</h3>
+        <p>模组 / 整合包 / 光影 / 资源包 / 地图，版本、依赖一眼看清；整合包下完直接导入成版本。</p>
+      </div>
+      <div class="card rv"><span class="em">🗂</span>
+        <h3>版本隔离与备注</h3>
+        <p>每个版本独立存档与模组，互不干扰；可以重命名、写备注，复制来的存档一键导入正确目录。</p>
+      </div>
+      <div class="card rv"><span class="em">🩺</span>
+        <h3>崩溃说人话</h3>
+        <p>启动即退出、模组冲突、内存不足、Forge 核心库缺失都会给出结论和可导出的报告，并保留完整启动日志。</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="shots" class="wrap">
+    <div class="sec-head rv">
+      <div class="eyebrow">SCREENSHOTS</div>
+      <h2>看一眼就知道</h2>
+      <p>主世界 / 下界 / 末地三套配色，内容页与中文简介，崩溃诊断。</p>
+    </div>
+    <div class="gallery">
+      <div class="gitem big rv"><img src="assets/home.png" alt="主世界"><span>主世界</span></div>
+      <div class="gitem rv"><img src="assets/nether.png" alt="下界"><span>下界</span></div>
+      <div class="gitem rv"><img src="assets/end.png" alt="末地"><span>末地</span></div>
+      <div class="gitem big rv"><img src="assets/content.png" alt="内容下载"><span>内容下载 · 中文标签</span></div>
+      <div class="gitem rv"><img src="assets/detail.png" alt="模组详情"><span>MC 百科中文</span></div>
+      <div class="gitem rv"><img src="assets/crash.png" alt="崩溃诊断"><span>崩溃诊断</span></div>
+    </div>
+  </section>
+
+  <section id="download" class="wrap">
+    <div class="sec-head rv">
+      <div class="eyebrow">DOWNLOAD</div>
+      <h2>下载</h2>
+      <p>单文件 exe，双击即用。国内建议走 Gitee 镜像。</p>
+    </div>
+    <div class="dl">
+      <div class="dl-card rv">
+        <h3>Gitee 国内镜像 <span class="ver">推荐</span></h3>
+        <p>国内实测更稳，直接下载不用代理。</p>
+        <a class="btn btn-primary" href="https://gitee.com/stonefish8/STMEMELauncher/releases" target="_blank" rel="noopener">前往 Gitee Releases</a>
+      </div>
+      <div class="dl-card rv">
+        <h3>GitHub Releases <span class="ver">原版</span></h3>
+        <p>最新版与全部历史版本，附 SHA256 校验值。</p>
+        <a class="btn btn-ghost" href="https://github.com/OStonefishO/STMEMELauncher/releases/latest" target="_blank" rel="noopener">前往 GitHub Releases</a>
+      </div>
+    </div>
+    <div class="note rv">
+      提示：Windows 11 的「智能应用控制」会拦截未签名程序（本作未购买代码签名证书）。被拦时按
+      <a href="https://github.com/OStonefishO/STMEMELauncher/blob/main/docs/SMART-APP-CONTROL.md" target="_blank" rel="noopener" style="color:#a99bff">这份说明</a>
+      处理即可。
+    </div>
+  </section>
+
+  <section id="faq" class="wrap">
+    <div class="sec-head rv">
+      <div class="eyebrow">FAQ</div>
+      <h2>常见问题</h2>
+    </div>
+    <details class="rv"><summary>需要自己装 Java 吗？</summary><p>不需要。启动器会扫描本机 Java，找不到匹配版本时会问你要不要自动下载安装。</p></details>
+    <details class="rv"><summary>提示「已阻止可能不安全的应用」怎么办？</summary><p>那是 Windows 11 的智能应用控制，只放行有数字签名的 exe。文档里有三种处理方式，最省事的是在「Windows 安全中心 → 应用和浏览器控制」里关掉它。</p></details>
+    <details class="rv"><summary>从别处复制的存档为什么在游戏里看不到？</summary><p>因为版本隔离开启时，游戏读的是 <code>versions\版本名\saves</code>，不是根目录的 saves。版本页有「导入存档」，文件夹或 zip 都能直接放对位置。</p></details>
+    <details class="rv"><summary>支持正版登录吗？</summary><p>支持微软账号与外置登录（authlib-injector），也可以离线模式。</p></details>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <div class="avatar"><img src="assets/avatar.jpg" alt="STONEFISH8"></div>
+      <div class="who">STONEFISH8 · 石余<small>MAKE WITH LOVE</small></div>
+      <div class="love">用 <b>♥</b> 手写，不是套壳</div>
+    </div>
+    <div class="fnav">
+      <a href="https://github.com/OStonefishO/STMEMELauncher" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://gitee.com/stonefish8/STMEMELauncher" target="_blank" rel="noopener">Gitee</a>
+      <a href="https://github.com/OStonefishO/STMEMELauncher/blob/main/docs/PRIVACY.md" target="_blank" rel="noopener">隐私说明</a>
+      <a href="https://github.com/OStonefishO/STMEMELauncher/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>
+      <span style="margin-left:auto;color:#4d5878">© 2026 STONEFISH8</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+document.documentElement.classList.add('js');
+const els = document.querySelectorAll('.rv');
+if (location.search.indexOf('flat') >= 0) { els.forEach(el => el.classList.add('in')); }
+const io = new IntersectionObserver((entries) => {
+  entries.forEach((e, i) => {
+    if (e.isIntersecting) {
+      e.target.style.transitionDelay = (i * 60) + 'ms';
+      e.target.classList.add('in');
+      io.unobserve(e.target);
+    }
+  });
+}, { threshold: 0.12 });
+els.forEach(el => io.observe(el));
+
+// 截图点开大图
+document.querySelectorAll('.gitem img').forEach(img => {
+  img.addEventListener('click', () => window.open(img.src, '_blank'));
+});
+</script>
+</body>
+</html>
