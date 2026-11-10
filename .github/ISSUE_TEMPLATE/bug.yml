@@ -1,0 +1,50 @@
+name: Bug 报告
+description: 启动器本身的问题（不是安全漏洞）
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        如果是**安全漏洞**，请走私密报告：https://github.com/OStonefishO/STMEMELauncher/security/advisories/new
+  - type: input
+    id: version
+    attributes:
+      label: 启动器版本
+      description: 设置 → 关于与更新 里显示的版本号
+      placeholder: v0.15.25
+    validations:
+      required: true
+  - type: input
+    id: mc
+    attributes:
+      label: 游戏版本与加载器
+      placeholder: 1.21.1 NeoForge 21.1.77 / Fabric 0.16.9 / 纯净
+  - type: textarea
+    id: what
+    attributes:
+      label: 发生了什么
+      description: 现象 + 你期望的结果
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 打开「内容」
+        2. 搜索 XXX
+        3. 点安装
+        4. 报错 …
+  - type: textarea
+    id: logs
+    attributes:
+      label: 启动日志 / 崩溃报告
+      description: |
+        启动日志在 `%APPDATA%\MEMELauncher\logs\launch-*.log`；
+        崩溃窗口里有「导出报告」按钮，把导出的文件拖进来即可。
+      render: text
+  - type: input
+    id: os
+    attributes:
+      label: 系统
+      placeholder: Windows 11 23H2 / Windows 10 22H2

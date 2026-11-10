@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 报告安全漏洞（私密）
+    url: https://github.com/OStonefishO/STMEMELauncher/security/advisories/new
+    about: 请不要把漏洞细节发到公开 Issue；这里是 GitHub 的私密报告入口。
+  - name: 被 Windows 智能应用控制拦了？
+    url: https://ostonefisho.github.io/STMEMELauncher/#sac
+    about: 这是未签名的预期现象，不是病毒；按这里的步骤处理。
+  - name: 下载 / 国内镜像
+    url: https://gitee.com/stonefish8/STMEMELauncher/releases
+    about: 国内网络建议走 Gitee 镜像。

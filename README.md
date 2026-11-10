@@ -31,6 +31,13 @@
 | ![](docs/screens/p0.png) | ![](docs/screens/p8.png) | ![](docs/screens/p9.png) |
 
 ![内容页中文翻译](docs/screens/p10.png)
+## 安全性
+
+- 漏洞请**不要**开公开 Issue，走 GitHub 私密报告：<https://github.com/OStonefishO/STMEMELauncher/security/advisories/new>
+- 处理流程、支持版本、哪些算安全问题：见 [SECURITY.md](SECURITY.md)
+- 发布产物**目前没有代码签名证书**，Windows 11 智能应用控制会拦，这是已知现象，处理办法见 [docs/SMART-APP-CONTROL.md](docs/SMART-APP-CONTROL.md)
+- 我们已做的：HTTPS 下载 + Mojang 资源校验、令牌不写日志、参数数组启动、解压限制在目标目录内、自更新只取本仓库 Release 资产
+
 ## 下载
 
 > 想先看效果？打开官网宣传站：https://ostonefisho.github.io/STMEMELauncher/
