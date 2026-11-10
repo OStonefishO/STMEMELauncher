@@ -1631,6 +1631,20 @@
                                 <Border CornerRadius="16" Background="{StaticResource Glass}"
                                         BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16" Margin="0,12,0,0">
                                     <StackPanel>
+                                        <TextBlock Text="链接" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
+                                        <TextBlock Text="项目主页、国内镜像、宣传站和打赏入口都在这里" FontSize="11"
+                                                   Foreground="{StaticResource InkFaint}" Margin="0,6,0,0"/>
+                                        <WrapPanel Margin="0,12,0,0">
+                                            <Button Content="GitHub 项目 ↗" Style="{StaticResource GlassButton}" Padding="14,7"
+                                                    FontSize="11.5" Margin="0,0,8,8" Click="OnOpenGitHub"/>
+                                            <Button Content="Gitee 镜像 ↗" Style="{StaticResource GlassButton}" Padding="14,7"
+                                                    FontSize="11.5" Margin="0,0,8,8" Click="OnOpenGitee"/>
+                                            <Button Content="宣传站 ↗" Style="{StaticResource GlassButton}" Padding="14,7"
+                                                    FontSize="11.5" Margin="0,0,8,8" Click="OnOpenWebsite"/>
+                                            <Button Content="爱发电 ♥" Style="{StaticResource GlassButton}" Padding="14,7"
+                                                    FontSize="11.5" Margin="0,0,8,8" Click="OnOpenAfdian"
+                                                    Foreground="#C9A6FF"/>
+                                        </WrapPanel>
                                         <TextBlock Text="关于与更新" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
                                         <TextBlock x:Name="VersionText" Text="当前版本 v0.5.1" FontSize="11.5"
                                                    Foreground="{StaticResource InkDim}" Margin="0,6,0,10"/>

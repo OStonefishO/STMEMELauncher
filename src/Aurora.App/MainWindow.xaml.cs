@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.21";
+    private const string AppVersion = "0.15.22";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -569,12 +569,20 @@ public partial class MainWindow : Window
     }
 
     /// <summary>打开宣传站（GitHub Pages）。</summary>
-    private void OnOpenWebsite(object sender, RoutedEventArgs e)
+    private void OnOpenWebsite(object sender, RoutedEventArgs e) => OpenUrl("https://ostonefisho.github.io/STMEMELauncher/", "宣传站");
+
+    private void OnOpenGitHub(object sender, RoutedEventArgs e) => OpenUrl("https://github.com/OStonefishO/STMEMELauncher", "GitHub 项目");
+
+    private void OnOpenGitee(object sender, RoutedEventArgs e) => OpenUrl("https://gitee.com/stonefish8/STMEMELauncher", "Gitee 镜像");
+
+    private void OnOpenAfdian(object sender, RoutedEventArgs e) => OpenUrl("https://afdian.com/a/8STONEFISH8", "爱发电");
+
+    private void OpenUrl(string url, string name)
     {
         try
         {
-            Process.Start(new ProcessStartInfo("https://ostonefisho.github.io/STMEMELauncher/") { UseShellExecute = true });
-            SetStatus("已在浏览器打开宣传站");
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+            SetStatus("已在浏览器打开" + name);
         }
         catch (Exception ex)
         {
