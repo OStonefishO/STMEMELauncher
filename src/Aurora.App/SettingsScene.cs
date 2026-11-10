@@ -192,17 +192,22 @@ public static class SettingsScene
     {
         const string outer = "#B04BD07A";
         const string core = "#FF2F9A50";
+        const string black = "#FF101C14";
 
-        // 外层（半透明感的浅绿）+ 内芯
+        // 外层胶体 + 内芯
         g.Children.Add(Box(0, 0.45, 0, 0.9, 0.9, 0.9, outer));
-        g.Children.Add(Box(0, 0.42, 0, 0.5, 0.5, 0.5, core));
+        g.Children.Add(Box(0, 0.42, 0, 0.54, 0.54, 0.54, core));
 
-        // 眼睛和嘴
-        g.Children.Add(Box(-0.15, 0.55, 0.452, 0.12, 0.12, 0.02, "#FF1B3B26"));
-        g.Children.Add(Box(0.15, 0.55, 0.452, 0.12, 0.12, 0.02, "#FF1B3B26"));
-        g.Children.Add(Box(0, 0.38, 0.452, 0.16, 0.06, 0.02, "#FF1B3B26"));
+        // 大眼睛（两颗方形黑豆），贴在正脸
+        g.Children.Add(Box(-0.16, 0.60, 0.451, 0.2, 0.2, 0.02, black));
+        g.Children.Add(Box(0.16, 0.60, 0.451, 0.2, 0.2, 0.02, black));
+
+        // 歪嘴：三级台阶，右边塌下去
+        g.Children.Add(Box(-0.09, 0.40, 0.451, 0.08, 0.05, 0.02, black));
+        g.Children.Add(Box(0.00, 0.37, 0.451, 0.08, 0.05, 0.02, black));
+        g.Children.Add(Box(0.09, 0.34, 0.451, 0.08, 0.05, 0.02, black));
     }
-
+    // ---------------- 凋灵 ----------------
     // ---------------- 凋灵（总高 3.4） ----------------
 
     private static void Wither(Model3DGroup g)
