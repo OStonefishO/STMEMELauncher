@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.22";
+    private const string AppVersion = "0.15.23";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -117,6 +117,21 @@ public partial class MainWindow : Window
                 ApplyHeroBiome();
             }
 
+            // Windows 11 智能应用控制开着的话，未签名的 exe 会被拦，先提醒一次
+            try
+            {
+                var sac = Microsoft.Win32.Registry.GetValue(
+                    @"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\CI\Policy",
+                    "VerifiedAndReputablePolicyState", 0);
+                if (sac is int state && state == 1)
+                {
+                    ShowToast("智能应用控制开着", "未签名的 exe 可能被拦；设置里有处理办法", "⚠", 8000);
+                }
+            }
+            catch
+            {
+                // 读不到就算了
+            }
             // 调试用：--create data 直接切到数据包面板（截图用）
             if (argv.Contains("--create") && Array.IndexOf(argv, "data") >= 0)
             {
