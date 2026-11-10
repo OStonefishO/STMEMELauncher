@@ -48,7 +48,7 @@
         <Style x:Key="ChromeButton" TargetType="Button">
             <Setter Property="Width" Value="40"/>
             <Setter Property="Height" Value="30"/>
-            <Setter Property="Foreground" Value="{StaticResource InkDim}"/>
+            <Setter Property="Foreground" Value="{DynamicResource InkDim}"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
@@ -60,7 +60,7 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="b" Property="Background" Value="#1FFFFFFF"/>
-                                <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -70,7 +70,7 @@
 
         <!-- 左侧导航 -->
         <Style x:Key="RailButton" TargetType="Button">
-            <Setter Property="Foreground" Value="{StaticResource InkDim}"/>
+            <Setter Property="Foreground" Value="{DynamicResource InkDim}"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
@@ -98,13 +98,13 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Grid>
-                            <Border x:Name="glow" CornerRadius="30" Background="{StaticResource AccentGrad}"
+                            <Border x:Name="glow" CornerRadius="30" Background="{DynamicResource AccentGrad}"
                                     Opacity="0.38" Margin="-5">
                                 <Border.Effect>
                                     <BlurEffect Radius="18"/>
                                 </Border.Effect>
                             </Border>
-                            <Border x:Name="b" CornerRadius="30" Background="{StaticResource AccentGrad}" TextElement.Foreground="{TemplateBinding Foreground}">
+                            <Border x:Name="b" CornerRadius="30" Background="{DynamicResource AccentGrad}" TextElement.Foreground="{TemplateBinding Foreground}">
                                 <Border Padding="{TemplateBinding Padding}">
                                     <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
@@ -130,7 +130,7 @@
 
         <!-- 次级按钮 -->
         <Style x:Key="GlassButton" TargetType="Button">
-            <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
             <Setter Property="Background" Value="#14FFFFFF"/>
             <Setter Property="Padding" Value="16,6"/>
             <Setter Property="Cursor" Value="Hand"/>
@@ -138,7 +138,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="b" Background="{TemplateBinding Background}" CornerRadius="10"
-                                BorderBrush="{StaticResource GlassLine}" BorderThickness="1"
+                                BorderBrush="{DynamicResource GlassLine}" BorderThickness="1"
                                 TextElement.Foreground="{TemplateBinding Foreground}"
                                 Padding="{TemplateBinding Padding}" RenderTransformOrigin="0.5,0.5">
                             <Border.RenderTransform>
@@ -214,7 +214,7 @@
                                         <RepeatButton.Template>
                                             <ControlTemplate TargetType="RepeatButton">
                                                 <Border Height="4" CornerRadius="2" VerticalAlignment="Center"
-                                                        Background="{StaticResource AccentGrad}"/>
+                                                        Background="{DynamicResource AccentGrad}"/>
                                             </ControlTemplate>
                                         </RepeatButton.Template>
                                     </RepeatButton>
@@ -285,7 +285,7 @@
                                 <Setter TargetName="b" Property="Background" Value="#18FFFFFF"/>
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="b" Property="BorderBrush" Value="{StaticResource AccentGrad}"/>
+                                <Setter TargetName="b" Property="BorderBrush" Value="{DynamicResource AccentGrad}"/>
                                 <Setter TargetName="b" Property="BorderThickness" Value="1.6"/>
                                 <Setter TargetName="b" Property="Background" Value="#1E2A44"/>
                             </Trigger>
@@ -298,11 +298,11 @@
         <!-- 输入框 -->
         <Style TargetType="TextBox">
             <Setter Property="Background" Value="#12FFFFFF"/>
-            <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
             <Setter Property="BorderBrush" Value="#26FFFFFF"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="10,7"/>
-            <Setter Property="CaretBrush" Value="{StaticResource Ink}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource Ink}"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
 
@@ -341,7 +341,7 @@
 
         <!-- 下拉框：深色 -->
         <Style x:Key="MemeComboItem" TargetType="ComboBoxItem">
-            <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
             <Setter Property="Padding" Value="12,8"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -364,7 +364,7 @@
 
         <Style TargetType="ComboBox">
             <Setter Property="Height" Value="36"/>
-            <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
             <Setter Property="ItemContainerStyle" Value="{StaticResource MemeComboItem}"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -421,7 +421,7 @@
 
     <Grid ClipToBounds="True">
         <!-- 背景 -->
-        <Border Background="{StaticResource AppBg}"/>
+        <Border Background="{DynamicResource AppBg}"/>
 
         <!-- 极光色块 -->
         <Ellipse Width="900" Height="900" HorizontalAlignment="Right" VerticalAlignment="Top"
@@ -463,25 +463,27 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="18,0,0,0">
-                    <Border Width="22" Height="22" CornerRadius="6" Background="{StaticResource AccentGrad}">
+                    <Border Width="22" Height="22" CornerRadius="6" Background="{DynamicResource AccentGrad}">
                         <TextBlock Text="M" FontSize="12" FontWeight="Bold" Foreground="White"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <TextBlock Text="MEME" FontWeight="Bold" FontSize="13" Margin="9,0,0,0" VerticalAlignment="Center"
-                               Foreground="{StaticResource Ink}"/>
+                               Foreground="{DynamicResource Ink}"/>
                     <TextBlock Text="LAUNCHER" FontSize="10" Margin="7,1,0,0" VerticalAlignment="Center"
-                               Foreground="{StaticResource InkFaint}" FontWeight="SemiBold"/>
+                               Foreground="{DynamicResource InkFaint}" FontWeight="SemiBold"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
                     <Border CornerRadius="10" Background="#12FFFFFF" Padding="10,5" Margin="0,0,10,0"
-                            BorderBrush="{StaticResource GlassLine}" BorderThickness="1">
+                            BorderBrush="{DynamicResource GlassLine}" BorderThickness="1">
                         <StackPanel Orientation="Horizontal">
                             <Ellipse Width="7" Height="7" Fill="#FF4ADE80" VerticalAlignment="Center" Margin="0,0,7,0"/>
                             <TextBlock x:Name="AccountChip" Text="离线：Steve" FontSize="11.5"
-                                       Foreground="{StaticResource InkDim}" VerticalAlignment="Center"/>
+                                       Foreground="{DynamicResource InkDim}" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Border>
+                    <Button Style="{StaticResource ChromeButton}" Click="OnToggleFullscreen" Content="&#x26F6;" FontSize="12"
+                            ToolTip="全屏 / 退出全屏（F11）"/>
                     <Button Style="{StaticResource ChromeButton}" Click="OnMinimize" Content="—" FontSize="12"/>
                     <Button Style="{StaticResource ChromeButton}" Click="OnCloseWindow" Content="✕" FontSize="11"/>
                 </StackPanel>
@@ -565,7 +567,7 @@
                                     <TextBlock Text="⇪" FontSize="15" Foreground="#FF8AB4FF" VerticalAlignment="Center"
                                                Margin="0,0,10,0"/>
                                     <TextBlock x:Name="UpdateBannerText" Text="发现新版本" FontSize="12.5"
-                                               Foreground="{StaticResource Ink}" VerticalAlignment="Center"/>
+                                               Foreground="{DynamicResource Ink}" VerticalAlignment="Center"/>
                                 </StackPanel>
                                 <Button x:Name="UpdateBannerButton" Content="立即更新" HorizontalAlignment="Right"
                                         Style="{StaticResource GlassButton}" Click="OnApplyUpdateNow"
@@ -582,38 +584,38 @@
 
                             <!-- 左：版本信息 + 启动 -->
                             <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="26,0,0,10">
-                                <TextBlock Text="CURRENT VERSION" FontSize="10.5" Foreground="{StaticResource InkFaint}"
+                                <TextBlock Text="CURRENT VERSION" FontSize="10.5" Foreground="{DynamicResource InkFaint}"
                                            FontWeight="SemiBold" Margin="0,0,0,6"/>
                                 <TextBlock x:Name="BigVersion" Text="—" FontSize="62" FontFamily="{StaticResource FontNum}"
-                                           FontWeight="SemiBold" Foreground="{StaticResource TitleGrad}"/>
+                                           FontWeight="SemiBold" Foreground="{DynamicResource TitleGrad}"/>
                                 <TextBlock x:Name="DetName" Text="选择一个版本" FontSize="17" FontWeight="SemiBold"
-                                           Foreground="{StaticResource Ink}" Margin="0,4,0,0"
+                                           Foreground="{DynamicResource Ink}" Margin="0,4,0,0"
                                            TextTrimming="CharacterEllipsis"/>
-                                <TextBlock x:Name="DetMeta" Text="—" FontSize="12" Foreground="{StaticResource InkDim}"
+                                <TextBlock x:Name="DetMeta" Text="—" FontSize="12" Foreground="{DynamicResource InkDim}"
                                            Margin="0,6,0,0" TextWrapping="Wrap"/>
 
                                 <WrapPanel Margin="0,20,0,0">
-                                    <Border CornerRadius="9" Background="#10FFFFFF" BorderBrush="{StaticResource GlassLine}"
+                                    <Border CornerRadius="9" Background="#10FFFFFF" BorderBrush="{DynamicResource GlassLine}"
                                             BorderThickness="1" Padding="12,7" Margin="0,0,8,0">
                                         <StackPanel>
-                                            <TextBlock Text="JAVA" FontSize="9.5" Foreground="{StaticResource InkFaint}"/>
-                                            <TextBlock x:Name="DetJava" Text="—" FontSize="11.5" Foreground="{StaticResource Ink}"
+                                            <TextBlock Text="JAVA" FontSize="9.5" Foreground="{DynamicResource InkFaint}"/>
+                                            <TextBlock x:Name="DetJava" Text="—" FontSize="11.5" Foreground="{DynamicResource Ink}"
                                                        Margin="0,2,0,0" MaxWidth="180" TextTrimming="CharacterEllipsis"/>
                                         </StackPanel>
                                     </Border>
-                                    <Border CornerRadius="9" Background="#10FFFFFF" BorderBrush="{StaticResource GlassLine}"
+                                    <Border CornerRadius="9" Background="#10FFFFFF" BorderBrush="{DynamicResource GlassLine}"
                                             BorderThickness="1" Padding="12,7" Margin="0,0,8,0">
                                         <StackPanel>
-                                            <TextBlock Text="MODS" FontSize="9.5" Foreground="{StaticResource InkFaint}"/>
-                                            <TextBlock x:Name="DetMods" Text="—" FontSize="11.5" Foreground="{StaticResource Ink}"
+                                            <TextBlock Text="MODS" FontSize="9.5" Foreground="{DynamicResource InkFaint}"/>
+                                            <TextBlock x:Name="DetMods" Text="—" FontSize="11.5" Foreground="{DynamicResource Ink}"
                                                        Margin="0,2,0,0"/>
                                         </StackPanel>
                                     </Border>
-                                    <Border CornerRadius="9" Background="#10FFFFFF" BorderBrush="{StaticResource GlassLine}"
+                                    <Border CornerRadius="9" Background="#10FFFFFF" BorderBrush="{DynamicResource GlassLine}"
                                             BorderThickness="1" Padding="12,7" Margin="0,0,0,8">
                                         <StackPanel>
-                                            <TextBlock Text="内存" FontSize="9.5" Foreground="{StaticResource InkFaint}"/>
-                                            <TextBlock x:Name="DetMemory" Text="—" FontSize="11.5" Foreground="{StaticResource Ink}"
+                                            <TextBlock Text="内存" FontSize="9.5" Foreground="{DynamicResource InkFaint}"/>
+                                            <TextBlock x:Name="DetMemory" Text="—" FontSize="11.5" Foreground="{DynamicResource Ink}"
                                                        Margin="0,2,0,0"/>
                                         </StackPanel>
                                     </Border>
@@ -628,7 +630,7 @@
                                     <Button Content="选择 java.exe" Style="{StaticResource GlassButton}" Padding="12,5"
                                             FontSize="10.5" Margin="8,0,0,0" Click="OnHomePickJava"/>
                                     <TextBlock x:Name="HomeJavaHint" Text="" FontSize="10.5"
-                                               Foreground="{StaticResource InkFaint}" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource InkFaint}" VerticalAlignment="Center"
                                                Margin="10,0,0,0" MaxWidth="300" TextTrimming="CharacterEllipsis"/>
                                 </WrapPanel>
 
@@ -646,7 +648,7 @@
                                 <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
                                     <Button Content="打开目录" Style="{StaticResource GlassButton}" Click="OnOpenFolder"
                                             FontSize="11.5" Padding="12,6"/>
-                                    <TextBlock x:Name="DetDir" Text="" FontSize="10.5" Foreground="{StaticResource InkFaint}"
+                                    <TextBlock x:Name="DetDir" Text="" FontSize="10.5" Foreground="{DynamicResource InkFaint}"
                                                VerticalAlignment="Center" Margin="12,0,0,0" MaxWidth="330"
                                                TextTrimming="CharacterEllipsis"/>
                                 </StackPanel>
@@ -676,12 +678,12 @@
                                 <Button x:Name="VersionPickerButton" HorizontalAlignment="Left"
                                         Style="{StaticResource GlassButton}" Padding="14,7" Click="OnPickVersion">
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="版本" FontSize="11" Foreground="{StaticResource InkFaint}"
+                                        <TextBlock Text="版本" FontSize="11" Foreground="{DynamicResource InkFaint}"
                                                    VerticalAlignment="Center" Margin="0,0,8,0"/>
                                         <TextBlock x:Name="VersionPickerText" Text="未选择" FontSize="12"
-                                                   Foreground="{StaticResource Ink}" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource Ink}" VerticalAlignment="Center"
                                                    MaxWidth="360" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Text="▾" FontSize="10" Foreground="{StaticResource InkFaint}"
+                                        <TextBlock Text="▾" FontSize="10" Foreground="{DynamicResource InkFaint}"
                                                    VerticalAlignment="Center" Margin="8,0,0,0"/>
                                     </StackPanel>
                                 </Button>
@@ -723,11 +725,11 @@
                                                 <Border Width="3" Height="14" CornerRadius="2" Background="{Binding LoaderColor}"
                                                         VerticalAlignment="Center" Margin="0,0,8,0"/>
                                                 <TextBlock Text="{Binding ShortName}" FontSize="12.5" FontWeight="Medium"
-                                                           Foreground="{StaticResource Ink}" TextTrimming="CharacterEllipsis"
+                                                           Foreground="{DynamicResource Ink}" TextTrimming="CharacterEllipsis"
                                                            Width="168"/>
                                             </StackPanel>
                                             <TextBlock Text="{Binding Subtitle}" FontSize="10.5" Margin="11,5,0,0"
-                                                       Foreground="{StaticResource InkDim}" TextTrimming="CharacterEllipsis"
+                                                       Foreground="{DynamicResource InkDim}" TextTrimming="CharacterEllipsis"
                                                        Width="198"/>
                                         </StackPanel>
                                     </DataTemplate>
@@ -744,7 +746,7 @@
                         </Grid.RowDefinitions>
 
                         <StackPanel Grid.Row="0" Margin="26,6,0,14">
-                            <TextBlock Text="内容" FontSize="32" FontFamily="{StaticResource FontHead}" Foreground="{StaticResource TitleGrad}"/>
+                            <TextBlock Text="内容" FontSize="32" FontFamily="{StaticResource FontHead}" Foreground="{DynamicResource TitleGrad}"/>
                             <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                                 <Button Content="安装版本" Style="{StaticResource HeroButton}" Height="34" Width="110" Padding="0" Click="OnTabInstall"/>
                                 <Button Content="内容下载" Style="{StaticResource GlassButton}" Height="34" Width="110" Padding="0"
@@ -758,28 +760,28 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
 
-                            <Border Grid.Column="0" CornerRadius="16" Background="{StaticResource Glass}"
-                                    BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="6">
+                            <Border Grid.Column="0" CornerRadius="16" Background="{DynamicResource Glass}"
+                                    BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="6">
                                 <DockPanel>
                                     <StackPanel DockPanel.Dock="Top" Margin="12,10,10,8">
-                                        <TextBlock Text="Minecraft 正式版" FontSize="11.5" Foreground="{StaticResource InkFaint}"/>
+                                        <TextBlock Text="Minecraft 正式版" FontSize="11.5" Foreground="{DynamicResource InkFaint}"/>
                                         <Grid Margin="0,8,0,0">
                                             <TextBox x:Name="VersionSearchBox" Height="30" Padding="9,6,9,6"
                                                      TextChanged="OnVersionSearch"/>
                                             <TextBlock x:Name="VersionSearchHint" Text="搜索版本号，如 1.21 / 26.2"
                                                        IsHitTestVisible="False" Margin="10,0,0,0"
                                                        VerticalAlignment="Center" FontSize="11.5"
-                                                       Foreground="{StaticResource InkFaint}"/>
+                                                       Foreground="{DynamicResource InkFaint}"/>
                                         </Grid>
                                     </StackPanel>
                                     <ListBox x:Name="McVersionList" Background="Transparent" BorderThickness="0"
-                                             Foreground="{StaticResource Ink}" SelectionChanged="OnMcVersionSelected">
+                                             Foreground="{DynamicResource Ink}" SelectionChanged="OnMcVersionSelected">
                                         <ListBox.ItemTemplate>
                                             <DataTemplate>
                                                 <StackPanel Margin="6,5">
                                                     <TextBlock Text="{Binding Id}" FontWeight="SemiBold" FontSize="12.5"/>
                                                     <TextBlock Text="{Binding ReleaseTime}" FontSize="10.5"
-                                                               Foreground="{StaticResource InkFaint}"/>
+                                                               Foreground="{DynamicResource InkFaint}"/>
                                                 </StackPanel>
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>
@@ -788,16 +790,16 @@
                             </Border>
 
                             <StackPanel Grid.Column="1" Margin="16,0,0,0">
-                                <Border CornerRadius="16" Background="{StaticResource Glass}"
-                                        BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="22,18">
+                                <Border CornerRadius="16" Background="{DynamicResource Glass}"
+                                        BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="22,18">
                                     <StackPanel>
                                         <TextBlock x:Name="InstallMcText" Text="先在左边选一个 Minecraft 版本"
-                                                   FontSize="18" FontWeight="Bold" Foreground="{StaticResource Ink}"/>
+                                                   FontSize="18" FontWeight="Bold" Foreground="{DynamicResource Ink}"/>
                                         <TextBlock Text="加载器会安装到上面这个版本之上；原版会自动补齐。"
-                                                   FontSize="11.5" Foreground="{StaticResource InkDim}"
+                                                   FontSize="11.5" Foreground="{DynamicResource InkDim}"
                                                    Margin="0,7,0,18" TextWrapping="Wrap"/>
 
-                                        <TextBlock Text="加载器" FontSize="11" Foreground="{StaticResource InkFaint}"/>
+                                        <TextBlock Text="加载器" FontSize="11" Foreground="{DynamicResource InkFaint}"/>
                                         <ComboBox x:Name="LoaderCombo" Margin="0,6,0,14" SelectedIndex="0"
                                                   SelectionChanged="OnLoaderChanged">
                                             <ComboBoxItem Content="原版（不装加载器）"/>
@@ -806,10 +808,10 @@
                                             <ComboBoxItem Content="Forge"/>
                                         </ComboBox>
 
-                                        <TextBlock Text="加载器版本" FontSize="11" Foreground="{StaticResource InkFaint}"/>
+                                        <TextBlock Text="加载器版本" FontSize="11" Foreground="{DynamicResource InkFaint}"/>
                                         <ComboBox x:Name="LoaderVersionCombo" Margin="0,6,0,0" IsEnabled="False"/>
                                         <TextBlock x:Name="LoaderHint" Text="选了加载器后会自动拉取可用版本" FontSize="10.5"
-                                                   Foreground="{StaticResource InkFaint}" Margin="0,8,0,0" TextWrapping="Wrap"/>
+                                                   Foreground="{DynamicResource InkFaint}" Margin="0,8,0,0" TextWrapping="Wrap"/>
                                     </StackPanel>
                                 </Border>
 
@@ -823,9 +825,9 @@
                                 </StackPanel>
 
                                 <ProgressBar x:Name="InstallBar" Height="5" Margin="0,14,0,0" Minimum="0" Maximum="100"
-                                             Foreground="{StaticResource AccentGrad}" Background="#1AFFFFFF" BorderThickness="0"/>
+                                             Foreground="{DynamicResource AccentGrad}" Background="#1AFFFFFF" BorderThickness="0"/>
                                 <TextBlock x:Name="InstallText" Text="等待选择" FontSize="11.5" Margin="0,8,0,0"
-                                           Foreground="{StaticResource InkDim}" TextWrapping="Wrap"/>
+                                           Foreground="{DynamicResource InkDim}" TextWrapping="Wrap"/>
                             </StackPanel>
                         </Grid>
                     </Grid>
@@ -839,7 +841,7 @@
                         </Grid.RowDefinitions>
 
                         <StackPanel Grid.Row="0" Margin="26,6,0,14">
-                            <TextBlock Text="内容" FontSize="32" FontFamily="{StaticResource FontHead}" Foreground="{StaticResource TitleGrad}"/>
+                            <TextBlock Text="内容" FontSize="32" FontFamily="{StaticResource FontHead}" Foreground="{DynamicResource TitleGrad}"/>
                             <Grid Margin="0,10,0,0">
                                 <StackPanel Orientation="Horizontal">
                                     <Button Content="安装版本" Style="{StaticResource GlassButton}" Height="34" Width="110"
@@ -891,12 +893,12 @@
                                         <TextBlock x:Name="QueryHint" Text="搜索模组 / 整合包 / 光影 / 资源包"
                                                    IsHitTestVisible="False" Margin="10,0,0,0"
                                                    VerticalAlignment="Center" FontSize="11.5"
-                                                   Foreground="{StaticResource InkFaint}"/>
+                                                   Foreground="{DynamicResource InkFaint}"/>
                                     </Grid>
                                     <Button Content="搜索" Style="{StaticResource GlassButton}" Margin="8,0,0,0" Click="OnSearch"/>
 
                                     <TextBlock x:Name="PageText" Text="" FontSize="11.5" Margin="18,0,0,0"
-                                               VerticalAlignment="Center" Foreground="{StaticResource InkFaint}"/>
+                                               VerticalAlignment="Center" Foreground="{DynamicResource InkFaint}"/>
                                     <Button x:Name="PrevButton" Content="‹ 上一页" Style="{StaticResource GlassButton}"
                                             Margin="10,0,0,0" Padding="12,6" FontSize="11.5" Click="OnPrevPage" IsEnabled="False"/>
                                     <Button x:Name="NextButton" Content="下一页 ›" Style="{StaticResource GlassButton}"
@@ -905,7 +907,7 @@
 
                                 <!-- 站外搜索：这些站没有开放 API，直接带关键词跳过去 -->
                                 <WrapPanel Margin="0,8,0,0">
-                                    <TextBlock Text="站外搜：" FontSize="10.5" Foreground="{StaticResource InkFaint}"
+                                    <TextBlock Text="站外搜：" FontSize="10.5" Foreground="{DynamicResource InkFaint}"
                                                VerticalAlignment="Center" Margin="0,0,8,4"/>
                                     <Button Content="MC 百科" Style="{StaticResource GlassButton}" Padding="10,4"
                                             FontSize="10.5" Margin="0,0,6,4" Click="OnSearchSite"
@@ -925,10 +927,10 @@
                                 </WrapPanel>
                             </StackPanel>
 
-                            <Border Grid.Row="1" CornerRadius="16" Background="{StaticResource Glass}"
-                                    BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="6">
+                            <Border Grid.Row="1" CornerRadius="16" Background="{DynamicResource Glass}"
+                                    BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="6">
                                 <ListBox x:Name="ContentList" Background="Transparent" BorderThickness="0"
-                                         Foreground="{StaticResource Ink}" SelectionChanged="OnContentSelected"
+                                         Foreground="{DynamicResource Ink}" SelectionChanged="OnContentSelected"
                                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                          ScrollViewer.VerticalScrollBarVisibility="Auto"
                                          PreviewMouseLeftButtonUp="OnContentListClick">
@@ -948,7 +950,7 @@
                                                 <Border Width="44" Height="44" CornerRadius="10" Background="#14FFFFFF"
                                                         VerticalAlignment="Top">
                                                     <Grid>
-                                                        <TextBlock Text="▦" FontSize="15" Foreground="{StaticResource InkFaint}"
+                                                        <TextBlock Text="▦" FontSize="15" Foreground="{DynamicResource InkFaint}"
                                                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                         <Image Source="{Binding Icon}" Width="44" Height="44"
                                                                Stretch="UniformToFill"/>
@@ -956,13 +958,13 @@
                                                 </Border>
 
                                                 <StackPanel Grid.Column="1" Margin="12,0,0,0">
-                                                    <TextBlock Text="{Binding Title}" FontWeight="Medium" FontSize="13.5" Foreground="{StaticResource Ink}"
+                                                    <TextBlock Text="{Binding Title}" FontWeight="Medium" FontSize="13.5" Foreground="{DynamicResource Ink}"
                                                                TextTrimming="CharacterEllipsis"/>
                                                     <TextBlock Text="{Binding Summary}" FontSize="11.5" Margin="0,4,0,0"
-                                                               LineHeight="17" Foreground="{StaticResource InkDim}"
+                                                               LineHeight="17" Foreground="{DynamicResource InkDim}"
                                                                TextTrimming="CharacterEllipsis"/>
                                                     <TextBlock Text="{Binding Meta}" FontSize="10.5" Margin="0,4,0,0"
-                                                               Foreground="{StaticResource InkFaint}"/>
+                                                               Foreground="{DynamicResource InkFaint}"/>
                                                 </StackPanel>
                                             </Grid>
                                         </DataTemplate>
@@ -988,12 +990,12 @@
                                         Margin="10,0,0,0" Padding="22,0" MinWidth="150" Height="38" IsEnabled="False"/>
                             </Grid>
                             <TextBlock Grid.Row="1" x:Name="ContentStatus" Text="搜索后选一个条目" FontSize="11.5" Margin="0,8,0,0"
-                                       Foreground="{StaticResource InkDim}" TextWrapping="Wrap"/>
+                                       Foreground="{DynamicResource InkDim}" TextWrapping="Wrap"/>
                         </Grid>
                         <!-- 下载管理抽屉 -->
                         <Border x:Name="DownloadPanel" Visibility="Collapsed" Width="420" HorizontalAlignment="Right"
                                 Margin="0,10,16,16" CornerRadius="16" Background="#F210141C"
-                                BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="16,14">
+                                BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="16,14">
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
@@ -1003,7 +1005,7 @@
 
                                 <Grid Grid.Row="0">
                                     <TextBlock Text="下载管理" FontSize="14" FontWeight="SemiBold"
-                                               Foreground="{StaticResource Ink}" VerticalAlignment="Center"/>
+                                               Foreground="{DynamicResource Ink}" VerticalAlignment="Center"/>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                                         <Button Content="打开目录" Style="{StaticResource GlassButton}" Padding="10,4" FontSize="11"
                                                 Click="OnOpenDownloadFolder"/>
@@ -1022,12 +1024,12 @@
                                                         Margin="0,0,0,8">
                                                     <StackPanel>
                                                         <TextBlock Text="{Binding FileName}" FontSize="12"
-                                                                   Foreground="{StaticResource Ink}" TextTrimming="CharacterEllipsis"/>
+                                                                   Foreground="{DynamicResource Ink}" TextTrimming="CharacterEllipsis"/>
                                                         <TextBlock Text="{Binding DetailText}" FontSize="10.5"
-                                                                   Foreground="{StaticResource InkFaint}" Margin="0,3,0,6"
+                                                                   Foreground="{DynamicResource InkFaint}" Margin="0,3,0,6"
                                                                    TextTrimming="CharacterEllipsis"/>
                                                         <ProgressBar Height="3" Minimum="0" Maximum="100" Value="{Binding Progress, Mode=OneWay}"
-                                                                     Background="#1AFFFFFF" Foreground="{StaticResource AccentGrad}"
+                                                                     Background="#1AFFFFFF" Foreground="{DynamicResource AccentGrad}"
                                                                      BorderThickness="0"/>
                                                         <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                                                             <Button Content="暂停" Style="{StaticResource GlassButton}"
@@ -1045,7 +1047,7 @@
                                 </ScrollViewer>
 
                                 <TextBlock Grid.Row="2" x:Name="DownloadEmptyHint" Text="还没有下载任务"
-                                           FontSize="11" Foreground="{StaticResource InkFaint}" Margin="0,6,0,0"/>
+                                           FontSize="11" Foreground="{DynamicResource InkFaint}" Margin="0,6,0,0"/>
                             </Grid>
                         </Border>
 
@@ -1072,16 +1074,16 @@
                                         <Image x:Name="DetailIcon" Stretch="UniformToFill"/>
                                     </Border>
                                     <TextBlock x:Name="DetailTitle" Text="" FontSize="22" FontFamily="{StaticResource FontHead}"
-                                               Foreground="{StaticResource Ink}" Margin="14,0,0,0" VerticalAlignment="Center"/>
+                                               Foreground="{DynamicResource Ink}" Margin="14,0,0,0" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Grid>
 
                             <ScrollViewer Grid.Row="1" Margin="26,0,0,0" VerticalScrollBarVisibility="Auto">
                                 <StackPanel MaxWidth="900" HorizontalAlignment="Left" Margin="0,0,0,24">
                                     <TextBlock x:Name="DetailSummary" Text="" FontSize="12.5"
-                                               Foreground="{StaticResource InkDim}" TextWrapping="Wrap"/>
+                                               Foreground="{DynamicResource InkDim}" TextWrapping="Wrap"/>
                                     <TextBlock x:Name="DetailStatus" Text="" FontSize="11.5" Margin="0,8,0,0"
-                                               Foreground="{StaticResource InkFaint}" TextWrapping="Wrap"/>
+                                               Foreground="{DynamicResource InkFaint}" TextWrapping="Wrap"/>
                                     <StackPanel x:Name="DetailBody" Margin="0,12,0,0"/>
                                 </StackPanel>
                             </ScrollViewer>
@@ -1096,7 +1098,7 @@
 
                         <StackPanel Grid.Row="0" Margin="26,6,0,14">
                             <TextBlock Text="版本" FontSize="32" FontFamily="{StaticResource FontHead}"
-                                       Foreground="{StaticResource TitleGrad}"/>
+                                       Foreground="{DynamicResource TitleGrad}"/>
                             <Grid Margin="0,10,0,0">
                                 <StackPanel Orientation="Horizontal">
                                     <ComboBox x:Name="VmDirCombo" Width="520" Height="32"
@@ -1113,19 +1115,19 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
 
-                            <Border Grid.Column="0" CornerRadius="16" Background="{StaticResource Glass}"
-                                    BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="6">
+                            <Border Grid.Column="0" CornerRadius="16" Background="{DynamicResource Glass}"
+                                    BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="6">
                                 <DockPanel>
                                     <TextBlock DockPanel.Dock="Top" Text="已安装版本" FontSize="11.5"
-                                               Foreground="{StaticResource InkFaint}" Margin="12,10,10,8"/>
+                                               Foreground="{DynamicResource InkFaint}" Margin="12,10,10,8"/>
                                     <ListBox x:Name="VmVersionList" Background="Transparent" BorderThickness="0"
-                                             Foreground="{StaticResource Ink}" SelectionChanged="OnVmVersionSelected">
+                                             Foreground="{DynamicResource Ink}" SelectionChanged="OnVmVersionSelected">
                                         <ListBox.ItemTemplate>
                                             <DataTemplate>
                                                 <StackPanel Margin="6,5">
                                                     <TextBlock Text="{Binding Id}" FontWeight="SemiBold" FontSize="12"/>
                                                     <TextBlock Text="{Binding Subtitle}" FontSize="10"
-                                                               Foreground="{StaticResource InkFaint}"/>
+                                                               Foreground="{DynamicResource InkFaint}"/>
                                                 </StackPanel>
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>
@@ -1136,12 +1138,12 @@
                             <ScrollViewer Grid.Column="1" Margin="16,0,0,0" VerticalScrollBarVisibility="Auto">
                                 <StackPanel HorizontalAlignment="Stretch" Margin="0,0,16,0">
 
-                                    <Border CornerRadius="16" Background="{StaticResource Glass}"
-                                            BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16">
+                                    <Border CornerRadius="16" Background="{DynamicResource Glass}"
+                                            BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="20,16">
                                         <StackPanel>
                                             <StackPanel Orientation="Horizontal">
                                                 <TextBlock x:Name="VmTitle" Text="先在左边选一个版本" FontSize="18"
-                                                           FontWeight="Bold" Foreground="{StaticResource Ink}"
+                                                           FontWeight="Bold" Foreground="{DynamicResource Ink}"
                                                            VerticalAlignment="Center"/>
                                                 <Button x:Name="VmRenameButton" Content="重命名"
                                                         Style="{StaticResource GlassButton}" Padding="10,4" FontSize="10.5"
@@ -1149,7 +1151,7 @@
                                                         Click="OnVmRename" ToolTip="改版本名（文件夹、json、id 一起改）"/>
                                             </StackPanel>
                                             <TextBlock x:Name="VmPath" Text="" FontSize="11" Margin="0,6,0,0"
-                                                       Foreground="{StaticResource InkFaint}" TextWrapping="Wrap"/>
+                                                       Foreground="{DynamicResource InkFaint}" TextWrapping="Wrap"/>
 
                                             <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                                                 <TextBox x:Name="VmNoteBox" Width="440" Height="30" MaxLength="120"
@@ -1160,7 +1162,7 @@
 
                                             <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
                                                 <TextBlock Text="运行内存 (MB) · 全局" FontSize="11.5" VerticalAlignment="Center"
-                                                           Foreground="{StaticResource InkDim}"/>
+                                                           Foreground="{DynamicResource InkDim}"/>
                                                 <TextBox x:Name="VmMemoryBox" Width="110" Margin="10,0,0,0"
                                                          HorizontalContentAlignment="Center"/>
                                                 <Button Content="应用" Style="{StaticResource GlassButton}" Margin="8,0,0,0"
@@ -1176,7 +1178,7 @@
                                             </StackPanel>
 
                                             <TextBlock x:Name="IsolationHint" Text="" FontSize="10.5" Margin="0,8,0,0"
-                                                       Foreground="{StaticResource InkFaint}" TextWrapping="Wrap"/>
+                                                       Foreground="{DynamicResource InkFaint}" TextWrapping="Wrap"/>
 
                                             <WrapPanel Margin="0,12,0,0">
                                                 <Button Content="mods" Style="{StaticResource GlassButton}" Margin="0,0,8,8"
@@ -1193,13 +1195,13 @@
                                         </StackPanel>
                                     </Border>
 
-                                    <Border CornerRadius="16" Background="{StaticResource Glass}"
-                                            BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16"
+                                    <Border CornerRadius="16" Background="{DynamicResource Glass}"
+                                            BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="20,16"
                                             Margin="0,14,0,0">
                                         <StackPanel>
                                             <Grid>
                                                 <TextBlock Text="模组" FontSize="14" FontWeight="SemiBold"
-                                                           Foreground="{StaticResource Ink}" VerticalAlignment="Center"/>
+                                                           Foreground="{DynamicResource Ink}" VerticalAlignment="Center"/>
                                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                                                     <Button Content="添加 mod" Style="{StaticResource GlassButton}" Padding="12,5" FontSize="11"
                                                             Click="OnVmAddMods"/>
@@ -1208,14 +1210,14 @@
                                                 </StackPanel>
                                             </Grid>
                                             <TextBlock Text="可以直接把 .jar 拖进来；点开关启用/禁用（改扩展名，不删文件）"
-                                                       FontSize="10.5" Foreground="{StaticResource InkFaint}" Margin="0,6,0,10"/>
+                                                       FontSize="10.5" Foreground="{DynamicResource InkFaint}" Margin="0,6,0,10"/>
                                             <Grid Margin="0,0,0,10">
                                                 <TextBox x:Name="VmModSearch" Height="30" Padding="9,6,9,6"
                                                          TextChanged="OnVmModSearch"/>
                                                 <TextBlock x:Name="VmModSearchHint" Text="搜索模组文件名"
                                                            IsHitTestVisible="False" Margin="10,0,0,0"
                                                            VerticalAlignment="Center" FontSize="11.5"
-                                                           Foreground="{StaticResource InkFaint}"/>
+                                                           Foreground="{DynamicResource InkFaint}"/>
                                             </Grid>
 
                                             <Border CornerRadius="10" Background="#0B0E13" Padding="10"
@@ -1227,13 +1229,13 @@
                                         </StackPanel>
                                     </Border>
 
-                                    <Border CornerRadius="16" Background="{StaticResource Glass}"
-                                            BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16"
+                                    <Border CornerRadius="16" Background="{DynamicResource Glass}"
+                                            BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="20,16"
                                             Margin="0,14,0,0">
                                         <StackPanel>
-                                            <TextBlock Text="整合包" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
+                                            <TextBlock Text="整合包" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
                                             <TextBlock Text="把这个版本的 mods / config / options.txt 打成一个 zip，别人导入就能玩"
-                                                       FontSize="10.5" Foreground="{StaticResource InkFaint}" Margin="0,6,0,10"/>
+                                                       FontSize="10.5" Foreground="{DynamicResource InkFaint}" Margin="0,6,0,10"/>
                                             <StackPanel Orientation="Horizontal">
                                                 <Button Content="导出整合包" Style="{StaticResource HeroButton}" Height="36" Width="150"
                                                         Click="OnVmExportPack"/>
@@ -1244,7 +1246,7 @@
                                     </Border>
 
                                     <TextBlock x:Name="VmStatus" Text="" FontSize="11.5" Margin="4,12,0,20"
-                                               Foreground="{StaticResource InkFaint}" TextWrapping="Wrap"/>
+                                               Foreground="{DynamicResource InkFaint}" TextWrapping="Wrap"/>
                                 </StackPanel>
                             </ScrollViewer>
                         </Grid>
@@ -1259,9 +1261,9 @@
 
                         <StackPanel Grid.Row="0" Margin="26,6,0,14">
                             <TextBlock Text="联机" FontSize="32" FontFamily="{StaticResource FontHead}"
-                                       Foreground="{StaticResource TitleGrad}"/>
+                                       Foreground="{DynamicResource TitleGrad}"/>
                             <TextBlock Text="一键开服，然后把地址发给朋友；没有公网 IP 就用樱花穿透" FontSize="12.5"
-                                       Foreground="{StaticResource InkDim}" Margin="0,6,0,0"/>
+                                       Foreground="{DynamicResource InkDim}" Margin="0,6,0,0"/>
                         </StackPanel>
 
                         <Grid Grid.Row="1" Margin="26,0,16,0">
@@ -1273,20 +1275,20 @@
 
                             <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
                                 <StackPanel>
-                                    <Border CornerRadius="16" Background="{StaticResource Glass}"
-                                            BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16">
+                                    <Border CornerRadius="16" Background="{DynamicResource Glass}"
+                                            BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="20,16">
                                         <StackPanel>
                                             <Grid>
                                                 <TextBlock Text="一键开服" FontSize="14" FontWeight="SemiBold"
-                                                           Foreground="{StaticResource Ink}" VerticalAlignment="Center"/>
+                                                           Foreground="{DynamicResource Ink}" VerticalAlignment="Center"/>
                                                 <Button Content="开服教程" HorizontalAlignment="Right" Style="{StaticResource GlassButton}"
                                                         Padding="10,4" FontSize="11" Click="OnOpenServerGuide"/>
                                             </Grid>
                                             <TextBlock Text="用已安装的版本起服务端：原版 / Fabric / Forge / NeoForge 都行。"
-                                                       FontSize="11" Foreground="{StaticResource InkFaint}" Margin="0,5,0,12"
+                                                       FontSize="11" Foreground="{DynamicResource InkFaint}" Margin="0,5,0,12"
                                                        TextWrapping="Wrap"/>
 
-                                            <TextBlock Text="版本" FontSize="11" Foreground="{StaticResource InkDim}"/>
+                                            <TextBlock Text="版本" FontSize="11" Foreground="{DynamicResource InkDim}"/>
                                             <ComboBox x:Name="ServerVersionCombo" Margin="0,6,0,10" Height="34"/>
 
                                             <Grid>
@@ -1296,19 +1298,19 @@
                                                     <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
                                                 <StackPanel Grid.Column="0">
-                                                    <TextBlock Text="端口" FontSize="11" Foreground="{StaticResource InkDim}"/>
+                                                    <TextBlock Text="端口" FontSize="11" Foreground="{DynamicResource InkDim}"/>
                                                     <TextBox x:Name="ServerPortBox" Text="25565" Margin="0,6,0,0" Height="32"/>
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="2">
-                                                    <TextBlock Text="内存 (MB)" FontSize="11" Foreground="{StaticResource InkDim}"/>
+                                                    <TextBlock Text="内存 (MB)" FontSize="11" Foreground="{DynamicResource InkDim}"/>
                                                     <TextBox x:Name="ServerMemoryBox" Text="2048" Margin="0,6,0,0" Height="32"/>
                                                 </StackPanel>
                                             </Grid>
 
                                             <CheckBox x:Name="ServerOnlineMode" Content="开启正版验证（正版账号专用）"
-                                                      Foreground="{StaticResource InkDim}" Margin="0,12,0,0" FontSize="11.5"/>
+                                                      Foreground="{DynamicResource InkDim}" Margin="0,12,0,0" FontSize="11.5"/>
                                             <CheckBox x:Name="ServerEula" Content="我已阅读并同意 Minecraft EULA"
-                                                      Foreground="{StaticResource InkDim}" Margin="0,8,0,0" FontSize="11.5"/>
+                                                      Foreground="{DynamicResource InkDim}" Margin="0,8,0,0" FontSize="11.5"/>
 
                                             <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
                                                 <Button x:Name="ServerStartButton" Content="开服" Style="{StaticResource HeroButton}"
@@ -1320,17 +1322,17 @@
                                             </StackPanel>
 
                                             <TextBlock x:Name="ServerStatus" Text="未运行" FontSize="11.5" Margin="0,10,0,0"
-                                                       Foreground="{StaticResource InkFaint}" TextWrapping="Wrap"/>
+                                                       Foreground="{DynamicResource InkFaint}" TextWrapping="Wrap"/>
                                         </StackPanel>
                                     </Border>
 
-                                    <Border CornerRadius="16" Background="{StaticResource Glass}"
-                                            BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16"
+                                    <Border CornerRadius="16" Background="{DynamicResource Glass}"
+                                            BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="20,16"
                                             Margin="0,14,0,0">
                                         <StackPanel>
-                                            <TextBlock Text="樱花穿透" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
+                                            <TextBlock Text="樱花穿透" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
                                             <TextBlock Text="在 natfrp.com 建一个 TCP 隧道指向本机端口，然后填访问密钥和隧道 ID。"
-                                                       FontSize="11" Foreground="{StaticResource InkFaint}" Margin="0,5,0,12" TextWrapping="Wrap"/>
+                                                       FontSize="11" Foreground="{DynamicResource InkFaint}" Margin="0,5,0,12" TextWrapping="Wrap"/>
 
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
@@ -1339,11 +1341,11 @@
                                                     <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
                                                 <StackPanel Grid.Column="0">
-                                                    <TextBlock Text="访问密钥" FontSize="11" Foreground="{StaticResource InkDim}"/>
+                                                    <TextBlock Text="访问密钥" FontSize="11" Foreground="{DynamicResource InkDim}"/>
                                                     <TextBox x:Name="TunnelTokenBox" Height="32" Margin="0,6,0,0"/>
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="2">
-                                                    <TextBlock Text="隧道 ID（多个用逗号分隔）" FontSize="11" Foreground="{StaticResource InkDim}"/>
+                                                    <TextBlock Text="隧道 ID（多个用逗号分隔）" FontSize="11" Foreground="{DynamicResource InkDim}"/>
                                                     <TextBox x:Name="TunnelIdBox" Height="32" Margin="0,6,0,0"/>
                                                 </StackPanel>
                                             </Grid>
@@ -1358,7 +1360,7 @@
                                             </StackPanel>
 
                                             <TextBlock x:Name="TunnelStatus" Text="未启动" FontSize="11.5" Margin="0,10,0,0"
-                                                       Foreground="{StaticResource InkFaint}" TextWrapping="Wrap"/>
+                                                       Foreground="{DynamicResource InkFaint}" TextWrapping="Wrap"/>
 
                                             <Border CornerRadius="10" Background="#0B0E13" Margin="0,10,0,0" Padding="10" Height="150">
                                                 <TextBox x:Name="TunnelLog" Background="Transparent" BorderThickness="0"
@@ -1373,15 +1375,15 @@
 
                             <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
                                 <StackPanel>
-                                    <Border CornerRadius="16" Background="{StaticResource Glass}"
-                                            BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16">
+                                    <Border CornerRadius="16" Background="{DynamicResource Glass}"
+                                            BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="20,16">
                                         <StackPanel>
-                                            <TextBlock Text="本机地址" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
+                                            <TextBlock Text="本机地址" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
                                             <TextBlock Text="IPv6 是公网地址，朋友可以直接连；IPv4 一般需要穿透或同一局域网。"
-                                                       FontSize="11" Foreground="{StaticResource InkFaint}" Margin="0,5,0,12" TextWrapping="Wrap"/>
+                                                       FontSize="11" Foreground="{DynamicResource InkFaint}" Margin="0,5,0,12" TextWrapping="Wrap"/>
 
                                             <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="端口" FontSize="11.5" Foreground="{StaticResource InkDim}" VerticalAlignment="Center"/>
+                                                <TextBlock Text="端口" FontSize="11.5" Foreground="{DynamicResource InkDim}" VerticalAlignment="Center"/>
                                                 <TextBox x:Name="PortBox" Text="25565" Width="90" Margin="10,0,0,0" HorizontalContentAlignment="Center"/>
                                                 <Button Content="刷新地址" Style="{StaticResource GlassButton}" Margin="10,0,0,0" Click="OnRefreshAddresses"/>
                                             </StackPanel>
@@ -1393,18 +1395,18 @@
                                             </StackPanel>
 
                                             <TextBlock x:Name="UpnpStatus" Text="UPnP 没试过：路由器支持的话，IPv4 也能直接连"
-                                                       FontSize="11" Foreground="{StaticResource InkFaint}" Margin="0,8,0,0"
+                                                       FontSize="11" Foreground="{DynamicResource InkFaint}" Margin="0,8,0,0"
                                                        TextWrapping="Wrap"/>
 
                                             <StackPanel x:Name="AddressList" Margin="0,14,0,0"/>
                                         </StackPanel>
                                     </Border>
 
-                                    <Border CornerRadius="16" Background="{StaticResource Glass}"
-                                            BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16"
+                                    <Border CornerRadius="16" Background="{DynamicResource Glass}"
+                                            BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="20,16"
                                             Margin="0,14,0,0">
                                         <StackPanel>
-                                            <TextBlock Text="服务端控制台" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
+                                            <TextBlock Text="服务端控制台" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
                                             <Border CornerRadius="10" Background="#0B0E13" Margin="0,10,0,0" Padding="10" Height="280">
                                                 <TextBox x:Name="ServerLog" Background="Transparent" BorderThickness="0"
                                                          Foreground="#FF9AA6BA" FontFamily="Consolas" FontSize="11"
@@ -1428,9 +1430,9 @@
 
                         <StackPanel Grid.Row="0" Margin="26,6,0,14">
                             <TextBlock Text="账号" FontSize="32" FontFamily="{StaticResource FontHead}"
-                                       Foreground="{StaticResource TitleGrad}"/>
+                                       Foreground="{DynamicResource TitleGrad}"/>
                             <TextBlock Text="保存多个账号，随时切换；离线账号也能存好几个" FontSize="12.5"
-                                       Foreground="{StaticResource InkDim}" Margin="0,6,0,0"/>
+                                       Foreground="{DynamicResource InkDim}" Margin="0,6,0,0"/>
                         </StackPanel>
 
                         <Grid Grid.Row="1" Margin="26,0,0,0">
@@ -1445,11 +1447,11 @@
 
                             <ScrollViewer Grid.Column="1" Margin="16,0,0,0" VerticalScrollBarVisibility="Auto">
                             <StackPanel Grid.Column="1" Margin="16,0,0,0">
-                                <Border CornerRadius="16" Background="{StaticResource Glass}"
-                                        BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16">
+                                <Border CornerRadius="16" Background="{DynamicResource Glass}"
+                                        BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="20,16">
                                     <StackPanel>
-                                        <TextBlock Text="新建离线账号" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
-                                        <TextBlock Text="只填一个名字就能用，支持中文和数字" FontSize="11" Foreground="{StaticResource InkFaint}"
+                                        <TextBlock Text="新建离线账号" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
+                                        <TextBlock Text="只填一个名字就能用，支持中文和数字" FontSize="11" Foreground="{DynamicResource InkFaint}"
                                                    Margin="0,5,0,10" TextWrapping="Wrap"/>
                                         <TextBox x:Name="OfflineNameBox" Height="34"/>
                                         <Button Content="保存这个离线账号" Style="{StaticResource GlassButton}" Margin="0,10,0,0"
@@ -1457,15 +1459,15 @@
                                         <Button Content="导入离线皮肤（PNG）" Style="{StaticResource GlassButton}" Margin="0,10,0,0"
                                                 Click="OnImportSkin"/>
                                         <TextBlock Text="会用 CustomSkinLoader 把皮肤写进当前版本，装好后进游戏就能看到"
-                                                   FontSize="10.5" Foreground="{StaticResource InkFaint}" Margin="0,8,0,0"
+                                                   FontSize="10.5" Foreground="{DynamicResource InkFaint}" Margin="0,8,0,0"
                                                    TextWrapping="Wrap"/>
                                     </StackPanel>
                                 </Border>
 
-                                <Border CornerRadius="16" Background="{StaticResource Glass}"
-                                        BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16" Margin="0,12,0,0">
+                                <Border CornerRadius="16" Background="{DynamicResource Glass}"
+                                        BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="20,16" Margin="0,12,0,0">
                                     <StackPanel>
-                                        <TextBlock Text="登录已有账号" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
+                                        <TextBlock Text="登录已有账号" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
                                         <Button Content="外置登录（LittleSkin）" Style="{StaticResource HeroButton}" Margin="0,12,0,0"
                                                 Height="40" Click="OnYggdrasilLogin"/>
                                         <Button x:Name="LoginButton" Content="微软账号登录（等待白名单）" Style="{StaticResource GlassButton}"
@@ -1473,22 +1475,22 @@
                                         <Button Content="微软登录诊断" Style="{StaticResource GlassButton}" Margin="0,8,0,0"
                                                 Padding="14,6" FontSize="11" Click="OnMsaDiagnostics"
                                                 ToolTip="跑一遍四步：微软账号 → Xbox Live → XSTS → Minecraft Services（第 4 步就是白名单检查）"/>
-                                        <Expander Header="高级：Azure ClientId" Margin="0,12,0,0" Foreground="{StaticResource InkFaint}">
+                                        <Expander Header="高级：Azure ClientId" Margin="0,12,0,0" Foreground="{DynamicResource InkFaint}">
                                             <TextBox x:Name="ClientIdBox" Margin="0,8,0,0"/>
                                         </Expander>
                                     </StackPanel>
                                 </Border>
 
-                                <Border CornerRadius="16" Background="{StaticResource Glass}"
-                                        BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16"
+                                <Border CornerRadius="16" Background="{DynamicResource Glass}"
+                                        BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="20,16"
                                         Margin="0,12,0,0">
                                     <StackPanel>
-                                        <TextBlock Text="皮肤" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
+                                        <TextBlock Text="皮肤" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
                                         <StackPanel Margin="0,8,0,0">
                                             <TextBlock x:Name="AccountSkinName" Text="当前账号" FontSize="12.5"
-                                                       Foreground="{StaticResource Ink}" TextTrimming="CharacterEllipsis"/>
+                                                       Foreground="{DynamicResource Ink}" TextTrimming="CharacterEllipsis"/>
                                             <TextBlock x:Name="AccountSkinStatus" Text="还没有皮肤" FontSize="10.5"
-                                                       Foreground="{StaticResource InkFaint}" Margin="0,3,0,0"
+                                                       Foreground="{DynamicResource InkFaint}" Margin="0,3,0,0"
                                                        TextWrapping="Wrap"/>
                                         </StackPanel>
                                         <Border CornerRadius="10" Background="#0B0E13" Margin="0,10,0,0" Height="190"
@@ -1511,7 +1513,7 @@
                                 </Border>
 
                                 <TextBlock x:Name="AccountPageStatus" Text="" FontSize="11.5" Margin="4,12,0,0"
-                                           Foreground="{StaticResource InkFaint}" TextWrapping="Wrap"/>
+                                           Foreground="{DynamicResource InkFaint}" TextWrapping="Wrap"/>
                             </StackPanel>
                             </ScrollViewer>
                         </Grid>
@@ -1525,31 +1527,47 @@
                         </Grid.RowDefinitions>
 
                         <StackPanel Grid.Row="0" Margin="26,6,0,14">
-                            <TextBlock Text="设置" FontSize="32" FontFamily="{StaticResource FontHead}" Foreground="{StaticResource TitleGrad}"/>
-                            <TextBlock Text="账号、目录、内存、镜像" FontSize="12.5" Foreground="{StaticResource InkDim}"
+                            <TextBlock Text="设置" FontSize="32" FontFamily="{StaticResource FontHead}" Foreground="{DynamicResource TitleGrad}"/>
+                            <TextBlock Text="账号、目录、内存、镜像" FontSize="12.5" Foreground="{DynamicResource InkDim}"
                                        Margin="0,6,0,0"/>
                         </StackPanel>
 
                         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="26,0,400,0">
                             <StackPanel MaxWidth="660" HorizontalAlignment="Left">
-
-                                <Border CornerRadius="16" Background="{StaticResource Glass}"
-                                        BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16">
+                                <!-- 界面布局 -->
+                                <Border CornerRadius="16" Background="{DynamicResource Glass}"
+                                        BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="20,16"
+                                        Margin="0,0,0,12">
                                     <StackPanel>
-                                        <TextBlock Text="账号" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
+                                        <TextBlock Text="界面布局" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
+                                        <TextBlock Text="新版更动感：大胆配色、切换有过渡、导航有高亮胶囊。想安静点就换回经典。"
+                                                   FontSize="11.5" Foreground="{DynamicResource InkDim}" Margin="0,6,0,10" TextWrapping="Wrap"/>
+                                        <ComboBox x:Name="UiLayoutCombo" Height="38" FontSize="12.5"
+                                                  SelectionChanged="OnUiLayoutChanged">
+                                            <ComboBoxItem Content="新版（动感 / 高对比）" Tag="vivid"/>
+                                            <ComboBoxItem Content="经典（旧版布局）" Tag="classic"/>
+                                        </ComboBox>
+                                    </StackPanel>
+                                </Border>
+
+
+                                <Border CornerRadius="16" Background="{DynamicResource Glass}"
+                                        BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="20,16">
+                                    <StackPanel>
+                                        <TextBlock Text="账号" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
                                         <TextBlock x:Name="AccountStatus" Text="当前：离线账号" FontSize="11.5"
-                                                   Foreground="{StaticResource InkDim}" Margin="0,6,0,12" TextWrapping="Wrap"/>
+                                                   Foreground="{DynamicResource InkDim}" Margin="0,6,0,12" TextWrapping="Wrap"/>
                                         <Button Content="打开账号管理" Style="{StaticResource HeroButton}" Width="150" Height="38"
                                                 Click="OnOpenAccounts"/>
                                     </StackPanel>
                                 </Border>
 
-                                <Border CornerRadius="16" Background="{StaticResource Glass}"
-                                        BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16" Margin="0,12,0,0">
+                                <Border CornerRadius="16" Background="{DynamicResource Glass}"
+                                        BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="20,16" Margin="0,12,0,0">
                                     <StackPanel>
-                                        <TextBlock Text="游戏" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}" Margin="0,0,0,10"/>
+                                        <TextBlock Text="游戏" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" Margin="0,0,0,10"/>
 
-                                        <TextBlock Text="游戏目录" Foreground="{StaticResource InkFaint}" FontSize="11"/>
+                                        <TextBlock Text="游戏目录" Foreground="{DynamicResource InkFaint}" FontSize="11"/>
                                         <TextBox x:Name="SettingsGameDir" Margin="0,6,0,14"/>
 
                                         <Grid>
@@ -1559,25 +1577,25 @@
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
                                             <StackPanel Grid.Column="0">
-                                                <TextBlock Text="最大内存 (MB)" Foreground="{StaticResource InkFaint}" FontSize="11"/>
+                                                <TextBlock Text="最大内存 (MB)" Foreground="{DynamicResource InkFaint}" FontSize="11"/>
                                                 <TextBox x:Name="SettingsMemory" Margin="0,6,0,0"/>
                                             </StackPanel>
                                             <StackPanel Grid.Column="2">
-                                                <TextBlock Text="离线玩家名由「账号」页管理" Foreground="{StaticResource InkFaint}"
+                                                <TextBlock Text="离线玩家名由「账号」页管理" Foreground="{DynamicResource InkFaint}"
                                                            FontSize="11"/>
-                                                <TextBlock Text="在账号页新建或切换离线账号" Foreground="{StaticResource InkDim}"
+                                                <TextBlock Text="在账号页新建或切换离线账号" Foreground="{DynamicResource InkDim}"
                                                            FontSize="10.5" Margin="0,10,0,0" TextWrapping="Wrap"/>
                                             </StackPanel>
                                         </Grid>
 
-                                        <TextBlock Text="启动方式" Foreground="{StaticResource InkFaint}" FontSize="11" Margin="0,14,0,0"/>
+                                        <TextBlock Text="启动方式" Foreground="{DynamicResource InkFaint}" FontSize="11" Margin="0,14,0,0"/>
                                         <ComboBox x:Name="SettingsLaunchMode" Margin="0,6,0,0" SelectedIndex="0">
                                             <ComboBoxItem Content="窗口（游戏自己记大小）"/>
                                             <ComboBoxItem Content="窗口化全屏（铺满屏幕，有标题栏，切出去方便）"/>
                                             <ComboBoxItem Content="独占全屏（--fullscreen，全屏玩游戏）"/>
                                         </ComboBox>
 
-                                        <TextBlock Text="启动游戏用的 Java" Foreground="{StaticResource InkFaint}" FontSize="11" Margin="0,14,0,0"/>
+                                        <TextBlock Text="启动游戏用的 Java" Foreground="{DynamicResource InkFaint}" FontSize="11" Margin="0,14,0,0"/>
                                         <ComboBox x:Name="SettingsJavaCombo" Margin="0,6,0,0"/>
                                         <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                                             <Button Content="重新扫描 Java" Style="{StaticResource GlassButton}"
@@ -1585,38 +1603,38 @@
                                             <Button Content="手动添加目录" Style="{StaticResource GlassButton}"
                                                     Padding="12,5" FontSize="11" Margin="8,0,0,0" Click="OnAddJavaDir"/>
                                             <TextBlock x:Name="JavaScanStatus" FontSize="10.5" VerticalAlignment="Center"
-                                                       Margin="10,0,0,0" Foreground="{StaticResource InkFaint}"
+                                                       Margin="10,0,0,0" Foreground="{DynamicResource InkFaint}"
                                                        TextTrimming="CharacterEllipsis" MaxWidth="330"/>
                                         </StackPanel>
 
-                                        <TextBlock Text="版本隔离（全局）" Foreground="{StaticResource InkFaint}" FontSize="11" Margin="0,14,0,0"/>
+                                        <TextBlock Text="版本隔离（全局）" Foreground="{DynamicResource InkFaint}" FontSize="11" Margin="0,14,0,0"/>
                                         <ComboBox x:Name="SettingsIsolation" Margin="0,6,0,0" SelectedIndex="0">
                                             <ComboBoxItem Content="总是隔离（推荐，新装的版本也自动隔离）"/>
                                             <ComboBoxItem Content="自动（按目录里有没有 mods 判断）"/>
                                             <ComboBoxItem Content="共用根目录（不隔离）"/>
                                         </ComboBox>
                                         <TextBlock Text="总是隔离：每个版本用 versions\&lt;版本名&gt;\ 里的 mods，装什么都不影响别的版本。"
-                                                   Foreground="{StaticResource InkFaint}" FontSize="10.5" Margin="0,6,0,0"
+                                                   Foreground="{DynamicResource InkFaint}" FontSize="10.5" Margin="0,6,0,0"
                                                    TextWrapping="Wrap"/>
                                     </StackPanel>
                                 </Border>
 
-                                <Border CornerRadius="16" Background="{StaticResource Glass}"
-                                        BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16" Margin="0,12,0,0">
+                                <Border CornerRadius="16" Background="{DynamicResource Glass}"
+                                        BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="20,16" Margin="0,12,0,0">
                                     <StackPanel>
-                                        <TextBlock Text="下载与镜像" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}" Margin="0,0,0,10"/>
+                                        <TextBlock Text="下载与镜像" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" Margin="0,0,0,10"/>
                                         <CheckBox x:Name="SettingsMirror" Content="下载走国内镜像 (BMCLAPI)"
-                                                  Foreground="{StaticResource Ink}" IsChecked="True"/>
+                                                  Foreground="{DynamicResource Ink}" IsChecked="True"/>
                                         <CheckBox x:Name="SettingsAskInstall" Content="安装 mod / 光影前询问装到哪个目录"
-                                                  Foreground="{StaticResource Ink}" Margin="0,10,0,0" IsChecked="True"/>
-                                        <TextBlock Text="自建镜像站地址（留空则直接用 BMCLAPI）" Foreground="{StaticResource InkFaint}"
+                                                  Foreground="{DynamicResource Ink}" Margin="0,10,0,0" IsChecked="True"/>
+                                        <TextBlock Text="自建镜像站地址（留空则直接用 BMCLAPI）" Foreground="{DynamicResource InkFaint}"
                                                    FontSize="11" Margin="0,14,0,0"/>
                                         <TextBox x:Name="SettingsMirrorUrl" Margin="0,6,0,0"/>
                                         <TextBlock Text="CurseForge API key（可选，填了才能搜 CurseForge）"
-                                                   Foreground="{StaticResource InkFaint}" FontSize="11" Margin="0,14,0,0"/>
+                                                   Foreground="{DynamicResource InkFaint}" FontSize="11" Margin="0,14,0,0"/>
                                         <TextBox x:Name="SettingsCfKey" Margin="0,6,0,0"/>
                                         <TextBlock Text="内容翻译（留空就用免费接口 MyMemory，每天有额度；填自己的 Key 更稳更好）"
-                                                   Foreground="{StaticResource InkFaint}" FontSize="11" Margin="0,16,0,0"/>
+                                                   Foreground="{DynamicResource InkFaint}" FontSize="11" Margin="0,16,0,0"/>
                                         <TextBox x:Name="SettingsTranslateKey" Margin="0,6,0,0"
                                                  ToolTip="支持 OpenAI 兼容接口：DeepSeek / 通义 / 硅基流动 等"/>
                                         <Grid Margin="0,6,0,0">
@@ -1633,12 +1651,12 @@
                                     </StackPanel>
                                 </Border>
 
-                                <Border CornerRadius="16" Background="{StaticResource Glass}"
-                                        BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16" Margin="0,12,0,0">
+                                <Border CornerRadius="16" Background="{DynamicResource Glass}"
+                                        BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="20,16" Margin="0,12,0,0">
                                     <StackPanel>
-                                        <TextBlock Text="链接" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
+                                        <TextBlock Text="链接" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
                                         <TextBlock Text="项目主页、国内镜像、宣传站和打赏入口都在这里" FontSize="11"
-                                                   Foreground="{StaticResource InkFaint}" Margin="0,6,0,0"/>
+                                                   Foreground="{DynamicResource InkFaint}" Margin="0,6,0,0"/>
                                         <WrapPanel Margin="0,12,0,0">
                                             <Button Content="GitHub 项目 ↗" Style="{StaticResource GlassButton}" Padding="14,7"
                                                     FontSize="11.5" Margin="0,0,8,8" Click="OnOpenGitHub"/>
@@ -1650,16 +1668,16 @@
                                                     FontSize="11.5" Margin="0,0,8,8" Click="OnOpenAfdian"
                                                     Foreground="#C9A6FF"/>
                                         </WrapPanel>
-                                        <TextBlock Text="关于与更新" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
+                                        <TextBlock Text="关于与更新" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
                                         <TextBlock x:Name="VersionText" Text="当前版本 v0.5.1" FontSize="11.5"
-                                                   Foreground="{StaticResource InkDim}" Margin="0,6,0,10"/>
+                                                   Foreground="{DynamicResource InkDim}" Margin="0,6,0,10"/>
                                         <StackPanel Orientation="Horizontal">
                                             <Button Content="检查更新" Style="{StaticResource GlassButton}" Click="OnCheckUpdates"/>
                                             <Button Content="查看更新日志" Style="{StaticResource GlassButton}" Margin="8,0,0,0"
                                                     Click="OnOpenUpdatesPage"/>
                                         </StackPanel>
                                         <TextBlock x:Name="UpdateStatus" Text="" FontSize="11" Margin="0,8,0,0"
-                                                   Foreground="{StaticResource InkFaint}" TextWrapping="Wrap"/>
+                                                   Foreground="{DynamicResource InkFaint}" TextWrapping="Wrap"/>
                                         <Button Content="别人打不开？Windows 把它拦了怎么办"
                                                 Style="{StaticResource GlassButton}" HorizontalAlignment="Left"
                                                 Padding="12,4" FontSize="10.5" Margin="0,10,0,0"
@@ -1671,11 +1689,11 @@
                                     <Button Content="保存设置" Style="{StaticResource HeroButton}" Click="OnSaveSettings"
                                             Padding="22,0" Height="40"/>
                                     <TextBlock x:Name="SaveStatus" Margin="14,0,0,0" VerticalAlignment="Center"
-                                               Foreground="{StaticResource InkDim}" FontSize="11.5"/>
+                                               Foreground="{DynamicResource InkDim}" FontSize="11.5"/>
                                 </StackPanel>
 
-                                <Border CornerRadius="16" Background="{StaticResource Glass}"
-                                        BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="22,18"
+                                <Border CornerRadius="16" Background="{DynamicResource Glass}"
+                                        BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="22,18"
                                         Margin="0,12,0,0">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
@@ -1684,7 +1702,7 @@
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
 
-                                        <Border Width="78" Height="78" CornerRadius="39" Background="{StaticResource AccentGrad}"
+                                        <Border Width="78" Height="78" CornerRadius="39" Background="{DynamicResource AccentGrad}"
                                                 VerticalAlignment="Center">
                                             <Border.Effect>
                                                 <DropShadowEffect Color="#5B8CFF" BlurRadius="22" ShadowDepth="0" Opacity="0.45"/>
@@ -1702,10 +1720,10 @@
                                         <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
                                             <TextBlock Text="FOR STONEFISH8" FontSize="21" FontWeight="Bold"
                                                        FontFamily="{StaticResource FontHead}"
-                                                       Foreground="{StaticResource TitleGrad}"/>
-                                            <TextBlock Text="石余制作" FontSize="13" Foreground="{StaticResource InkDim}"
+                                                       Foreground="{DynamicResource TitleGrad}"/>
+                                            <TextBlock Text="石余制作" FontSize="13" Foreground="{DynamicResource InkDim}"
                                                        Margin="0,7,0,0"/>
-                                            <TextBlock Text="MAKE WITH LOVE" FontSize="10" Foreground="{StaticResource InkFaint}"
+                                            <TextBlock Text="MAKE WITH LOVE" FontSize="10" Foreground="{DynamicResource InkFaint}"
                                                        Margin="0,12,0,0"/>
                                         </StackPanel>
 
@@ -1720,7 +1738,7 @@
                         </ScrollViewer>
                         <Border Grid.Row="1" Width="366" HorizontalAlignment="Right" VerticalAlignment="Stretch"
                                 Margin="0,0,24,14" CornerRadius="18" Background="#0AFFFFFF"
-                                BorderBrush="{StaticResource GlassLine}" BorderThickness="1" ClipToBounds="True">
+                                BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" ClipToBounds="True">
                             <Grid Background="Transparent" Cursor="Hand"
                                   MouseLeftButtonDown="OnSettingsSceneClick"
                                   ToolTip="点一下换个角色：僵尸 / 猪灵 / 蜘蛛 / 苦力怕">
@@ -1728,9 +1746,9 @@
                                 <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,18"
                                             IsHitTestVisible="False">
                                     <TextBlock x:Name="SettingsMobText" Text="僵尸" FontSize="13.5"
-                                               Foreground="{StaticResource Ink}" HorizontalAlignment="Center"/>
+                                               Foreground="{DynamicResource Ink}" HorizontalAlignment="Center"/>
                                     <TextBlock x:Name="SettingsMobHint" Text="" FontSize="10.5"
-                                               Foreground="{StaticResource InkFaint}" HorizontalAlignment="Center"
+                                               Foreground="{DynamicResource InkFaint}" HorizontalAlignment="Center"
                                                Margin="0,4,0,0"/>
                                     <TextBlock Text="点一下换角色" FontSize="9.5" Foreground="#5F6E8A"
                                                HorizontalAlignment="Center" Margin="0,8,0,0"/>
@@ -1747,12 +1765,12 @@
 
                         <StackPanel Grid.Row="0" Margin="26,6,0,14">
                             <Grid>
-                                <TextBlock Text="更新日志" FontSize="32" FontFamily="{StaticResource FontHead}" Foreground="{StaticResource TitleGrad}"/>
+                                <TextBlock Text="更新日志" FontSize="32" FontFamily="{StaticResource FontHead}" Foreground="{DynamicResource TitleGrad}"/>
                                 <Button Content="← 返回设置" HorizontalAlignment="Right" VerticalAlignment="Center"
                                         Style="{StaticResource GlassButton}" Click="OnBackToSettings"/>
                             </Grid>
                             <TextBlock x:Name="UpdateSubtitle" Text="每次发版，预览图会跟着版本一起进来"
-                                       FontSize="12.5" Foreground="{StaticResource InkDim}" Margin="0,6,0,0"/>
+                                       FontSize="12.5" Foreground="{DynamicResource InkDim}" Margin="0,6,0,0"/>
                         </StackPanel>
 
                         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="26,0,400,0">
@@ -1769,13 +1787,13 @@
 
                         <StackPanel Grid.Row="0" Margin="26,6,0,14">
                             <TextBlock Text="创作" FontSize="32" FontFamily="{StaticResource FontHead}"
-                                       Foreground="{StaticResource TitleGrad}"/>
+                                       Foreground="{DynamicResource TitleGrad}"/>
                             <Grid Margin="0,10,0,0">
                                 <TextBlock Text="把某个版本打包成整合包：自选要带上的内容，元数据会写进 README 和 meme-modpack.json"
-                                       FontSize="11.5" Foreground="{StaticResource InkFaint}"
+                                       FontSize="11.5" Foreground="{DynamicResource InkFaint}"
                                        VerticalAlignment="Center"/>
                                 <TextBlock x:Name="CreationStatus" HorizontalAlignment="Right" VerticalAlignment="Center"
-                                           FontSize="11.5" Foreground="{StaticResource InkFaint}"
+                                           FontSize="11.5" Foreground="{DynamicResource InkFaint}"
                                            TextTrimming="CharacterEllipsis" MaxWidth="520"/>
                             </Grid>
                         </StackPanel>
@@ -1785,12 +1803,12 @@
                             <ScrollViewer x:Name="CreatePackPanel" VerticalScrollBarVisibility="Auto"
                                           HorizontalScrollBarVisibility="Disabled">
                                 <StackPanel Margin="0,0,20,26">
-                                    <Border CornerRadius="16" Background="{StaticResource Glass}"
-                                            BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16">
+                                    <Border CornerRadius="16" Background="{DynamicResource Glass}"
+                                            BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="20,16">
                                         <StackPanel>
-                                            <TextBlock Text="基本信息" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
+                                            <TextBlock Text="基本信息" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
                                             <TextBlock Text="装在哪个版本上（决定从哪个目录打包）" FontSize="11"
-                                                       Foreground="{StaticResource InkFaint}" Margin="0,10,0,0"/>
+                                                       Foreground="{DynamicResource InkFaint}" Margin="0,10,0,0"/>
                                             <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
                                                 <ComboBox x:Name="PackVersionCombo" Width="330"
                                                           SelectionChanged="OnPackVersionChanged">
@@ -1811,28 +1829,28 @@
                                                     <ColumnDefinition Width="1*"/>
                                                 </Grid.ColumnDefinitions>
                                                 <StackPanel Grid.Column="0">
-                                                    <TextBlock Text="整合包名字" FontSize="11" Foreground="{StaticResource InkFaint}"/>
+                                                    <TextBlock Text="整合包名字" FontSize="11" Foreground="{DynamicResource InkFaint}"/>
                                                     <TextBox x:Name="PackNameBox" Margin="0,6,0,0"/>
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="2">
-                                                    <TextBlock Text="版本号" FontSize="11" Foreground="{StaticResource InkFaint}"/>
+                                                    <TextBlock Text="版本号" FontSize="11" Foreground="{DynamicResource InkFaint}"/>
                                                     <TextBox x:Name="PackVersionBox" Margin="0,6,0,0" Text="1.0.0"/>
                                                 </StackPanel>
                                             </Grid>
 
                                             <TextBlock Text="简介（会写进 README 和 meme-modpack.json）" FontSize="11"
-                                                       Foreground="{StaticResource InkFaint}" Margin="0,12,0,0"/>
+                                                       Foreground="{DynamicResource InkFaint}" Margin="0,12,0,0"/>
                                             <TextBox x:Name="PackDescBox" Margin="0,6,0,0" Height="70"
                                                      AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
                                         </StackPanel>
                                     </Border>
 
-                                    <Border CornerRadius="16" Background="{StaticResource Glass}"
-                                            BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="20,16" Margin="0,12,0,0">
+                                    <Border CornerRadius="16" Background="{DynamicResource Glass}"
+                                            BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="20,16" Margin="0,12,0,0">
                                         <StackPanel>
                                             <Grid>
                                                 <TextBlock Text="打包哪些内容" FontSize="14" FontWeight="SemiBold"
-                                                           Foreground="{StaticResource Ink}" VerticalAlignment="Center"/>
+                                                           Foreground="{DynamicResource Ink}" VerticalAlignment="Center"/>
                                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                                                     <Button Content="全选" Style="{StaticResource GlassButton}" Padding="12,4"
                                                             FontSize="10.5" Click="OnPackSelectAll"/>
@@ -1843,7 +1861,7 @@
                                                 </StackPanel>
                                             </Grid>
                                             <TextBlock x:Name="PackHint" Text="加载版本中…" FontSize="11"
-                                                       Foreground="{StaticResource InkFaint}" Margin="0,8,0,4"/>
+                                                       Foreground="{DynamicResource InkFaint}" Margin="0,8,0,4"/>
                                             <ListBox x:Name="PackCandidateList" Background="Transparent" BorderThickness="0"
                                                      HorizontalContentAlignment="Stretch"
                                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled" MaxHeight="360">
@@ -1864,12 +1882,12 @@
                                                                 <CheckBox Grid.Column="0" IsChecked="{Binding IsChecked, Mode=TwoWay}"
                                                                           VerticalAlignment="Center"/>
                                                                 <StackPanel Grid.Column="1" Margin="12,0,0,0">
-                                                                    <TextBlock Text="{Binding Name}" FontSize="12.5" Foreground="{StaticResource Ink}"/>
+                                                                    <TextBlock Text="{Binding Name}" FontSize="12.5" Foreground="{DynamicResource Ink}"/>
                                                                     <TextBlock Text="{Binding Hint}" FontSize="10.5"
-                                                                               Foreground="{StaticResource InkFaint}" Margin="0,2,0,0"/>
+                                                                               Foreground="{DynamicResource InkFaint}" Margin="0,2,0,0"/>
                                                                 </StackPanel>
                                                                 <TextBlock Grid.Column="2" Text="{Binding Detail}" FontSize="10.5"
-                                                                           Foreground="{StaticResource InkDim}" VerticalAlignment="Center"/>
+                                                                           Foreground="{DynamicResource InkDim}" VerticalAlignment="Center"/>
                                                             </Grid>
                                                         </Border>
                                                     </DataTemplate>
@@ -1882,7 +1900,7 @@
                                         <Button Content="导出整合包 zip" Style="{StaticResource HeroButton}" Height="40"
                                                 Padding="24,0" Click="OnPackExport"/>
                                         <TextBlock x:Name="PackResult" Margin="14,0,0,0" VerticalAlignment="Center"
-                                                   FontSize="11.5" Foreground="{StaticResource InkDim}"/>
+                                                   FontSize="11.5" Foreground="{DynamicResource InkDim}"/>
                                     </StackPanel>
                                 </StackPanel>
                             </ScrollViewer>
@@ -1899,7 +1917,7 @@
 
                         <StackPanel Grid.Row="0" Margin="26,6,0,14">
                             <TextBlock Text="娱乐" FontSize="32" FontFamily="{StaticResource FontHead}"
-                                       Foreground="{StaticResource TitleGrad}"/>
+                                       Foreground="{DynamicResource TitleGrad}"/>
                             <Grid Margin="0,10,0,0">
                                 <StackPanel Orientation="Horizontal">
                                     <Button x:Name="FunTabBili" Content="哔哩哔哩" Style="{StaticResource HeroButton}"
@@ -1908,7 +1926,7 @@
                                             Height="34" Width="104" Padding="0" Margin="10,0,0,0" Click="OnFunTab"/>
                                 </StackPanel>
                                 <TextBlock x:Name="FunStatus" HorizontalAlignment="Right" VerticalAlignment="Center"
-                                           FontSize="11.5" Foreground="{StaticResource InkFaint}"
+                                           FontSize="11.5" Foreground="{DynamicResource InkFaint}"
                                            TextTrimming="CharacterEllipsis" MaxWidth="430"/>
                             </Grid>
                         </StackPanel>
@@ -1942,15 +1960,15 @@
                                             Padding="10,0" FontSize="11" Margin="4,0,0,0" Click="OnBiliZoomFit"
                                             ToolTip="让整页宽度铺满窗口"/>
                                     <TextBlock x:Name="BiliZoomText" Text="100%" FontSize="10.5"
-                                               Foreground="{StaticResource InkFaint}" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource InkFaint}" VerticalAlignment="Center"
                                                Margin="8,0,0,0"/>
-                                    <TextBlock x:Name="BiliUrl" FontSize="10.5" Foreground="{StaticResource InkFaint}"
+                                    <TextBlock x:Name="BiliUrl" FontSize="10.5" Foreground="{DynamicResource InkFaint}"
                                                VerticalAlignment="Center" Margin="14,0,0,0"
                                                TextTrimming="CharacterEllipsis" MaxWidth="420"/>
                                 </StackPanel>
 
                                 <Border Grid.Row="1" CornerRadius="14" Background="#FF0B0E13"
-                                        BorderBrush="{StaticResource GlassLine}" BorderThickness="1" ClipToBounds="True"
+                                        BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" ClipToBounds="True"
                                         SizeChanged="OnBiliSizeChanged">
                                     <Grid>
                                         <wv2:WebView2 x:Name="BiliWeb" DefaultBackgroundColor="#FF0B0E13"/>
@@ -1959,7 +1977,7 @@
 
                                 <TextBlock Grid.Row="2" x:Name="BiliHint"
                                            Text="第一次进来自动加载 B 站，登录一下就能看番；播放器声音走系统音量"
-                                           FontSize="10.5" Foreground="{StaticResource InkFaint}" Margin="2,6,0,12"
+                                           FontSize="10.5" Foreground="{DynamicResource InkFaint}" Margin="2,6,0,12"
                                            TextWrapping="Wrap"/>
                             </Grid>
 
@@ -1970,8 +1988,8 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
 
-                                <Border Grid.Column="0" CornerRadius="16" Background="{StaticResource Glass}"
-                                        BorderBrush="{StaticResource GlassLine}" BorderThickness="1" Padding="14,12">
+                                <Border Grid.Column="0" CornerRadius="16" Background="{DynamicResource Glass}"
+                                        BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="14,12">
                                     <Grid>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto"/>
@@ -1988,13 +2006,13 @@
                                                         Click="OnMusicAddFolder"/>
                                             </StackPanel>
                                             <TextBlock x:Name="PlaylistHint" Text="也可以把音乐文件直接拖进列表"
-                                                       FontSize="10.5" Foreground="{StaticResource InkFaint}"
+                                                       FontSize="10.5" Foreground="{DynamicResource InkFaint}"
                                                        Margin="0,8,0,0" TextWrapping="Wrap"/>
                                         </StackPanel>
 
                                         <ListBox x:Name="SongList" Grid.Row="1" Margin="0,10,0,0"
                                                  Background="Transparent" BorderThickness="0"
-                                                 Foreground="{StaticResource Ink}"
+                                                 Foreground="{DynamicResource Ink}"
                                                  ItemContainerStyle="{StaticResource TrackItem}"
                                                  SelectionChanged="OnSongSelected"
                                                  AllowDrop="True" Drop="OnSongDrop" DragOver="OnSongDragOver"
@@ -2005,7 +2023,7 @@
                                                         <TextBlock Text="{Binding Title}" FontSize="12"
                                                                    TextTrimming="CharacterEllipsis"/>
                                                         <TextBlock Text="{Binding Sub}" FontSize="10"
-                                                                   Foreground="{StaticResource InkFaint}"
+                                                                   Foreground="{DynamicResource InkFaint}"
                                                                    TextTrimming="CharacterEllipsis"/>
                                                     </StackPanel>
                                                 </DataTemplate>
@@ -2016,14 +2034,14 @@
                                             <Button Content="清空列表" Style="{StaticResource GlassButton}"
                                                     Padding="10,4" FontSize="10.5" Click="OnMusicClear"/>
                                             <TextBlock x:Name="SongCountText" Text="0 首" FontSize="10.5"
-                                                       Foreground="{StaticResource InkFaint}" Margin="10,0,0,0"
+                                                       Foreground="{DynamicResource InkFaint}" Margin="10,0,0,0"
                                                        VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </Grid>
                                 </Border>
 
                                 <Border Grid.Column="1" Margin="14,0,0,0" CornerRadius="16"
-                                        Background="{StaticResource Glass}" BorderBrush="{StaticResource GlassLine}"
+                                        Background="{DynamicResource Glass}" BorderBrush="{DynamicResource GlassLine}"
                                         BorderThickness="1" Padding="20,14">
                                     <Grid>
                                         <Grid.RowDefinitions>
@@ -2034,10 +2052,10 @@
 
                                         <StackPanel Grid.Row="0">
                                             <TextBlock x:Name="NowTitle" Text="还没有选歌" FontSize="18" FontWeight="SemiBold"
-                                                       Foreground="{StaticResource Ink}" TextTrimming="CharacterEllipsis"/>
+                                                       Foreground="{DynamicResource Ink}" TextTrimming="CharacterEllipsis"/>
                                             <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
                                                 <TextBlock x:Name="NowArtist" Text="左边挑一首，或者把音乐拖进来"
-                                                           FontSize="11" Foreground="{StaticResource InkFaint}"
+                                                           FontSize="11" Foreground="{DynamicResource InkFaint}"
                                                            TextTrimming="CharacterEllipsis" MaxWidth="420"/>
                                                 <TextBlock x:Name="LyricSource" Text="" FontSize="10"
                                                            Foreground="#FF7FA6FF" Margin="10,1,0,0"
@@ -2060,9 +2078,9 @@
                                                     Thumb.DragCompleted="OnSeekDragEnd"/>
                                             <Grid Margin="2,2,2,0">
                                                 <TextBlock x:Name="TimeNow" Text="0:00" FontSize="10.5"
-                                                           Foreground="{StaticResource InkFaint}"/>
+                                                           Foreground="{DynamicResource InkFaint}"/>
                                                 <TextBlock x:Name="TimeTotal" Text="0:00" FontSize="10.5"
-                                                           Foreground="{StaticResource InkFaint}" HorizontalAlignment="Right"/>
+                                                           Foreground="{DynamicResource InkFaint}" HorizontalAlignment="Right"/>
                                             </Grid>
 
                                             <Grid Margin="0,8,0,0">
@@ -2081,7 +2099,7 @@
                                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
                                                             VerticalAlignment="Center">
                                                     <TextBlock Text="音量" FontSize="10.5"
-                                                               Foreground="{StaticResource InkFaint}"
+                                                               Foreground="{DynamicResource InkFaint}"
                                                                VerticalAlignment="Center"/>
                                                     <Slider x:Name="VolumeBar" Style="{StaticResource TrackSlider}"
                                                             Width="86" Margin="8,0,0,0" Minimum="0" Maximum="100"
@@ -2089,7 +2107,7 @@
                                                             ValueChanged="OnVolumeChanged"/>
                                                     <TextBlock x:Name="VolText" Text="70%" FontSize="10.5" Width="34"
                                                                Margin="8,0,0,0" TextAlignment="Right"
-                                                               Foreground="{StaticResource InkFaint}"/>
+                                                               Foreground="{DynamicResource InkFaint}"/>
                                                 </StackPanel>
                                             </Grid>
                                         </StackPanel>
@@ -2104,7 +2122,7 @@
             <!-- 状态栏 -->
             <Grid Grid.Row="2" Margin="88,6,26,12">
                 <TextBlock x:Name="StatusText" Text="就绪" FontSize="11.5"
-                           Foreground="{StaticResource InkFaint}" TextTrimming="CharacterEllipsis"/>
+                           Foreground="{DynamicResource InkFaint}" TextTrimming="CharacterEllipsis"/>
             </Grid>
         </Grid>
 
@@ -2118,9 +2136,9 @@
                            VerticalAlignment="Center" Margin="0,0,10,0"/>
                 <StackPanel>
                     <TextBlock x:Name="ToastTitle" Text="" FontSize="12.5" FontWeight="SemiBold"
-                               Foreground="{StaticResource Ink}" TextWrapping="Wrap"/>
+                               Foreground="{DynamicResource Ink}" TextWrapping="Wrap"/>
                     <TextBlock x:Name="ToastDetail" Text="" FontSize="11" Margin="0,3,0,0"
-                               Foreground="{StaticResource InkFaint}" TextWrapping="Wrap"/>
+                               Foreground="{DynamicResource InkFaint}" TextWrapping="Wrap"/>
                 </StackPanel>
             </StackPanel>
         </Border>
@@ -2128,7 +2146,7 @@
         <!-- 启动动画 -->
         <Grid x:Name="SplashOverlay" Background="#FF070A12">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                <Border Width="92" Height="92" CornerRadius="26" Background="{StaticResource AccentGrad}"
+                <Border Width="92" Height="92" CornerRadius="26" Background="{DynamicResource AccentGrad}"
                         HorizontalAlignment="Center">
                     <Border.Effect>
                         <DropShadowEffect Color="#5B8CFF" BlurRadius="48" ShadowDepth="0" Opacity="0.75"/>
@@ -2137,9 +2155,9 @@
                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
                 <TextBlock Text="MEME LAUNCHER" FontFamily="{StaticResource FontHead}" FontSize="19"
-                           Foreground="{StaticResource Ink}" HorizontalAlignment="Center" Margin="0,22,0,0"/>
+                           Foreground="{DynamicResource Ink}" HorizontalAlignment="Center" Margin="0,22,0,0"/>
                 <TextBlock x:Name="SplashStatus" Text="正在准备…" FontSize="11.5"
-                           Foreground="{StaticResource InkFaint}" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                           Foreground="{DynamicResource InkFaint}" HorizontalAlignment="Center" Margin="0,8,0,0"/>
             </StackPanel>
         </Grid>
     </Grid>

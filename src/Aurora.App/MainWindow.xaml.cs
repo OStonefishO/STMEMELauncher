@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.32";
+    private const string AppVersion = "0.15.33";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -52,6 +52,17 @@ public partial class MainWindow : Window
         Height = Math.Min(760, area.Height - 48);
 
         _settings = ConfigStore.Load();
+
+        // 调试用：--ui classic / vivid 强制指定布局（截图用）
+        var uiFlag = Array.IndexOf(Environment.GetCommandLineArgs(), "--ui");
+        if (uiFlag >= 0 && uiFlag + 1 < Environment.GetCommandLineArgs().Length)
+        {
+            _settings.UiLayout = Environment.GetCommandLineArgs()[uiFlag + 1];
+        }
+
+        // 界面布局（新版 / 经典）：构造后立刻套用一次
+        ApplyUiLayout(_settings.UiLayout);
+        PreviewKeyDown += OnWindowKeyDown;
         _service = new LauncherService(_settings);
 
         _service.MigrateAccounts();
@@ -244,8 +255,11 @@ public partial class MainWindow : Window
         }
     }
 
+    private int _currentPage;
+
     private void SetPage(int index)
     {
+        _currentPage = index;
         LaunchPage.Visibility = index == 0 ? Visibility.Visible : Visibility.Collapsed;
         InstallPage.Visibility = index == 1 ? Visibility.Visible : Visibility.Collapsed;
         ContentPage.Visibility = index == 2 ? Visibility.Visible : Visibility.Collapsed;
@@ -259,13 +273,13 @@ public partial class MainWindow : Window
 
         var active = (Brush)FindResource("TextMain");
         var inactive = (Brush)FindResource("TextDim");
-        NavLaunch.Foreground = index == 0 ? active : inactive;
-        NavContent.Foreground = index is 1 or 2 ? active : inactive;
-        NavOnline.Foreground = index == 6 ? active : inactive;
-        NavVersions.Foreground = index == 7 ? active : inactive;
-        NavAccount.Foreground = index == 3 ? active : inactive;
-        NavFun.Foreground = index == 8 ? active : inactive;
-        NavCreation.Foreground = index == 9 ? active : inactive;
+        MarkNav(NavLaunch, index == 0, active, inactive);
+        MarkNav(NavContent, index is 1 or 2, active, inactive);
+        MarkNav(NavOnline, index == 6, active, inactive);
+        MarkNav(NavVersions, index == 7, active, inactive);
+        MarkNav(NavAccount, index == 3, active, inactive);
+        MarkNav(NavFun, index == 8, active, inactive);
+        MarkNav(NavCreation, index == 9, active, inactive);
         if (index == 4)
         {
             InitSettingsScene();
@@ -285,7 +299,24 @@ public partial class MainWindow : Window
                 }
             }), System.Windows.Threading.DispatcherPriority.Background);
         }
-        NavSettings.Foreground = index is 4 or 5 ? active : inactive;
+        MarkNav(NavSettings, index is 4 or 5, active, inactive);
+
+        // 换页动画（仅新版布局）：淡入 + 轻微左滑
+        FrameworkElement? target = index switch
+        {
+            0 => LaunchPage,
+            1 => InstallPage,
+            2 => ContentPage,
+            3 => AccountPage,
+            4 => SettingsPage,
+            5 => UpdatesPage,
+            6 => OnlinePage,
+            7 => VersionsPage,
+            8 => FunPage,
+            9 => CreationPage,
+            _ => null,
+        };
+        AnimatePageIn(target);
 
         if (index == 1 && _mcVersions.Count == 0)
         {
@@ -5426,6 +5457,170 @@ public partial class MainWindow : Window
         }
     }
 
+    // ---------------- 界面布局（新版 / 经典） ----------------
+
+    private bool _vivid;
+    private bool _fullscreen;
+    private Rect _fullscreenRestore = Rect.Empty;
+    private WindowState _fullscreenRestoreState = WindowState.Normal;
+
+    /// <summary>真正用代码换主题：新版大胆配色 + 动感过渡，经典回到原来的冷蓝。</summary>
+    private void ApplyUiLayout(string layout)
+    {
+        _vivid = !string.Equals(layout, "classic", StringComparison.OrdinalIgnoreCase);
+
+        var res = Application.Current.Resources;
+        void Set(string key, Color from, Color to, Color? mid = null)
+            => res[key] = MakeGradient(from, to, mid);
+
+        if (_vivid)
+        {
+            Set("AppBg", Color.FromRgb(0x07, 0x03, 0x10), Color.FromRgb(0x04, 0x06, 0x0C), Color.FromRgb(0x1A, 0x08, 0x33));
+            Set("AccentGrad", Color.FromRgb(0xFF, 0x3D, 0x8B), Color.FromRgb(0x00, 0xE5, 0xFF), Color.FromRgb(0x7A, 0x3C, 0xFF));
+            Set("TitleGrad", Colors.White, Color.FromRgb(0x00, 0xE5, 0xFF), Color.FromRgb(0xFF, 0x7A, 0xC8));
+            res["Glass"] = Frozen(Color.FromArgb(0xD8, 0x14, 0x0A, 0x24));
+            res["GlassLine"] = Frozen(Color.FromArgb(0x3C, 0xFF, 0x5C, 0xC8));
+            res["Ink"] = Frozen(Color.FromRgb(0xF4, 0xF6, 0xFF));
+            res["InkDim"] = Frozen(Color.FromRgb(0xAB, 0xAE, 0xCB));
+            res["InkFaint"] = Frozen(Color.FromRgb(0x74, 0x77, 0x96));
+        }
+        else
+        {
+            Set("AppBg", Color.FromRgb(0x05, 0x07, 0x0D), Color.FromRgb(0x07, 0x0A, 0x12), Color.FromRgb(0x0A, 0x10, 0x20));
+            Set("AccentGrad", Color.FromRgb(0x5B, 0x8C, 0xFF), Color.FromRgb(0x22, 0xD3, 0xEE), Color.FromRgb(0x7C, 0x5C, 0xFF));
+            Set("TitleGrad", Colors.White, Color.FromRgb(0x7C, 0x5C, 0xFF), Color.FromRgb(0xB9, 0xC8, 0xFF));
+            res["Glass"] = Frozen(Color.FromArgb(0xB3, 0x12, 0x16, 0x20));
+            res["GlassLine"] = Frozen(Color.FromArgb(0x26, 0xFF, 0xFF, 0xFF));
+            res["Ink"] = Frozen(Color.FromRgb(0xE6, 0xEA, 0xF2));
+            res["InkDim"] = Frozen(Color.FromRgb(0x99, 0xA2, 0xB5));
+            res["InkFaint"] = Frozen(Color.FromRgb(0x6D, 0x75, 0x88));
+        }
+
+        // 同步下拉框选中项
+        if (UiLayoutCombo != null)
+        {
+            UiLayoutCombo.SelectedIndex = _vivid ? 0 : 1;
+        }
+
+        // 让当前页重新高亮一次（胶囊只在 vivid 下出现）
+        SetPage(_currentPage);
+    }
+
+    private static SolidColorBrush Frozen(Color color)
+    {
+        var brush = new SolidColorBrush(color);
+        brush.Freeze();
+        return brush;
+    }
+
+    private static LinearGradientBrush MakeGradient(Color from, Color to, Color? mid)
+    {
+        var brush = new LinearGradientBrush
+        {
+            StartPoint = new Point(0, 0),
+            EndPoint = new Point(1, 1),
+        };
+        brush.GradientStops.Add(new GradientStop(from, 0));
+        if (mid.HasValue)
+        {
+            brush.GradientStops.Add(new GradientStop(mid.Value, 0.55));
+        }
+
+        brush.GradientStops.Add(new GradientStop(to, 1));
+        brush.Freeze();
+        return brush;
+    }
+
+    private void OnUiLayoutChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!IsLoaded || UiLayoutCombo?.SelectedItem is not ComboBoxItem item)
+        {
+            return;
+        }
+
+        var layout = item.Tag as string ?? "vivid";
+        _settings.UiLayout = layout;
+        ApplyUiLayout(layout);
+        ConfigStore.Save(_settings);
+        ShowToast("界面布局", _vivid ? "新版：动感配色 + 过渡动画" : "经典：回到旧版冷蓝", "✦", 2000);
+    }
+
+    /// <summary>新版布局下给当前页做一次滑入 + 淡入，换页更有动感。</summary>
+    private void AnimatePageIn(FrameworkElement page)
+    {
+        if (!_vivid || page == null)
+        {
+            return;
+        }
+
+        var offset = new TranslateTransform(-18, 0);
+        page.RenderTransform = offset;
+        page.Opacity = 0;
+
+        var fade = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(220))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+        };
+        var slide = new DoubleAnimation(-18, 0, TimeSpan.FromMilliseconds(260))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+        };
+
+        page.BeginAnimation(UIElement.OpacityProperty, fade);
+        offset.BeginAnimation(TranslateTransform.XProperty, slide);
+    }
+
+    /// <summary>导航高亮：新版是一枚渐变胶囊，经典是纯文字变色。</summary>
+    private void MarkNav(Button button, bool active, Brush activeBrush, Brush inactiveBrush)
+    {
+        button.Foreground = active ? activeBrush : inactiveBrush;
+        button.Background = active && _vivid
+            ? (Brush)FindResource("AccentGrad")
+            : Brushes.Transparent;
+    }
+
+    // ---------------- 窗口化全屏 ----------------
+
+    private void OnToggleFullscreen(object sender, RoutedEventArgs e) => ToggleFullscreen();
+
+    private void ToggleFullscreen()
+    {
+        if (!_fullscreen)
+        {
+            _fullscreenRestoreState = WindowState;
+            _fullscreenRestore = WindowState == WindowState.Normal
+                ? new Rect(Left, Top, Width, Height)
+                : Rect.Empty;
+
+            WindowState = WindowState.Normal;
+            WindowState = WindowState.Maximized;
+            _fullscreen = true;
+            ShowToast("窗口化全屏", "再点一次或按 F11 退出", "⛶", 1800);
+        }
+        else
+        {
+            WindowState = WindowState.Normal;
+            if (_fullscreenRestore != Rect.Empty)
+            {
+                Left = _fullscreenRestore.Left;
+                Top = _fullscreenRestore.Top;
+                Width = _fullscreenRestore.Width;
+                Height = _fullscreenRestore.Height;
+            }
+
+            WindowState = _fullscreenRestoreState;
+            _fullscreen = false;
+        }
+    }
+
+    private void OnWindowKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.F11)
+        {
+            ToggleFullscreen();
+            e.Handled = true;
+        }
+    }
     private void OnMinimize(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
 
     private void OnCloseWindow(object sender, RoutedEventArgs e)
