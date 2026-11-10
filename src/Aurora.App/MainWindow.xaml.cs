@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.31";
+    private const string AppVersion = "0.15.32";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -2843,6 +2843,7 @@ public partial class MainWindow : Window
     /// <summary>把「前置模组」放在最上面：按当前 MC 版本挑一个最合适的版本，列它需要的依赖。</summary>
     private async Task AddDependenciesAsync(ContentItem item, List<ContentVersion> versions)
     {
+        var token = ++_depsToken;
         var currentMc = EffectiveVersion();
         var currentLoader = EffectiveLoader();
 
@@ -2872,6 +2873,7 @@ public partial class MainWindow : Window
 
         var card = new Border
         {
+            Tag = "deps",
             CornerRadius = new CornerRadius(12),
             Background = new SolidColorBrush(Color.FromArgb(0x1A, 0xFF, 0xB4, 0x4A)),
             Padding = new Thickness(14, 12, 14, 12),
@@ -2961,11 +2963,27 @@ public partial class MainWindow : Window
             };
         }
 
+        if (token != _depsToken)
+        {
+            return;
+        }
+
+        // 双保险：先摘掉可能已经存在的旧卡片，再插新的
+        foreach (var old in DetailBody.Children.OfType<Border>()
+                     .Where(b => string.Equals(b.Tag as string, "deps", StringComparison.Ordinal))
+                     .ToList())
+        {
+            DetailBody.Children.Remove(old);
+        }
+
         card.Child = panel;
         DetailBody.Children.Insert(0, card);
     }
 
     private int expanderCount;
+
+    /// <summary>每次画详情页 / 切加载器都自增；旧的「前置模组」任务回来后自己作废，避免叠两张卡。</summary>
+    private int _depsToken;
     private readonly Stack<ContentItem> _detailStack = new();
     private List<ContentVersion> _detailVersions = new();
     private string _detailLoader = string.Empty;
