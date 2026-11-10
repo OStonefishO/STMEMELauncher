@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.26";
+    private const string AppVersion = "0.15.27";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -108,6 +108,14 @@ public partial class MainWindow : Window
                 _ = Task.Delay(600).ContinueWith(_ => Dispatcher.BeginInvoke(() => ScrollSettingsToBottom()));
             }
 
+            // 调试用：--settings-mob 0..3 指定设置页角色（截图用）
+            var mobFlag = Array.IndexOf(argv, "--settings-mob");
+            if (mobFlag >= 0 && mobFlag + 1 < argv.Length && int.TryParse(argv[mobFlag + 1], out var mobIndex))
+            {
+                _settingsMob = (SettingsMob)Math.Clamp(mobIndex, 0, 3);
+                InitSettingsScene();
+                ApplySettingsMob();
+            }
             // 调试用：--msa-diag 直接打开微软登录诊断窗口（截图用）
             if (argv.Contains("--msa-diag"))
             {
@@ -258,6 +266,11 @@ public partial class MainWindow : Window
         NavAccount.Foreground = index == 3 ? active : inactive;
         NavFun.Foreground = index == 8 ? active : inactive;
         NavCreation.Foreground = index == 9 ? active : inactive;
+        if (index == 4)
+        {
+            InitSettingsScene();
+        }
+
         if (index == 9)
         {
             InitCreation();
@@ -4441,6 +4454,45 @@ public partial class MainWindow : Window
         }
     }
 
+    private SettingsMob _settingsMob;
+    private bool _settingsSceneReady;
+
+    /// <summary>设置页右侧的小舞台：底座 + 方块生物，慢转。</summary>
+    private void InitSettingsScene()
+    {
+        if (_settingsSceneReady || SettingsViewport == null)
+        {
+            return;
+        }
+
+        _settingsSceneReady = true;
+        SettingsViewport.Camera = SettingsScene.Camera();
+        ApplySettingsMob();
+    }
+
+    private void ApplySettingsMob()
+    {
+        try
+        {
+            SettingsViewport.Children.Clear();
+            SettingsViewport.Children.Add(new ModelVisual3D { Content = SettingsScene.Lights() });
+            SettingsViewport.Children.Add(SettingsScene.Build(_settingsMob));
+
+            SettingsMobText.Text = SettingsScene.Name(_settingsMob);
+            SettingsMobHint.Text = SettingsScene.Hint(_settingsMob);
+        }
+        catch (Exception ex)
+        {
+            SetStatus("3D 小场景初始化失败: " + ex.Message);
+        }
+    }
+
+    private void OnSettingsSceneClick(object sender, MouseButtonEventArgs e)
+    {
+        _settingsMob = SettingsScene.Next(_settingsMob);
+        ApplySettingsMob();
+        ShowToast(SettingsScene.Name(_settingsMob), SettingsScene.Hint(_settingsMob), "✦", 2200);
+    }
     private void OnOpenAccounts(object sender, RoutedEventArgs e) => SetPage(3);
 
     private void RefreshAccounts()
