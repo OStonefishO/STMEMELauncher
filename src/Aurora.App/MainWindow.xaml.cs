@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.13";
+    private const string AppVersion = "0.15.14";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -117,6 +117,13 @@ public partial class MainWindow : Window
                 ApplyHeroBiome();
             }
 
+            // 调试用：--kind 0..4，内容页预选分类（截图用）
+            var kindFlag = Array.IndexOf(argv, "--kind");
+            if (kindFlag >= 0 && kindFlag + 1 < argv.Length &&
+                int.TryParse(argv[kindFlag + 1], out var kindIndex))
+            {
+                KindCombo.SelectedIndex = Math.Clamp(kindIndex, 0, 4);
+            }
             // 调试用：--demo-detail，自动打开内容页第一个项目的详情（看加载器分类）
             if (argv.Contains("--demo-detail"))
             {
@@ -917,6 +924,7 @@ public partial class MainWindow : Window
         }
 
         await ReloadCategoriesAsync();
+        await LoadContentPageAsync();
     }
 
     private async void OnSourceChanged(object sender, SelectionChangedEventArgs e)
@@ -927,6 +935,7 @@ public partial class MainWindow : Window
         }
 
         await ReloadCategoriesAsync();
+        await LoadContentPageAsync();
     }
 
     private async Task ReloadCategoriesAsync()
@@ -1001,6 +1010,23 @@ public partial class MainWindow : Window
     private async Task LoadContentPageAsync()
     {
         var source = SelectedSource();
+
+        // Modrinth 不收录地图：有 CurseForge key 就自动切过去，没有就说清楚怎么办
+        if (SelectedKind() == ContentKind.World && SourceCombo.SelectedIndex == 0)
+        {
+            if (!string.IsNullOrWhiteSpace(_settings.CurseForgeApiKey))
+            {
+                SourceCombo.SelectedIndex = 1; // 触发 OnSourceChanged 重新加载
+                return;
+            }
+
+            ContentList.ItemsSource = new List<ContentCard>();
+            _contentTotal = 0;
+            ContentStatus.Text = "Modrinth 没有地图。地图得走 CurseForge：设置里填免费 API Key（console.curseforge.com），或者点下面「Minecraft Maps」站外下载";
+            UpdatePager();
+            return;
+        }
+
         if (!source.IsAvailable)
         {
             ContentStatus.Text = "CurseForge 需要 API key：设置 → 下载与镜像 → CurseForge API key（免费申请）";
@@ -1107,6 +1133,10 @@ public partial class MainWindow : Window
     {
         _settings.TranslateContent = !_settings.TranslateContent;
         ConfigStore.Save(_settings);
+        SettingsTranslateKey.Text = _settings.TranslateApiKey;
+        SettingsTranslateBaseUrl.Text = _settings.TranslateBaseUrl;
+        SettingsTranslateModel.Text = _settings.TranslateModel;
+        Aurora.Core.Net.Translator.Configure(_settings.TranslateApiKey, _settings.TranslateBaseUrl, _settings.TranslateModel);
         UpdateTranslateButton();
 
         if (_settings.TranslateContent)
@@ -4134,6 +4164,10 @@ public partial class MainWindow : Window
         }
 
         UpdateAccountChip();
+        SettingsTranslateKey.Text = _settings.TranslateApiKey;
+        SettingsTranslateBaseUrl.Text = _settings.TranslateBaseUrl;
+        SettingsTranslateModel.Text = _settings.TranslateModel;
+        Aurora.Core.Net.Translator.Configure(_settings.TranslateApiKey, _settings.TranslateBaseUrl, _settings.TranslateModel);
         UpdateTranslateButton();
     }
 
@@ -4747,6 +4781,10 @@ public partial class MainWindow : Window
         };
 
         UpdateAccountChip();
+        SettingsTranslateKey.Text = _settings.TranslateApiKey;
+        SettingsTranslateBaseUrl.Text = _settings.TranslateBaseUrl;
+        SettingsTranslateModel.Text = _settings.TranslateModel;
+        Aurora.Core.Net.Translator.Configure(_settings.TranslateApiKey, _settings.TranslateBaseUrl, _settings.TranslateModel);
         UpdateTranslateButton();
     }
 
@@ -4770,6 +4808,13 @@ public partial class MainWindow : Window
             _settings.MicrosoftClientId = ClientIdBox.Text?.Trim() ?? string.Empty;
             _settings.MirrorBaseUrl = SettingsMirrorUrl.Text?.Trim() ?? string.Empty;
             _settings.CurseForgeApiKey = SettingsCfKey.Text?.Trim() ?? string.Empty;
+            _settings.TranslateApiKey = SettingsTranslateKey.Text.Trim();
+            _settings.TranslateBaseUrl = string.IsNullOrWhiteSpace(SettingsTranslateBaseUrl.Text)
+                ? "https://api.deepseek.com/v1" : SettingsTranslateBaseUrl.Text.Trim();
+            _settings.TranslateModel = string.IsNullOrWhiteSpace(SettingsTranslateModel.Text)
+                ? "deepseek-chat" : SettingsTranslateModel.Text.Trim();
+            Aurora.Core.Net.Translator.Configure(_settings.TranslateApiKey, _settings.TranslateBaseUrl, _settings.TranslateModel);
+
             _settings.LaunchMode = SettingsLaunchMode.SelectedIndex switch
             {
                 2 => "fullscreen",
@@ -4799,6 +4844,10 @@ public partial class MainWindow : Window
             }
 
             UpdateAccountChip();
+        SettingsTranslateKey.Text = _settings.TranslateApiKey;
+        SettingsTranslateBaseUrl.Text = _settings.TranslateBaseUrl;
+        SettingsTranslateModel.Text = _settings.TranslateModel;
+        Aurora.Core.Net.Translator.Configure(_settings.TranslateApiKey, _settings.TranslateBaseUrl, _settings.TranslateModel);
         UpdateTranslateButton();
             SaveStatus.Text = "已保存 · " + ConfigStore.ConfigPath;
             SetStatus("设置已保存");

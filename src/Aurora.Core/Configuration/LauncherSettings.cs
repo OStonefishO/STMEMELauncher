@@ -85,6 +85,13 @@ public sealed class LauncherSettings
     /// <summary>内容页要不要把英文简介和标签翻成中文</summary>
     public bool TranslateContent { get; set; } = true;
 
+    /// <summary>翻译用的大模型 Key（OpenAI 兼容，例如 DeepSeek）；留空就用免费接口</summary>
+    public string TranslateApiKey { get; set; } = string.Empty;
+
+    public string TranslateBaseUrl { get; set; } = "https://api.deepseek.com/v1";
+
+    public string TranslateModel { get; set; } = "deepseek-chat";
+
     public int HeroBiome { get; set; }
 
     /// <summary>每个版本的备注（整合包作者写给玩家看的说明），键是版本 id。</summary>

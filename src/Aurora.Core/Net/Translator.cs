@@ -11,7 +11,55 @@ namespace Aurora.Core.Net;
 public static class Translator
 {
     private static readonly HttpClient Http = CreateClient();
-    private static readonly ConcurrentDictionary<string, string> Cache = new();
+    private static readonly ConcurrentDictionary<string, string> Cache = LoadCache();
+    private static readonly object CacheLock = new();
+    private static int _pendingWrites;
+
+    private static string CachePath => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "MEMELauncher", "translate-cache.json");
+
+    private static ConcurrentDictionary<string, string> LoadCache()
+    {
+        try
+        {
+            var path = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "MEMELauncher", "translate-cache.json");
+
+            if (File.Exists(path))
+            {
+                var json = File.ReadAllText(path);
+                var map = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
+                if (map != null)
+                {
+                    return new ConcurrentDictionary<string, string>(map);
+                }
+            }
+        }
+        catch
+        {
+            // 缓存坏了就当没有
+        }
+
+        return new ConcurrentDictionary<string, string>();
+    }
+
+    private static void SaveCache()
+    {
+        try
+        {
+            var path = CachePath;
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            var json = JsonSerializer.Serialize(Cache);
+            File.WriteAllText(path, json);
+        }
+        catch
+        {
+            // 写不进去就算了
+        }
+    }
+
 
     private static HttpClient CreateClient()
     {
@@ -154,6 +202,70 @@ public static class Translator
         }
     }
 
+    // ---- 用户自己填的 OpenAI 兼容接口（有 key 就走它，质量最好、没有每日限额）----
+    public static string ApiKey { get; private set; } = string.Empty;
+    public static string BaseUrl { get; private set; } = "https://api.deepseek.com/v1";
+    public static string Model { get; private set; } = "deepseek-chat";
+
+    public static void Configure(string? apiKey, string? baseUrl, string? model)
+    {
+        ApiKey = apiKey?.Trim() ?? string.Empty;
+        BaseUrl = string.IsNullOrWhiteSpace(baseUrl) ? "https://api.deepseek.com/v1" : baseUrl.Trim();
+        Model = string.IsNullOrWhiteSpace(model) ? "deepseek-chat" : model.Trim();
+    }
+
+    private static async Task<string?> ViaOpenAiAsync(string text, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(ApiKey))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var request = new System.Net.Http.HttpRequestMessage(
+                System.Net.Http.HttpMethod.Post,
+                BaseUrl.TrimEnd('/') + "/chat/completions");
+
+            request.Headers.TryAddWithoutValidation("Authorization", "Bearer " + ApiKey);
+
+            var payload = JsonSerializer.Serialize(new
+            {
+                model = Model,
+                temperature = 0.2,
+                messages = new object[]
+                {
+                    new
+                    {
+                        role = "system",
+                        content = "你是 Minecraft 启动器的翻译。把用户给的英文模组简介翻成简体中文，只输出译文，不要解释、不要加引号。保留专有名词（如 Sodium、Fabric、Forge、NeoForge、OptiFine）。",
+                    },
+                    new { role = "user", content = text },
+                },
+            });
+
+            request.Content = new System.Net.Http.StringContent(payload, System.Text.Encoding.UTF8, "application/json");
+            using var response = await Http.SendAsync(request, ct).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+            using var doc = JsonDocument.Parse(json);
+            var content = doc.RootElement
+                .GetProperty("choices")[0]
+                .GetProperty("message")
+                .GetProperty("content")
+                .GetString()?.Trim();
+
+            return string.IsNullOrWhiteSpace(content) ? null : content;
+        }
+        catch
+        {
+            return null;
+        }
+    }
     private static async Task<string?> ViaMyMemoryAsync(string text, CancellationToken ct)
     {
         try

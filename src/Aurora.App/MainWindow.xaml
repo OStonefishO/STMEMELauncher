@@ -1602,6 +1602,21 @@
                                         <TextBlock Text="CurseForge API key（可选，填了才能搜 CurseForge）"
                                                    Foreground="{StaticResource InkFaint}" FontSize="11" Margin="0,14,0,0"/>
                                         <TextBox x:Name="SettingsCfKey" Margin="0,6,0,0"/>
+                                        <TextBlock Text="内容翻译（留空就用免费接口 MyMemory，每天有额度；填自己的 Key 更稳更好）"
+                                                   Foreground="{StaticResource InkFaint}" FontSize="11" Margin="0,16,0,0"/>
+                                        <TextBox x:Name="SettingsTranslateKey" Margin="0,6,0,0"
+                                                 ToolTip="支持 OpenAI 兼容接口：DeepSeek / 通义 / 硅基流动 等"/>
+                                        <Grid Margin="0,6,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="8"/>
+                                                <ColumnDefinition Width="150"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox x:Name="SettingsTranslateBaseUrl" Grid.Column="0"
+                                                     ToolTip="接口地址，例如 https://api.deepseek.com/v1"/>
+                                            <TextBox x:Name="SettingsTranslateModel" Grid.Column="2"
+                                                     ToolTip="模型名，例如 deepseek-chat"/>
+                                        </Grid>
                                     </StackPanel>
                                 </Border>
 
