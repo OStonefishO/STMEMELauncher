@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.19";
+    private const string AppVersion = "0.15.20";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -543,6 +543,20 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             SetStatus("打不开浏览器：" + ex.Message);
+        }
+    }
+
+    /// <summary>打开宣传站（GitHub Pages）。</summary>
+    private void OnOpenWebsite(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo("https://ostonefisho.github.io/STMEMELauncher/") { UseShellExecute = true });
+            SetStatus("已在浏览器打开宣传站");
+        }
+        catch (Exception ex)
+        {
+            SetStatus("打不开浏览器: " + ex.Message);
         }
     }
 

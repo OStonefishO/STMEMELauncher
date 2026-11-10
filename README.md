@@ -10,6 +10,7 @@
 [![Release](https://img.shields.io/github/v/release/OStonefishO/STMEMELauncher?style=flat-square)](https://github.com/OStonefishO/STMEMELauncher/releases)
 [![Downloads](https://img.shields.io/github/downloads/OStonefishO/STMEMELauncher/total?style=flat-square)](https://github.com/OStonefishO/STMEMELauncher/releases)
 [![License](https://img.shields.io/github/license/OStonefishO/STMEMELauncher?style=flat-square)](LICENSE)
+[![Website](https://img.shields.io/badge/%E5%AE%98%E7%BD%91-%E5%AE%A3%E4%BC%A0%E7%AB%99-7c5cff?style=flat-square)](https://ostonefisho.github.io/STMEMELauncher/)
 [![Platform](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?style=flat-square)]()
 
 > 如果这个启动器帮到你，点个 **Star ⭐** 就是最好的支持——它也会帮这个项目更快拿到免费代码签名，让更多人能直接双击打开。
@@ -31,6 +32,9 @@
 
 ![内容页中文翻译](docs/screens/p10.png)
 ## 下载
+
+> 想先看效果？打开官网宣传站：https://ostonefisho.github.io/STMEMELauncher/
+
 
 | 通道 | 地址 | 说明 |
 |---|---|---|
