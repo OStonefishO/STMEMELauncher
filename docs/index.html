@@ -98,6 +98,17 @@ h2{font-size:34px;margin:12px 0 12px;letter-spacing:-.5px}
 .dl-card .btn{width:100%;justify-content:center}
 .note{margin-top:18px;padding:14px 16px;border-radius:14px;border:1px dashed rgba(255,255,255,.14);color:var(--faint);font-size:12.8px}
 
+/* support */
+.support{display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding:26px 28px;border-radius:20px;
+  border:1px solid rgba(148,108,230,.4);background:linear-gradient(135deg,rgba(148,108,230,.18),rgba(79,214,255,.05))}
+.support .heart{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;font-size:24px;
+  background:linear-gradient(135deg,#946CE6,#6C4FD8);box-shadow:0 10px 26px rgba(108,79,216,.45)}
+.support h3{font-size:16.5px;margin-bottom:4px}
+.support p{color:var(--dim);font-size:13.4px;max-width:560px}
+.btn-afdian{margin-left:auto;background:linear-gradient(135deg,#946CE6,#6C4FD8);color:#fff;box-shadow:0 12px 30px rgba(108,79,216,.4)}
+.btn-afdian:hover{transform:translateY(-2px);box-shadow:0 18px 38px rgba(108,79,216,.55)}
+@media(max-width:700px){.btn-afdian{margin-left:0}}
+
 /* qa */
 .qa-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .qa{padding:20px 22px;border-radius:16px;border:1px solid var(--line);background:rgba(255,255,255,.03)}
@@ -162,6 +173,7 @@ html.js .rv.in{opacity:1;transform:none}
       <a href="#download">下载</a>
       <a href="#faq">常见问题</a>
       <a href="#qa">问答</a>
+      <a href="#support" style="color:#b9a3ff">支持</a>
     </div>
     <div class="icons">
       <a class="icon-btn" href="https://github.com/OStonefishO/STMEMELauncher" target="_blank" rel="noopener" title="GitHub">
@@ -231,8 +243,11 @@ html.js .rv.in{opacity:1;transform:none}
         <h3>崩溃说人话</h3>
         <p>启动即退出、模组冲突、内存不足、Forge 核心库缺失都会给出结论和可导出的报告，并保留完整启动日志。</p>
       </div>
-    </div>
-  </section>
+      <div class="card rv"><span class="tag">新</span><span class="em"><img src="assets/icons/book.png" alt=""></span>
+        <h3>创作：整合包 / 数据包</h3>
+        <p>自选要打包的内容导出整合包（附带 README 与元数据）；数据包按版本自动算 pack_format，函数、配方、进度、tick 模板开箱即用。</p>
+      </div>
+    </div>  </section>
 
   <section id="shots" class="wrap">
     <div class="sec-head rv">
@@ -247,6 +262,8 @@ html.js .rv.in{opacity:1;transform:none}
       <div class="gitem big rv"><img src="assets/content.png" alt="内容下载"><span>内容下载 · 中文标签</span></div>
       <div class="gitem rv"><img src="assets/detail.png" alt="模组详情"><span>MC 百科中文</span></div>
       <div class="gitem rv"><img src="assets/crash.png" alt="崩溃诊断"><span>崩溃诊断</span></div>
+      <div class="gitem rv"><img src="assets/create-pack.png" alt="导出整合包"><span>导出整合包</span></div>
+      <div class="gitem rv"><img src="assets/create-data.png" alt="数据包制作"><span>数据包制作</span></div>
     </div>
   </section>
 
@@ -334,6 +351,17 @@ html.js .rv.in{opacity:1;transform:none}
   </section>
 </main>
 
+<section id="support" class="wrap">
+    <div class="support rv">
+      <div class="heart">♥</div>
+      <div>
+        <h3>喜欢这个启动器？可以在爱发电支持我</h3>
+        <p>服务器、签名证书和熬夜的咖啡都靠它；不给钱也完全能免费用，功能不打折。</p>
+      </div>
+      <a class="btn btn-afdian" href="https://afdian.com/a/8STONEFISH8" target="_blank" rel="noopener">爱发电 ↗</a>
+    </div>
+  </section>
+
 <footer>
   <div class="wrap">
     <div class="foot">
@@ -346,6 +374,7 @@ html.js .rv.in{opacity:1;transform:none}
       <a href="https://gitee.com/stonefish8/STMEMELauncher" target="_blank" rel="noopener">Gitee</a>
       <a href="https://github.com/OStonefishO/STMEMELauncher/blob/main/docs/PRIVACY.md" target="_blank" rel="noopener">隐私说明</a>
       <a href="https://github.com/OStonefishO/STMEMELauncher/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>
+      <a href="https://afdian.com/a/8STONEFISH8" target="_blank" rel="noopener" style="color:#b9a3ff">爱发电 ♥</a>
       <span style="margin-left:auto;color:#4d5878">© 2026 STONEFISH8</span>
     </div>
   </div>

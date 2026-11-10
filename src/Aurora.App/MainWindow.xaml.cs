@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.20";
+    private const string AppVersion = "0.15.21";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -80,7 +80,7 @@ public partial class MainWindow : Window
         var flag = Array.IndexOf(argv, "--page");
         if (flag >= 0 && flag + 1 < argv.Length && int.TryParse(argv[flag + 1], out var pageIndex))
         {
-            SetPage(Math.Clamp(pageIndex, 0, 8));
+            SetPage(Math.Clamp(pageIndex, 0, 9));
         }
         Loaded += (_, __) =>
         {
@@ -117,6 +117,12 @@ public partial class MainWindow : Window
                 ApplyHeroBiome();
             }
 
+            // 调试用：--create data 直接切到数据包面板（截图用）
+            if (argv.Contains("--create") && Array.IndexOf(argv, "data") >= 0)
+            {
+                InitCreation();
+                OnCreationTab(CreateTabData, new RoutedEventArgs());
+            }
             // 调试用：--query "钠"，预填搜索词（验证中文搜索）
             var queryFlag = Array.IndexOf(argv, "--query");
             if (queryFlag >= 0 && queryFlag + 1 < argv.Length && QueryBox != null)
@@ -224,6 +230,7 @@ public partial class MainWindow : Window
         SettingsPage.Visibility = index == 4 ? Visibility.Visible : Visibility.Collapsed;
         UpdatesPage.Visibility = index == 5 ? Visibility.Visible : Visibility.Collapsed;
         FunPage.Visibility = index == 8 ? Visibility.Visible : Visibility.Collapsed;
+        CreationPage.Visibility = index == 9 ? Visibility.Visible : Visibility.Collapsed;
 
         var active = (Brush)FindResource("TextMain");
         var inactive = (Brush)FindResource("TextDim");
@@ -233,6 +240,21 @@ public partial class MainWindow : Window
         NavVersions.Foreground = index == 7 ? active : inactive;
         NavAccount.Foreground = index == 3 ? active : inactive;
         NavFun.Foreground = index == 8 ? active : inactive;
+        NavCreation.Foreground = index == 9 ? active : inactive;
+        if (index == 9)
+        {
+            InitCreation();
+
+            // 版本列表可能在窗口 Loaded 之后才扫完，延后补一次
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                var list = RefreshCreationVersions();
+                if (list.Count > 0 && PackVersionCombo.SelectedItem == null)
+                {
+                    PackVersionCombo.SelectedIndex = 0;
+                }
+            }), System.Windows.Threading.DispatcherPriority.Background);
+        }
         NavSettings.Foreground = index is 4 or 5 ? active : inactive;
 
         if (index == 1 && _mcVersions.Count == 0)
