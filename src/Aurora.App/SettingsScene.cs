@@ -12,7 +12,6 @@ public enum SettingsMob
     Pig = 1,
     Creeper = 2,
     Slime = 3,
-    Wither = 4,
 }
 
 /// <summary>
@@ -27,7 +26,6 @@ public static class SettingsScene
         SettingsMob.Pig => "猪",
         SettingsMob.Creeper => "苦力怕",
         SettingsMob.Slime => "史莱姆",
-        SettingsMob.Wither => "凋灵",
         _ => "僵尸",
     };
 
@@ -37,11 +35,10 @@ public static class SettingsScene
         SettingsMob.Pig => "猪：存档里的第一位朋友",
         SettingsMob.Creeper => "别靠太近，会炸的",
         SettingsMob.Slime => "蹦跶、分裂、再蹦跶",
-        SettingsMob.Wither => "三个头一起盯着你调内存",
         _ => string.Empty,
     };
 
-    public static SettingsMob Next(SettingsMob mob) => (SettingsMob)(((int)mob + 1) % 5);
+    public static SettingsMob Next(SettingsMob mob) => (SettingsMob)(((int)mob + 1) % 4);
 
     public static ModelVisual3D Build(SettingsMob mob)
     {
@@ -62,7 +59,6 @@ public static class SettingsScene
             case SettingsMob.Pig: Pig(mobGroup); break;
             case SettingsMob.Creeper: Creeper(mobGroup); break;
             case SettingsMob.Slime: Slime(mobGroup); break;
-            case SettingsMob.Wither: Wither(mobGroup); break;
         }
 
         root.Children.Add(new ModelVisual3D { Content = mobGroup });
@@ -210,33 +206,6 @@ public static class SettingsScene
     // ---------------- 凋灵 ----------------
     // ---------------- 凋灵（总高 3.4） ----------------
 
-    private static void Wither(Model3DGroup g)
-    {
-        const string bone = "#FF4A4A52";
-        const string boneDark = "#FF33333A";
-        const string eye = "#FFD83A3A";
-
-        // 下面的三根垂条：0 ~ 0.5（让它站在底座上）
-        g.Children.Add(Box(-0.3, 0.25, -0.1, 0.08, 0.5, 0.08, boneDark));
-        g.Children.Add(Box(0, 0.25, -0.1, 0.08, 0.5, 0.08, boneDark));
-        g.Children.Add(Box(0.3, 0.25, -0.1, 0.08, 0.5, 0.08, boneDark));
-
-        // 身体：0.5 ~ 1.5
-        g.Children.Add(Box(0, 1.0, 0, 0.75, 1.0, 0.5, bone));
-        // 肋骨
-        for (var i = 0; i < 3; i++)
-        {
-            g.Children.Add(Box(0, 0.75 + i * 0.24, 0.26, 0.7, 0.06, 0.03, boneDark));
-        }
-
-        // 三个头：1.5 ~ 1.96
-        foreach (var x in new[] { -0.42, 0.0, 0.42 })
-        {
-            g.Children.Add(Box(x, 1.73, 0.05, 0.46, 0.46, 0.46, bone));
-            g.Children.Add(Box(x - 0.1, 1.78, 0.29, 0.08, 0.07, 0.02, eye));
-            g.Children.Add(Box(x + 0.1, 1.78, 0.29, 0.08, 0.07, 0.02, eye));
-        }
-    }
     // ---------------- 灯 & 相机 ----------------
 
     public static Model3DGroup Lights()
