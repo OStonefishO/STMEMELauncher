@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.34";
+    private const string AppVersion = "0.15.35";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -232,6 +232,7 @@ public partial class MainWindow : Window
     {
         if (sender is Button button && button.Tag is string tag && int.TryParse(tag, out var index))
         {
+            PlayUiSound();
             SetPage(index);
         }
     }
@@ -325,6 +326,7 @@ public partial class MainWindow : Window
         };
         AnimatePageIn(target);
         AttachMotionHooks(target);
+        UpdateDock(index);
 
         if (index == 1 && _mcVersions.Count == 0)
         {
@@ -5531,6 +5533,7 @@ public partial class MainWindow : Window
         }
 
         // 让当前页重新高亮一次（胶囊只在 vivid 下出现）
+        ApplyNavigationStyle();
         SetPage(_currentPage);
         RefreshMotionLayer();
     }
@@ -5650,6 +5653,16 @@ public partial class MainWindow : Window
             e.Handled = true;
         }
     }
+    /// <summary>标题栏右侧的小圆钮：一键在新版 / 经典之间切换。</summary>
+    private void OnToggleLayout(object sender, RoutedEventArgs e)
+    {
+        var next = _vivid ? "classic" : "vivid";
+        _settings.UiLayout = next;
+        ApplyUiLayout(next);
+        ConfigStore.Save(_settings);
+        ShowToast("界面布局", _vivid ? "新版（动感）" : "经典（旧版）", "◐", 1600);
+    }
+
     private void OnMinimize(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
 
     private void OnCloseWindow(object sender, RoutedEventArgs e)

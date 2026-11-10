@@ -21,6 +21,223 @@ public partial class MainWindow
     private bool _uiHooksReady;
     private bool _syncingHue;
 
+
+    // ---------------- 底部 dock（激进版导航） ----------------
+
+    private readonly Dictionary<int, Button> _dockButtons = new();
+
+    private static readonly (int Page, string Icon, string Label)[] DockItems =
+    {
+        (0, "◈", "启动"),
+        (2, "▦", "内容"),
+        (7, "❖", "版本"),
+        (6, "⇄", "联机"),
+        (8, "♫", "娱乐"),
+        (9, "✎", "创作"),
+        (3, "👤", "账号"),
+        (4, "⚙", "设置"),
+    };
+
+    private void BuildDock()
+    {
+        if (DockPanel == null || DockPanel.Children.Count > 0)
+        {
+            return;
+        }
+
+        foreach (var (page, icon, label) in DockItems)
+        {
+            var button = new Button
+            {
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                Padding = new Thickness(14, 6, 14, 6),
+                Margin = new Thickness(2, 0, 2, 0),
+                Tag = page,
+            };
+
+            var stack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+            stack.Children.Add(new TextBlock
+            {
+                Text = icon,
+                FontSize = 15,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Foreground = (Brush)FindResource("InkDim"),
+            });
+            stack.Children.Add(new TextBlock
+            {
+                Text = label,
+                FontSize = 10,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 2, 0, 0),
+                Foreground = (Brush)FindResource("InkFaint"),
+            });
+            button.Content = stack;
+            button.Click += (s, _) =>
+            {
+                if (s is Button b && b.Tag is int index)
+                {
+                    PlayUiSound();
+                    SetPage(index);
+                    UpdateDock(index);
+                }
+            };
+
+            var hover = new ScaleTransform(1, 1);
+            button.RenderTransform = hover;
+            button.RenderTransformOrigin = new Point(0.5, 0.5);
+            button.MouseEnter += (_, _) => Animate(hover, ScaleTransform.ScaleXProperty, 1.12, 120);
+            button.MouseEnter += (_, _) => Animate(hover, ScaleTransform.ScaleYProperty, 1.12, 120);
+            button.MouseLeave += (_, _) => Animate(hover, ScaleTransform.ScaleXProperty, 1.0, 140);
+            button.MouseLeave += (_, _) => Animate(hover, ScaleTransform.ScaleYProperty, 1.0, 140);
+
+            _dockButtons[page] = button;
+            DockPanel.Children.Add(button);
+        }
+    }
+
+    private void UpdateDock(int page)
+    {
+        if (_dockButtons.Count == 0)
+        {
+            return;
+        }
+
+        // 「安装」并入 内容 页高亮
+        var active = page == 1 ? 2 : page;
+        foreach (var (key, button) in _dockButtons)
+        {
+            var on = key == active;
+            button.Background = on ? (Brush)FindResource("AccentGrad") : Brushes.Transparent;
+            if (button.Content is StackPanel stack)
+            {
+                foreach (var text in stack.Children.OfType<TextBlock>())
+                {
+                    text.Foreground = on ? Brushes.White : (Brush)FindResource("InkDim");
+                }
+            }
+        }
+    }
+
+    /// <summary>新版布局：隐藏左侧栏、显示底部 dock；经典反过来。</summary>
+    private void ApplyNavigationStyle()
+    {
+        if (BottomDock == null || RailPanel == null || RailColumn == null)
+        {
+            return;
+        }
+
+        if (_vivid)
+        {
+            BuildDock();
+            BottomDock.Visibility = Visibility.Visible;
+            RailPanel.Visibility = Visibility.Collapsed;
+            RailColumn.Width = new GridLength(0);
+            HeroGrid.Visibility = Visibility.Collapsed;
+            DashboardGrid.Visibility = Visibility.Visible;
+            SetPagesTopInset(72);
+            UpdateDock(_currentPage);
+        }
+        else
+        {
+            BottomDock.Visibility = Visibility.Collapsed;
+            RailPanel.Visibility = Visibility.Visible;
+            RailColumn.Width = new GridLength(74);
+            HeroGrid.Visibility = Visibility.Visible;
+            DashboardGrid.Visibility = Visibility.Collapsed;
+            SetPagesTopInset(0);
+        }
+    }
+
+    /// <summary>顶部胶囊条是浮层，给内容页让出空间。</summary>
+    private void SetPagesTopInset(double top)
+    {
+        foreach (var page in new FrameworkElement[]
+                 {
+                     LaunchPage, InstallPage, ContentPage, AccountPage, SettingsPage,
+                     UpdatesPage, OnlinePage, VersionsPage, FunPage, CreationPage,
+                 })
+        {
+            if (page == null)
+            {
+                continue;
+            }
+
+            var m = page.Margin;
+            page.Margin = new Thickness(m.Left, top, m.Right, m.Bottom);
+        }
+    }
+
+    // ---------------- 音效 ----------------
+
+    private static System.Media.SoundPlayer? _clickPlayer;
+
+    /// <summary>合成一段 40ms 的轻点击音（正弦 + 指数衰减），不依赖外部素材。</summary>
+    private static System.Media.SoundPlayer ClickPlayer()
+    {
+        if (_clickPlayer != null)
+        {
+            return _clickPlayer;
+        }
+
+        const int rate = 44100;
+        var samples = (int)(rate * 0.045);
+        var data = new byte[44 + samples * 2];
+        void Write(int offset, string ascii) => System.Text.Encoding.ASCII.GetBytes(ascii).CopyTo(data, offset);
+        Write(0, "RIFF");
+        BitConverter.GetBytes(36 + samples * 2).CopyTo(data, 4);
+        Write(8, "WAVEfmt ");
+        BitConverter.GetBytes(16).CopyTo(data, 16);
+        BitConverter.GetBytes((short)1).CopyTo(data, 20);
+        BitConverter.GetBytes((short)1).CopyTo(data, 22);
+        BitConverter.GetBytes(rate).CopyTo(data, 24);
+        BitConverter.GetBytes(rate * 2).CopyTo(data, 28);
+        BitConverter.GetBytes((short)2).CopyTo(data, 32);
+        BitConverter.GetBytes((short)16).CopyTo(data, 34);
+        Write(36, "data");
+        BitConverter.GetBytes(samples * 2).CopyTo(data, 40);
+
+        for (var i = 0; i < samples; i++)
+        {
+            var t = (double)i / rate;
+            var env = Math.Exp(-t * 120);
+            var freq = 1180 - t * 3200;
+            var value = (short)(Math.Sin(2 * Math.PI * freq * t) * env * 9000);
+            BitConverter.GetBytes(value).CopyTo(data, 44 + i * 2);
+        }
+
+        var stream = new System.IO.MemoryStream(data, false);
+        _clickPlayer = new System.Media.SoundPlayer(stream);
+        _clickPlayer.Load();
+        return _clickPlayer;
+    }
+
+    private void PlayUiSound(bool strong = false)
+    {
+        if (!_vivid)
+        {
+            return;
+        }
+
+        try
+        {
+            var player = ClickPlayer();
+            if (strong)
+            {
+                player.Play();
+            }
+            else
+            {
+                player.Play();
+            }
+        }
+        catch
+        {
+            // 静音设备下忽略
+        }
+    }
+
     // ---------------- 极光 ----------------
 
     private void StartAurora()
