@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.24";
+    private const string AppVersion = "0.15.25";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -3393,6 +3393,60 @@ public partial class MainWindow : Window
 
     private void OnOpenUpdatesPage(object sender, RoutedEventArgs e) => SetPage(5);
 
+    /// <summary>横幅上的「立即更新」：一键下载 + 替换 + 重启，不用再点第二个对话框。</summary>
+    private async void OnApplyUpdateNow(object sender, RoutedEventArgs e)
+    {
+        if (_pendingRelease == null || UpdateBannerButton == null)
+        {
+            return;
+        }
+
+        if (Aurora.Core.Net.SelfUpdater.PickAsset(_pendingRelease) == null)
+        {
+            UpdateBannerText.Text = "这个版本没附带 exe，请到下载页手动下";
+            OpenBrowser(_pendingRelease.HtmlUrl);
+            return;
+        }
+
+        UpdateBannerButton.IsEnabled = false;
+        UpdateBannerButton.Content = "下载中…";
+
+        try
+        {
+            var updater = _service.CreateSelfUpdater();
+            var progress = new Progress<double>(p =>
+            {
+                if (UpdateBannerButton != null)
+                {
+                    UpdateBannerButton.Content = $"下载中 {p * 100:0}%";
+                }
+            });
+
+            var file = await updater.DownloadAsync(_pendingRelease, progress, default,
+                source => Dispatcher.BeginInvoke(() =>
+                {
+                    if (UpdateBannerButton != null) UpdateBannerButton.Content = "连接 " + source + "…";
+                }));
+
+            UpdateBannerText.Text = "下载完成，正在重启并替换…";
+            Aurora.Core.Net.SelfUpdater.ApplyAndRestart(file);
+            await Task.Delay(400);
+            Application.Current.Shutdown();
+        }
+        catch (Exception ex)
+        {
+            if (UpdateBannerText != null)
+            {
+                UpdateBannerText.Text = "更新失败：" + ex.Message + "（可以到设置里点「检查更新」走手动流程）";
+            }
+
+            if (UpdateBannerButton != null)
+            {
+                UpdateBannerButton.IsEnabled = true;
+                UpdateBannerButton.Content = "重试更新";
+            }
+        }
+    }
     private void OnOpenUpdate(object sender, RoutedEventArgs e)
     {
         if (_pendingRelease == null)

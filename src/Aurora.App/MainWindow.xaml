@@ -567,8 +567,10 @@
                                     <TextBlock x:Name="UpdateBannerText" Text="发现新版本" FontSize="12.5"
                                                Foreground="{StaticResource Ink}" VerticalAlignment="Center"/>
                                 </StackPanel>
-                                <Button Content="查看更新" HorizontalAlignment="Right" Style="{StaticResource GlassButton}"
-                                        Padding="12,5" FontSize="11.5" Click="OnOpenUpdate"/>
+                                <Button x:Name="UpdateBannerButton" Content="立即更新" HorizontalAlignment="Right"
+                                        Style="{StaticResource GlassButton}" Click="OnApplyUpdateNow"
+                                        ToolTip="直接下载并替换成新版本"
+                                        Padding="12,5" FontSize="11.5"/>
                             </Grid>
                         </Border>
 
