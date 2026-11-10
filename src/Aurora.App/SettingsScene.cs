@@ -44,9 +44,9 @@ public static class SettingsScene
     {
         // 底座
         var baseGroup = new Model3DGroup();
-        baseGroup.Children.Add(Box(0, -0.28, 0, 1.9, 0.56, 1.9, "#FF6FA83F"));
-        baseGroup.Children.Add(Box(0, -0.62, 0, 1.9, 0.12, 1.9, "#FF8A5B34"));
-        baseGroup.Children.Add(Box(0, -0.71, 0, 1.9, 0.06, 1.9, "#FF6E7278"));
+        baseGroup.Children.Add(Box(0, -0.24, 0, 1.6, 0.48, 1.6, "#FF6FA83F"));
+        baseGroup.Children.Add(Box(0, -0.54, 0, 1.6, 0.12, 1.6, "#FF8A5B34"));
+        baseGroup.Children.Add(Box(0, -0.63, 0, 1.6, 0.06, 1.6, "#FF6E7278"));
 
         // 生物（放大一点，别显得太小）
         var mobGroup = new Model3DGroup();
@@ -66,11 +66,7 @@ public static class SettingsScene
 
         var visual = new ModelVisual3D();
         visual.Children.Add(new ModelVisual3D { Content = baseGroup });
-        visual.Children.Add(new ModelVisual3D
-        {
-            Content = mobGroup,
-            Transform = new ScaleTransform3D(1.18, 1.18, 1.18),
-        });
+        visual.Children.Add(new ModelVisual3D { Content = mobGroup });
         visual.Children.Add(new ModelVisual3D { Content = floaters });
 
         var axis = new AxisAngleRotation3D(new Vector3D(0, 1, 0), 0);
@@ -107,54 +103,60 @@ public static class SettingsScene
         return group;
     }
 
-    public static PerspectiveCamera Camera() => new()
+    /// <summary>正交相机：方块生物的比例才不会被透视拉变形（之前 q 版就是因为广角透视）。</summary>
+    public static OrthographicCamera Camera() => new()
     {
-        Position = new Point3D(4.6, 3.3, 4.6),
-        LookDirection = new Vector3D(-4.6, -2.1, -4.6),
+        Position = new Point3D(7, 5, 7),
+        LookDirection = new Vector3D(-7, -4.3, -7),
         UpDirection = new Vector3D(0, 1, 0),
-        FieldOfView = 40,
+        Width = 4.6,
     };
 
     // ---------------- 生物 ----------------
 
     private static void Zombie(Model3DGroup g)
     {
-        var skin = "#FF4C7A34";
-        var shirt = "#FF00A8A8";
-        var pants = "#FF30308C";
+        // 真实比例：腿 0.75 / 身 0.75 / 头 0.5，总高 2.0 格；手臂挂在肩上（0.75~1.5）
+        const string skin = "#FF6C9E4A";
+        const string shirt = "#FF00A8A8";
+        const string pants = "#FF3B3BB0";
 
-        g.Children.Add(Box(0, 0.75, 0, 0.5, 0.75, 0.25, shirt));          // 身体
-        g.Children.Add(Box(-0.375, 0.75, 0, 0.25, 0.75, 0.25, skin));      // 手臂
-        g.Children.Add(Box(0.375, 0.75, 0, 0.25, 0.75, 0.25, skin));
-        g.Children.Add(Box(-0.125, 0.375, 0, 0.25, 0.75, 0.25, pants));     // 腿
+        g.Children.Add(Box(-0.125, 0.375, 0, 0.25, 0.75, 0.25, pants));   // 腿
         g.Children.Add(Box(0.125, 0.375, 0, 0.25, 0.75, 0.25, pants));
-        g.Children.Add(Box(0, 1.5, 0, 0.5, 0.5, 0.5, skin));                // 头
-        g.Children.Add(Box(-0.11, 1.58, 0.27, 0.11, 0.09, 0.04, "#FF14202A")); // 眼
-        g.Children.Add(Box(0.11, 1.58, 0.27, 0.11, 0.09, 0.04, "#FF14202A"));
-        g.Children.Add(Box(0, 1.42, 0.27, 0.16, 0.05, 0.04, "#FF2E4A22"));     // 嘴
+        g.Children.Add(Box(0, 1.125, 0, 0.5, 0.75, 0.25, shirt));          // 身体
+        g.Children.Add(Box(-0.375, 1.125, 0.02, 0.25, 0.75, 0.25, skin));  // 手臂（略前伸）
+        g.Children.Add(Box(0.375, 1.125, 0.02, 0.25, 0.75, 0.25, skin));
+        g.Children.Add(Box(-0.375, 0.8, 0.02, 0.25, 0.1, 0.25, "#FF3E7A34"));  // 袖口
+        g.Children.Add(Box(0.375, 0.8, 0.02, 0.25, 0.1, 0.25, "#FF3E7A34"));
+        g.Children.Add(Box(0, 1.75, 0, 0.5, 0.5, 0.5, skin));              // 头
+        g.Children.Add(Box(-0.12, 1.82, 0.26, 0.1, 0.1, 0.03, "#FF16241C")); // 眼
+        g.Children.Add(Box(0.12, 1.82, 0.26, 0.1, 0.1, 0.03, "#FF16241C"));
+        g.Children.Add(Box(0, 1.64, 0.26, 0.16, 0.05, 0.03, "#FF2C4022"));   // 嘴
     }
 
     private static void Piglin(Model3DGroup g)
     {
-        var skin = "#FFE8A6A0";
-        var body = "#FF7A4A3A";
-        var gold = "#FFE8C25A";
+        // 猪灵：腿 0.75 / 身 0.75 / 头 0.5，金腰带 + 猪鼻 + 两侧耳朵
+        const string skin = "#FFE0A88E";
+        const string body = "#FF6E4638";
+        const string pants = "#FF3E2A22";
+        const string gold = "#FFE8C25A";
 
-        g.Children.Add(Box(0, 0.75, 0, 0.5, 0.75, 0.25, body));
-        g.Children.Add(Box(-0.375, 0.75, 0, 0.25, 0.75, 0.25, skin));
-        g.Children.Add(Box(0.375, 0.75, 0, 0.25, 0.75, 0.25, skin));
-        g.Children.Add(Box(-0.125, 0.375, 0, 0.25, 0.75, 0.25, "#FF5A3A2E"));
-        g.Children.Add(Box(0.125, 0.375, 0, 0.25, 0.75, 0.25, "#FF5A3A2E"));
-        g.Children.Add(Box(0, 1.5, 0, 0.5, 0.5, 0.5, skin));                // 头
-        g.Children.Add(Box(0, 1.46, 0.3, 0.2, 0.16, 0.12, "#FFD98E88"));    // 猪鼻
-        g.Children.Add(Box(0, 1.46, 0.37, 0.1, 0.06, 0.02, "#FFB06A64"));
-        g.Children.Add(Box(-0.27, 1.66, 0, 0.1, 0.14, 0.28, skin));         // 耳朵
-        g.Children.Add(Box(0.27, 1.66, 0, 0.1, 0.14, 0.28, skin));
-        g.Children.Add(Box(-0.11, 1.62, 0.27, 0.1, 0.08, 0.04, "#FFE8C25A")); // 金瞳
-        g.Children.Add(Box(0.11, 1.62, 0.27, 0.1, 0.08, 0.04, "#FFE8C25A"));
-        g.Children.Add(Box(0, 0.9, 0.15, 0.56, 0.1, 0.1, gold));             // 腰带
+        g.Children.Add(Box(-0.125, 0.375, 0, 0.25, 0.75, 0.25, pants));
+        g.Children.Add(Box(0.125, 0.375, 0, 0.25, 0.75, 0.25, pants));
+        g.Children.Add(Box(0, 1.125, 0, 0.5, 0.75, 0.25, body));
+        g.Children.Add(Box(-0.375, 1.125, 0.02, 0.25, 0.75, 0.25, skin));
+        g.Children.Add(Box(0.375, 1.125, 0.02, 0.25, 0.75, 0.25, skin));
+        g.Children.Add(Box(0, 0.98, 0.14, 0.54, 0.08, 0.06, gold));        // 腰带
+        g.Children.Add(Box(0, 1.75, 0, 0.5, 0.5, 0.5, skin));               // 头
+        g.Children.Add(Box(0, 1.70, 0.3, 0.22, 0.16, 0.14, "#FFD08E78"));   // 猪鼻
+        g.Children.Add(Box(-0.05, 1.72, 0.38, 0.04, 0.06, 0.02, "#FF9A5E4C"));
+        g.Children.Add(Box(0.05, 1.72, 0.38, 0.04, 0.06, 0.02, "#FF9A5E4C"));
+        g.Children.Add(Box(-0.27, 1.92, 0, 0.1, 0.16, 0.3, skin));          // 耳朵
+        g.Children.Add(Box(0.27, 1.92, 0, 0.1, 0.16, 0.3, skin));
+        g.Children.Add(Box(-0.12, 1.86, 0.26, 0.1, 0.08, 0.03, gold));      // 金瞳
+        g.Children.Add(Box(0.12, 1.86, 0.26, 0.1, 0.08, 0.03, gold));
     }
-
     private static void Spider(Model3DGroup g)
     {
         var body = "#FF2A2A2E";
@@ -186,19 +188,24 @@ public static class SettingsScene
     private static void Creeper(Model3DGroup g)
     {
         var green = "#FF5DBB4A";
-        var dark = "#FF3E8E36";
+        var dark = "#FF4CA83C";
 
-        g.Children.Add(Box(0, 0.75, 0, 0.5, 0.75, 0.25, green));
-        g.Children.Add(Box(-0.125, 0.375, 0, 0.25, 0.75, 0.25, dark));
-        g.Children.Add(Box(0.125, 0.375, 0, 0.25, 0.75, 0.25, dark));
-        g.Children.Add(Box(0, 1.5, 0, 0.5, 0.5, 0.5, green));
-        g.Children.Add(Box(-0.12, 1.6, 0.27, 0.12, 0.12, 0.04, "#FF141A14"));
-        g.Children.Add(Box(0.12, 1.6, 0.27, 0.12, 0.12, 0.04, "#FF141A14"));
-        g.Children.Add(Box(0, 1.45, 0.27, 0.1, 0.18, 0.04, "#FF141A14"));
-        g.Children.Add(Box(-0.06, 1.34, 0.27, 0.06, 0.1, 0.04, "#FF141A14"));
-        g.Children.Add(Box(0.06, 1.34, 0.27, 0.06, 0.1, 0.04, "#FF141A14"));
+        // 腿 0.375 高，身体 0.75，头 0.5 → 总高 1.625（接近真实的 1.7）
+        g.Children.Add(Box(-0.125, 0.1875, 0.06, 0.25, 0.375, 0.25, dark));
+        g.Children.Add(Box(0.125, 0.1875, 0.06, 0.25, 0.375, 0.25, dark));
+        g.Children.Add(Box(-0.125, 0.1875, -0.06, 0.25, 0.375, 0.25, dark));
+        g.Children.Add(Box(0.125, 0.1875, -0.06, 0.25, 0.375, 0.25, dark));
+
+        g.Children.Add(Box(0, 0.75, 0, 0.5, 0.75, 0.25, green));   // 身体
+        g.Children.Add(Box(0, 1.375, 0, 0.5, 0.5, 0.5, green));    // 头
+
+        // 苦力怕的脸：两只方眼 + 下方那张标志性的嘴
+        g.Children.Add(Box(-0.12, 1.46, 0.26, 0.12, 0.12, 0.03, "#FF141A14"));
+        g.Children.Add(Box(0.12, 1.46, 0.26, 0.12, 0.12, 0.03, "#FF141A14"));
+        g.Children.Add(Box(0, 1.32, 0.26, 0.1, 0.14, 0.03, "#FF141A14"));
+        g.Children.Add(Box(-0.06, 1.23, 0.26, 0.06, 0.08, 0.03, "#FF141A14"));
+        g.Children.Add(Box(0.06, 1.23, 0.26, 0.06, 0.08, 0.03, "#FF141A14"));
     }
-
     // ---------------- 方块 ----------------
 
     private static GeometryModel3D Box(double cx, double cy, double cz,
