@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.49";
+    private const string AppVersion = "0.15.50";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -5824,6 +5824,12 @@ public partial class MainWindow : Window
             res["InkFaint"] = Frozen(Color.FromRgb(0x74, 0x77, 0x96));
             res["FontNum"] = new FontFamily("Segoe UI Variable Display");
             res["DockBg"] = Frozen(Color.FromArgb(0xF0, 0x12, 0x0A, 0x20));
+            res["ComboPopupBg"] = Frozen(Color.FromRgb(0x17, 0x0C, 0x28));
+            res["ComboPopupLine"] = Frozen(Color.FromArgb(0x45, 0xFF, 0x5C, 0xC8));
+            res["ComboItemHover"] = Frozen(Color.FromArgb(0x26, 0xFF, 0xFF, 0xFF));
+            res["ComboItemActive"] = Frozen(Color.FromArgb(0x3A, 0xFF, 0x5C, 0xC8));
+            res["FieldBg"] = Frozen(Color.FromArgb(0x12, 0xFF, 0xFF, 0xFF));
+            res["FieldLine"] = Frozen(Color.FromArgb(0x2E, 0xFF, 0xFF, 0xFF));
         }
         else
         {
@@ -5838,6 +5844,12 @@ public partial class MainWindow : Window
             res["FontNum"] = new FontFamily("Segoe UI Variable Display");
             res["FontHead"] = new FontFamily("Microsoft YaHei UI Light");
             res["DockBg"] = Frozen(Color.FromArgb(0xF0, 0x12, 0x0A, 0x20));
+            res["ComboPopupBg"] = Frozen(Color.FromRgb(0x14, 0x18, 0x22));
+            res["ComboPopupLine"] = Frozen(Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF));
+            res["ComboItemHover"] = Frozen(Color.FromArgb(0x24, 0xFF, 0xFF, 0xFF));
+            res["ComboItemActive"] = Frozen(Color.FromArgb(0x33, 0x5B, 0x8C, 0xFF));
+            res["FieldBg"] = Frozen(Color.FromArgb(0x12, 0xFF, 0xFF, 0xFF));
+            res["FieldLine"] = Frozen(Color.FromArgb(0x26, 0xFF, 0xFF, 0xFF));
         }
 
         // 色相偏移：在基础配色上整体旋转
