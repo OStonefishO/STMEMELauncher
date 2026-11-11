@@ -37,6 +37,12 @@
         </LinearGradientBrush>
 
         <SolidColorBrush x:Key="DockBg" Color="#F0120A20"/>
+        <SolidColorBrush x:Key="ComboPopupBg" Color="#FF141A26"/>
+        <SolidColorBrush x:Key="ComboPopupLine" Color="#33FFFFFF"/>
+        <SolidColorBrush x:Key="ComboItemHover" Color="#24FFFFFF"/>
+        <SolidColorBrush x:Key="ComboItemActive" Color="#335B8CFF"/>
+        <SolidColorBrush x:Key="FieldBg" Color="#12FFFFFF"/>
+        <SolidColorBrush x:Key="FieldLine" Color="#26FFFFFF"/>
         <SolidColorBrush x:Key="Glass" Color="#B3121620"/>
         <SolidColorBrush x:Key="GlassLine" Color="#26FFFFFF"/>
         <SolidColorBrush x:Key="Ink" Color="#FFE6EAF2"/>
@@ -352,10 +358,10 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
-                                <Setter TargetName="b" Property="Background" Value="#24FFFFFF"/>
+                                <Setter TargetName="b" Property="Background" Value="{DynamicResource ComboItemHover}"/>
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="b" Property="Background" Value="#335B8CFF"/>
+                                <Setter TargetName="b" Property="Background" Value="{DynamicResource ComboItemActive}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -375,7 +381,7 @@
                                           IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
                                 <ToggleButton.Template>
                                     <ControlTemplate TargetType="ToggleButton">
-                                        <Border x:Name="bd" Background="#12FFFFFF" BorderBrush="#26FFFFFF"
+                                        <Border x:Name="bd" Background="{DynamicResource FieldBg}" BorderBrush="{DynamicResource FieldLine}"
                                                 BorderThickness="1" CornerRadius="10">
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
@@ -386,14 +392,14 @@
                                                                   VerticalAlignment="Center"
                                                                   Content="{TemplateBinding Content}"
                                                                   ContentTemplate="{TemplateBinding ContentTemplate}"/>
-                                                <Path Grid.Column="1" Data="M0,0 L4.5,4.5 L9,0" Stroke="#8C94A8"
+                                                <Path Grid.Column="1" Data="M0,0 L4.5,4.5 L9,0" Stroke="{DynamicResource InkDim}"
                                                       StrokeThickness="1.4" HorizontalAlignment="Center"
                                                       VerticalAlignment="Center"/>
                                             </Grid>
                                         </Border>
                                         <ControlTemplate.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="bd" Property="Background" Value="#1CFFFFFF"/>
+                                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource ComboItemHover}"/>
                                             </Trigger>
                                         </ControlTemplate.Triggers>
                                     </ControlTemplate>
@@ -404,7 +410,7 @@
                             </ToggleButton>
                             <Popup x:Name="PART_Popup" Placement="Bottom" AllowsTransparency="True"
                                    IsOpen="{TemplateBinding IsDropDownOpen}" Focusable="False" PopupAnimation="Fade">
-                                <Border Background="#FF141A26" BorderBrush="#33FFFFFF" BorderThickness="1"
+                                <Border Background="{DynamicResource ComboPopupBg}" BorderBrush="{DynamicResource ComboPopupLine}" BorderThickness="1"
                                         CornerRadius="10" Margin="0,6,0,0" Padding="4"
                                         MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
                                         MaxHeight="300">
@@ -660,6 +666,8 @@
                                         <Button Content="打开目录" Style="{StaticResource GlassButton}" Click="OnOpenFolder"/>
                                         <Button Content="内容库" Style="{StaticResource GlassButton}" Margin="8,0,0,0" Tag="2" Click="OnNavClick"/>
                                         <Button Content="版本管理" Style="{StaticResource GlassButton}" Margin="8,0,0,0" Tag="7" Click="OnNavClick"/>
+                                        <Button x:Name="DashKillButton" Content="强制关闭游戏" Style="{StaticResource GlassButton}"
+                                                Margin="8,0,0,0" Click="OnForceKillGame" Visibility="Collapsed"/>
                                     </WrapPanel>
                                 </StackPanel>
                             </Border>
@@ -1106,25 +1114,10 @@
                             </Border>
                         </Grid>
 
-                        <Grid Grid.Row="2" Margin="26,12,0,8">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-                            <Grid Grid.Row="0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <ComboBox x:Name="FileCombo" Grid.Column="0" DisplayMemberPath="Label"
-                                          SelectionChanged="OnFileSelected"/>
-                                <Button x:Name="ContentInstallButton" Grid.Column="1" Content="安装到当前版本"
-                                        Style="{StaticResource HeroButton}" Click="OnInstallContent"
-                                        Margin="10,0,0,0" Padding="22,0" MinWidth="150" Height="38" IsEnabled="False"/>
-                            </Grid>
-                            <TextBlock Grid.Row="1" x:Name="ContentStatus" Text="搜索后选一个条目" FontSize="11.5" Margin="0,8,0,0"
-                                       Foreground="{DynamicResource InkDim}" TextWrapping="Wrap"/>
-                        </Grid>
+                        <!-- 底部状态提示（安装条已移除：进详情页就能选版本安装） -->
+                        <TextBlock Grid.Row="2" x:Name="ContentStatus" Text="搜索后点一个条目进详情，选版本安装"
+                                   FontSize="11.5" Margin="26,8,0,10"
+                                   Foreground="{DynamicResource InkDim}" TextWrapping="Wrap"/>
                         <!-- 下载管理抽屉 -->
                         <Border x:Name="DownloadPanel" Visibility="Collapsed" Width="420" HorizontalAlignment="Right"
                                 Margin="0,10,16,16" CornerRadius="16" Background="#F210141C"
@@ -1696,6 +1689,20 @@
                                                     Margin="12,0,12,0" VerticalAlignment="Center"
                                                     ValueChanged="OnHueChanged" IsSnapToTickEnabled="True" TickFrequency="5"/>
                                             <TextBlock x:Name="HueText" Grid.Column="2" Text="0°" FontSize="11.5"
+                                                       Foreground="{DynamicResource InkDim}" VerticalAlignment="Center" Width="34"/>
+                                        </Grid>
+                                        <Grid Margin="0,8,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="音效音量" FontSize="11.5" Foreground="{DynamicResource InkDim}"
+                                                       VerticalAlignment="Center"/>
+                                            <Slider x:Name="VolumeSlider" Grid.Column="1" Minimum="0" Maximum="100" Value="55"
+                                                    Margin="12,0,12,0" VerticalAlignment="Center"
+                                                    ValueChanged="OnUiVolumeChanged" IsSnapToTickEnabled="True" TickFrequency="5"/>
+                                            <TextBlock x:Name="VolumeText" Grid.Column="2" Text="55%" FontSize="11.5"
                                                        Foreground="{DynamicResource InkDim}" VerticalAlignment="Center" Width="34"/>
                                         </Grid>
                                     </StackPanel>

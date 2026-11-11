@@ -253,6 +253,8 @@ public partial class MainWindow
 
     // ---------------- 音效 ----------------
 
+    private static double _soundVolume = 0.55;
+    private static int _soundVolumeBucket = -1;
     private static System.Media.SoundPlayer? _clickPlayer;
     private static System.Media.SoundPlayer? _beepPlayer;
 
@@ -439,7 +441,7 @@ public partial class MainWindow
 
         for (var i = 0; i < samples; i++)
         {
-            var value = (short)(Math.Clamp(sampleAt(i), -1, 1) * 11000);
+            var value = (short)(Math.Clamp(sampleAt(i), -1, 1) * 11000 * _soundVolume);
             BitConverter.GetBytes(value).CopyTo(data, 44 + i * 2);
         }
 
@@ -471,14 +473,7 @@ public partial class MainWindow
                 "aurora" => SoftPlayer(),
                 _ => ClickPlayer(),
             };
-            if (strong)
-            {
-                player.Play();
-            }
-            else
-            {
-                player.Play();
-            }
+            player.Play();
         }
         catch
         {

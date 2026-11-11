@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.40";
+    private const string AppVersion = "0.15.41";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -570,6 +570,11 @@ public partial class MainWindow : Window
                 if (ForceKillButton != null)
                 {
                     ForceKillButton.Visibility = Visibility.Visible;
+                }
+
+                if (DashKillButton != null)
+                {
+                    DashKillButton.Visibility = Visibility.Visible;
                 }
 
                 SetStatus($"游戏已启动（pid {pid}），点「强制关闭游戏」可以强杀");
@@ -1510,8 +1515,6 @@ public partial class MainWindow : Window
 
         _selectedContent = card.Item;
         _ = ShowContentDetailAsync(card.Item);
-        ContentInstallButton.IsEnabled = false;
-        FileCombo.ItemsSource = null;
 
         try
         {
@@ -1522,14 +1525,11 @@ public partial class MainWindow : Window
             var files = await source.GetFilesAsync(card.Item, mc, loader);
 
             var list = files.Select(f => new FileEntry(f)).ToList();
-            FileCombo.ItemsSource = list;
-            if (list.Count > 0)
+                if (list.Count > 0)
             {
-                FileCombo.SelectedIndex = 0;
-            }
+                    }
 
-            ContentInstallButton.IsEnabled = list.Count > 0;
-            ContentStatus.Text = list.Count == 0
+                ContentStatus.Text = list.Count == 0
                 ? "这个筛选下没有可用文件（换个版本或加载器试试）"
                 : $"{list.Count} 个文件 · 选中后点安装";
         }
@@ -1559,6 +1559,10 @@ public partial class MainWindow : Window
         }
 
         ForceKillButton.Visibility = Visibility.Collapsed;
+        if (DashKillButton != null)
+        {
+            DashKillButton.Visibility = Visibility.Collapsed;
+        }
     }
 
     // ---------------- 版本管理 ----------------
@@ -3268,52 +3272,6 @@ public partial class MainWindow : Window
         }
     }
 
-    private void OnFileSelected(object sender, SelectionChangedEventArgs e)
-    {
-        if (FileCombo.SelectedItem is FileEntry entry)
-        {
-            ContentStatus.Text = $"{entry.File.FileName} · {FormatSize(entry.File.Size)}";
-        }
-    }
-
-    private async void OnInstallContent(object sender, RoutedEventArgs e)
-    {
-        if (FileCombo.SelectedItem is not FileEntry entry || _selectedContent == null)
-        {
-            return;
-        }
-
-        // 整合包：下完直接导入成版本，别只丢一个 mrpack 在下载目录里让玩家自己找
-        if (_selectedContent.Kind == ContentKind.Modpack)
-        {
-            await InstallContentModpackAsync(entry.File);
-            return;
-        }
-
-
-        var target = VersionList.SelectedItem as VersionCard;
-        var resolved = target == null ? null : _service.Resolve(target.Summary.Id);
-        var gameDir = resolved == null ? _settings.GameDirectory : _service.GameDirectoryFor(resolved);
-
-        // 地图是压缩包，解到 saves 里才算装上
-        if (_selectedContent.Kind == ContentKind.World)
-        {
-            await InstallWorldAsync(entry.File, gameDir);
-            return;
-        }
-
-        try
-        {
-            var task = _service.CreateDownloadManager().Enqueue(entry.File, _selectedContent.Kind, gameDir);
-            ContentStatus.Text = "已加入下载管理: " + task.FileName;
-            UpdateDownloadHint();
-        }
-        catch (Exception ex)
-        {
-            ContentStatus.Text = "安装失败: " + ex.Message;
-        }
-    }
-
     /// <summary>地图：下 zip，解到 saves\地图名，然后把目录打开给玩家看。</summary>
     private async Task InstallWorldAsync(ContentFile file, string gameDir)
     {
@@ -3976,6 +3934,7 @@ public partial class MainWindow : Window
     private static ControlTemplate BuildFlatButtonTemplate()
     {
         var border = new FrameworkElementFactory(typeof(Border));
+        border.SetValue(FrameworkElement.NameProperty, "bd");
         border.SetValue(Border.CornerRadiusProperty, new CornerRadius(8));
         border.SetValue(Border.BackgroundProperty, Brushes.Transparent);
         border.SetValue(Border.PaddingProperty, new Thickness(6, 2, 6, 2));
@@ -3987,7 +3946,7 @@ public partial class MainWindow : Window
 
         var template = new ControlTemplate(typeof(Button)) { VisualTree = border };
         var hover = new Trigger { Property = IsMouseOverProperty, Value = true };
-        hover.Setters.Add(new Setter(Border.BackgroundProperty, new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)), ""));
+        hover.Setters.Add(new Setter(Border.BackgroundProperty, new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)), "bd"));
         template.Triggers.Add(hover);
         return template;
     }
@@ -5664,6 +5623,17 @@ public partial class MainWindow : Window
             HueText.Text = _hueShift.Text();
         }
 
+        _syncingHue = true;
+        if (VolumeSlider != null)
+        {
+            VolumeSlider.Value = _settings.UiVolume;
+        }
+
+        if (VolumeText != null)
+        {
+            VolumeText.Text = _settings.UiVolume + "%";
+        }
+
         _syncingHue = false;
 
         var res = Resources;   // 主题画刷定义在 Window.Resources 里
@@ -5684,6 +5654,12 @@ public partial class MainWindow : Window
             res["FontNum"] = new FontFamily("Georgia");
             res["FontHead"] = new FontFamily("Georgia");
             res["DockBg"] = Frozen(Color.FromArgb(0xF5, 0xFD, 0xF9, 0xF0));
+            res["ComboPopupBg"] = Frozen(Color.FromRgb(0xFD, 0xF9, 0xF0));
+            res["ComboPopupLine"] = Frozen(Color.FromArgb(0xFF, 0xDD, 0xCF, 0xB8));
+            res["ComboItemHover"] = Frozen(Color.FromArgb(0x22, 0xC4, 0x55, 0x3A));
+            res["ComboItemActive"] = Frozen(Color.FromArgb(0x33, 0xC4, 0x55, 0x3A));
+            res["FieldBg"] = Frozen(Color.FromArgb(0x10, 0x2B, 0x26, 0x22));
+            res["FieldLine"] = Frozen(Color.FromArgb(0x30, 0x2B, 0x26, 0x22));
         }
         else if (_pixel)
         {
@@ -5700,6 +5676,12 @@ public partial class MainWindow : Window
             res["FontNum"] = new FontFamily("Consolas");
             res["FontHead"] = new FontFamily("Consolas");
             res["DockBg"] = Frozen(Color.FromArgb(0xF0, 0x18, 0x18, 0x2C));
+            res["ComboPopupBg"] = Frozen(Color.FromRgb(0x18, 0x18, 0x2C));
+            res["ComboPopupLine"] = Frozen(Color.FromRgb(0x58, 0xD8, 0x54));
+            res["ComboItemHover"] = Frozen(Color.FromArgb(0x30, 0xF8, 0x38, 0x58));
+            res["ComboItemActive"] = Frozen(Color.FromArgb(0x50, 0x58, 0xD8, 0x54));
+            res["FieldBg"] = Frozen(Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF));
+            res["FieldLine"] = Frozen(Color.FromArgb(0x66, 0x58, 0xD8, 0x54));
         }
         else if (_aurora)
         {
@@ -5715,6 +5697,10 @@ public partial class MainWindow : Window
             res["FontNum"] = new FontFamily("Segoe UI Variable Display");
             res["FontHead"] = new FontFamily("Microsoft YaHei UI Light");
             res["DockBg"] = Frozen(Color.FromArgb(0xC8, 0x1A, 0x2A, 0x4A));
+            res["ComboPopupBg"] = Frozen(Color.FromRgb(0x1A, 0x2A, 0x4A));
+            res["ComboPopupLine"] = Frozen(Color.FromArgb(0x60, 0xB6, 0xC8, 0xFF));
+            res["ComboItemHover"] = Frozen(Color.FromArgb(0x2A, 0xB6, 0xC8, 0xFF));
+            res["ComboItemActive"] = Frozen(Color.FromArgb(0x40, 0xB6, 0xC8, 0xFF));
         }
         else if (_terminal)
         {
@@ -5729,6 +5715,10 @@ public partial class MainWindow : Window
             res["InkFaint"] = Frozen(Color.FromRgb(0x41, 0x7A, 0x52));
             res["FontNum"] = new FontFamily("Consolas");   // 终端风：等宽数字
             res["DockBg"] = Frozen(Color.FromArgb(0xF0, 0x08, 0x0F, 0x0B));
+            res["ComboPopupBg"] = Frozen(Color.FromRgb(0x08, 0x0F, 0x0B));
+            res["ComboPopupLine"] = Frozen(Color.FromArgb(0x80, 0x35, 0xF0, 0x7A));
+            res["ComboItemHover"] = Frozen(Color.FromArgb(0x2E, 0x35, 0xF0, 0x7A));
+            res["ComboItemActive"] = Frozen(Color.FromArgb(0x44, 0x35, 0xF0, 0x7A));
         }
         else if (_vivid)
         {
@@ -5823,6 +5813,23 @@ public partial class MainWindow : Window
         brush.GradientStops.Add(new GradientStop(to, 1));
         brush.Freeze();
         return brush;
+    }
+
+    private void OnUiVolumeChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_settings == null || _syncingHue)
+        {
+            return;
+        }
+
+        _settings.UiVolume = (int)Math.Round(e.NewValue);
+        if (VolumeText != null)
+        {
+            VolumeText.Text = _settings.UiVolume + "%";
+        }
+
+        ConfigStore.Save(_settings);
+        PlayUiSound();
     }
 
     private void OnUiLayoutChanged(object sender, SelectionChangedEventArgs e)

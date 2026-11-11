@@ -85,9 +85,10 @@ public partial class MainWindow
             PackHint.Text = "还没扫到版本，先确认「设置 → 游戏目录」选对了";
             return versions;
         }
+        var previousPackId = (PackVersionCombo.SelectedItem as VersionSummary)?.Id;
         PackVersionCombo.ItemsSource = versions;
 
-        var pick = _vmCurrent?.Id ?? versions.FirstOrDefault()?.Id;
+        var pick = previousPackId ?? _vmCurrent?.Id ?? versions.FirstOrDefault()?.Id;
         if (pick != null)
         {
             PackVersionCombo.SelectedItem = versions.FirstOrDefault(v => v.Id == pick);
@@ -162,10 +163,23 @@ public partial class MainWindow
 
     private void OnPackRefresh(object sender, RoutedEventArgs e)
     {
-        RefreshCreationVersions();
-        if (PackVersionCombo.SelectedItem is VersionSummary version)
+        // 记住当前选的版本，刷新后按 id 找回来，避免被换成同名的另一个版本
+        var selectedId = (PackVersionCombo.SelectedItem as VersionSummary)?.Id;
+        var versions = RefreshCreationVersions();
+
+        var target = selectedId == null
+            ? null
+            : versions.FirstOrDefault(v => v.Id == selectedId) ?? versions.FirstOrDefault();
+
+        if (target != null)
         {
-            LoadPackCandidates(version.Id);
+            PackVersionCombo.SelectedItem = target;
+            LoadPackCandidates(target.Id);
+            CreationStatus.Text = $"已重新扫描 {target.Id}：{_packRows.Count} 项内容";
+        }
+        else
+        {
+            CreationStatus.Text = "没有可用版本，先去「版本」页装一个";
         }
     }
 
