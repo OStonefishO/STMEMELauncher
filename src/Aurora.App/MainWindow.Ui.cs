@@ -156,26 +156,76 @@ public partial class MainWindow
             return;
         }
 
-        if (_vivid || _terminal)
+        // 六套布局各自的导航位置：顶部胶囊 / 左侧竖栏 / 底部状态条
+        var useTop = _vivid && !_paper;              // vivid / terminal / aurora
+        var useBottom = _pixel;                      // 像素：底部状态条
+        var useLeft = !useTop && !useBottom;         // classic / paper
+
+        BuildDock();
+        BottomDock.Visibility = (useTop || useBottom) ? Visibility.Visible : Visibility.Collapsed;
+        RailPanel.Visibility = useLeft ? Visibility.Visible : Visibility.Collapsed;
+        RailColumn.Width = new GridLength(useLeft ? 74 : 0);
+
+        // 顶部 → 内容留 72；底部 → 内容留 70；左侧 → 不留
+        SetPagesTopInset(useTop ? 72 : 0);
+        SetPagesBottomInset(useBottom ? 72 : 0);
+
+        if (useBottom)
         {
-            BuildDock();
-            BottomDock.Visibility = Visibility.Visible;
-            RailPanel.Visibility = Visibility.Collapsed;
-            RailColumn.Width = new GridLength(0);
-            HeroGrid.Visibility = Visibility.Collapsed;
-            DashboardGrid.Visibility = Visibility.Visible;
-            SetPagesTopInset(72);
-            InitDashboardScene();
-            UpdateDock(_currentPage);
+            BottomDock.VerticalAlignment = VerticalAlignment.Bottom;
+            BottomDock.HorizontalAlignment = HorizontalAlignment.Center;
+            BottomDock.Margin = new Thickness(0, 0, 0, 16);
         }
         else
         {
-            BottomDock.Visibility = Visibility.Collapsed;
-            RailPanel.Visibility = Visibility.Visible;
-            RailColumn.Width = new GridLength(74);
+            BottomDock.VerticalAlignment = VerticalAlignment.Top;
+            BottomDock.HorizontalAlignment = HorizontalAlignment.Center;
+            BottomDock.Margin = new Thickness(0, 10, 0, 0);
+        }
+
+        // 首页形态：仪表盘 / 活页清单 / 方块网格 / 经典大图
+        HeroGrid.Visibility = Visibility.Collapsed;
+        DashboardGrid.Visibility = Visibility.Collapsed;
+        PaperHome.Visibility = Visibility.Collapsed;
+        PixelHome.Visibility = Visibility.Collapsed;
+
+        if (_paper)
+        {
+            PaperHome.Visibility = Visibility.Visible;
+        }
+        else if (_pixel)
+        {
+            PixelHome.Visibility = Visibility.Visible;
+        }
+        else if (_vivid)
+        {
+            DashboardGrid.Visibility = Visibility.Visible;
+            InitDashboardScene();
+        }
+        else
+        {
             HeroGrid.Visibility = Visibility.Visible;
-            DashboardGrid.Visibility = Visibility.Collapsed;
-            SetPagesTopInset(0);
+        }
+
+        UpdateDock(_currentPage);
+    }
+
+    /// <summary>底部状态条是浮层，给内容页让出空间。</summary>
+    private void SetPagesBottomInset(double bottom)
+    {
+        foreach (var page in new FrameworkElement[]
+                 {
+                     LaunchPage, InstallPage, ContentPage, AccountPage, SettingsPage,
+                     UpdatesPage, OnlinePage, VersionsPage, FunPage, CreationPage,
+                 })
+        {
+            if (page == null)
+            {
+                continue;
+            }
+
+            var m = page.Margin;
+            page.Margin = new Thickness(m.Left, m.Top, m.Right, bottom);
         }
     }
 
@@ -619,30 +669,69 @@ public partial class MainWindow
 
         border.Tag = "hover";
         border.RenderTransformOrigin = new Point(0.5, 0.5);
+
+        // 每套布局的悬停手感不一样
+        if (_paper)
+        {
+            var tilt = border.RenderTransform as RotateTransform ?? new RotateTransform(0);
+            border.RenderTransform = tilt;
+            border.MouseEnter += (_, _) => AnimateRotate(tilt, 0.7, 180);
+            border.MouseLeave += (_, _) => AnimateRotate(tilt, 0, 200);
+            return;
+        }
+
+        if (_pixel)
+        {
+            var shift = border.RenderTransform as TranslateTransform ?? new TranslateTransform(0, 0);
+            border.RenderTransform = shift;
+            border.MouseEnter += (_, _) => Animate(shift, TranslateTransform.YProperty, -3, 90);
+            border.MouseLeave += (_, _) => Animate(shift, TranslateTransform.YProperty, 0, 110);
+            return;
+        }
+
+        if (_terminal)
+        {
+            border.MouseEnter += (_, _) =>
+            {
+                border.Effect = new DropShadowEffect { Color = Color.FromRgb(0x35, 0xF0, 0x7A), BlurRadius = 14, ShadowDepth = 0, Opacity = 0.55 };
+            };
+            border.MouseLeave += (_, _) => border.Effect = null;
+            return;
+        }
+
         var scale = border.RenderTransform as ScaleTransform ?? new ScaleTransform(1, 1);
         border.RenderTransform = scale;
 
         border.MouseEnter += (_, _) =>
         {
-            var accent = (Brush)FindResource("AccentGrad");
             border.Effect = new DropShadowEffect
             {
                 Color = GetAccentColor(),
-                BlurRadius = 26,
+                BlurRadius = _aurora ? 34 : 26,
                 ShadowDepth = 0,
-                Opacity = 0.45,
+                Opacity = _aurora ? 0.35 : 0.45,
             };
-            Animate(scale, ScaleTransform.ScaleXProperty, 1.012, 140);
-            Animate(scale, ScaleTransform.ScaleYProperty, 1.012, 140);
-            _ = accent;
+            var target = _aurora ? 1.006 : 1.012;
+            Animate(scale, ScaleTransform.ScaleXProperty, target, 150);
+            Animate(scale, ScaleTransform.ScaleYProperty, target, 150);
         };
 
         border.MouseLeave += (_, _) =>
         {
             border.Effect = null;
-            Animate(scale, ScaleTransform.ScaleXProperty, 1.0, 160);
-            Animate(scale, ScaleTransform.ScaleYProperty, 1.0, 160);
+            Animate(scale, ScaleTransform.ScaleXProperty, 1.0, 170);
+            Animate(scale, ScaleTransform.ScaleYProperty, 1.0, 170);
         };
+    }
+
+    private static void AnimateRotate(RotateTransform rotate, double to, int ms)
+    {
+        var anim = new DoubleAnimation(to, TimeSpan.FromMilliseconds(ms))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+            FillBehavior = FillBehavior.HoldEnd,
+        };
+        rotate.BeginAnimation(RotateTransform.AngleProperty, anim);
     }
 
     private void AttachButtonBounce(Button button)
