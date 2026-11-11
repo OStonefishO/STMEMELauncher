@@ -109,12 +109,23 @@ public partial class MainWindow
         foreach (var (key, button) in _dockButtons)
         {
             var on = key == active;
-            button.Background = on ? (Brush)FindResource("AccentGrad") : Brushes.Transparent;
+            if (on)
+            {
+                button.Background = _terminal
+                    ? new SolidColorBrush(Color.FromArgb(0x2E, 0x35, 0xF0, 0x7A))
+                    : (Brush)FindResource("AccentGrad");
+            }
+            else
+            {
+                button.Background = Brushes.Transparent;
+            }
             if (button.Content is StackPanel stack)
             {
                 foreach (var text in stack.Children.OfType<TextBlock>())
                 {
-                    text.Foreground = on ? Brushes.White : (Brush)FindResource("InkDim");
+                    text.Foreground = on
+                        ? (_terminal ? (Brush)FindResource("Ink") : Brushes.White)
+                        : (Brush)FindResource("InkDim");
                 }
             }
         }
@@ -128,7 +139,7 @@ public partial class MainWindow
             return;
         }
 
-        if (_vivid)
+        if (_vivid || _terminal)
         {
             BuildDock();
             BottomDock.Visibility = Visibility.Visible;
@@ -226,6 +237,7 @@ public partial class MainWindow
     // ---------------- 音效 ----------------
 
     private static System.Media.SoundPlayer? _clickPlayer;
+    private static System.Media.SoundPlayer? _beepPlayer;
 
     /// <summary>合成一段 40ms 的轻点击音（正弦 + 指数衰减），不依赖外部素材。</summary>
     private static System.Media.SoundPlayer ClickPlayer()
@@ -267,16 +279,57 @@ public partial class MainWindow
         return _clickPlayer;
     }
 
+    /// <summary>终端风的机械短促 beep（方波 980Hz，12ms）。</summary>
+    private static System.Media.SoundPlayer BeepPlayer()
+    {
+        if (_beepPlayer != null)
+        {
+            return _beepPlayer;
+        }
+
+        const int rate = 44100;
+        var samples = (int)(rate * 0.032);
+        var data = new byte[44 + samples * 2];
+        void Write(int offset, string ascii) => System.Text.Encoding.ASCII.GetBytes(ascii).CopyTo(data, offset);
+        Write(0, "RIFF");
+        BitConverter.GetBytes(36 + samples * 2).CopyTo(data, 4);
+        Write(8, "WAVEfmt ");
+        BitConverter.GetBytes(16).CopyTo(data, 16);
+        BitConverter.GetBytes((short)1).CopyTo(data, 20);
+        BitConverter.GetBytes((short)1).CopyTo(data, 22);
+        BitConverter.GetBytes(rate).CopyTo(data, 24);
+        BitConverter.GetBytes(rate * 2).CopyTo(data, 28);
+        BitConverter.GetBytes((short)2).CopyTo(data, 32);
+        BitConverter.GetBytes((short)16).CopyTo(data, 34);
+        Write(36, "data");
+        BitConverter.GetBytes(samples * 2).CopyTo(data, 40);
+
+        for (var i = 0; i < samples; i++)
+        {
+            var t = (double)i / rate;
+            var env = Math.Exp(-t * 220);
+            var phase = (2 * Math.PI * 980 * t) % (2 * Math.PI);
+            var square = phase < Math.PI ? 1.0 : -0.55;   // 略偏置的方波，听起来更"机"
+            var value = (short)(square * env * 7000);
+            BitConverter.GetBytes(value).CopyTo(data, 44 + i * 2);
+        }
+
+        var stream = new System.IO.MemoryStream(data, false);
+        _beepPlayer = new System.Media.SoundPlayer(stream);
+        _beepPlayer.Load();
+        return _beepPlayer;
+    }
+
     private void PlayUiSound(bool strong = false)
     {
-        if (!_vivid)
+        if (!_vivid && !_terminal)
         {
             return;
         }
 
         try
         {
-            var player = ClickPlayer();
+            var player = _terminal ? BeepPlayer() : ClickPlayer();
             if (strong)
             {
                 player.Play();
