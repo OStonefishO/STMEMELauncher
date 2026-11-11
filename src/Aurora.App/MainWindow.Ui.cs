@@ -20,6 +20,14 @@ public partial class MainWindow
     private int _hueShift;
     private bool _uiHooksReady;
     private bool _syncingHue;
+    private System.Windows.Threading.DispatcherTimer? _hueTimer;
+
+    private void OnHueTimerTick(object? sender, EventArgs e)
+    {
+        _hueTimer?.Stop();
+        ApplyUiLayout(_settings.UiLayout, fullRefresh: false);
+        ConfigStore.Save(_settings);
+    }
 
 
     // ---------------- 底部 dock（激进版导航） ----------------
@@ -73,6 +81,19 @@ public partial class MainWindow
                 Margin = new Thickness(0, 2, 0, 0),
                 Foreground = (Brush)FindResource("InkFaint"),
             });
+            if (_terminal)
+            {
+                stack.Children.Clear();
+                stack.Children.Add(new TextBlock
+                {
+                    Text = "> " + label,
+                    FontFamily = new FontFamily("Consolas"),
+                    FontSize = 11.5,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Foreground = (Brush)FindResource("InkDim"),
+                });
+            }
+
             button.Content = stack;
             button.Click += (s, _) =>
             {
@@ -166,9 +187,10 @@ public partial class MainWindow
         RailPanel.Visibility = useLeft ? Visibility.Visible : Visibility.Collapsed;
         RailColumn.Width = new GridLength(useLeft ? 74 : 0);
 
-        // 顶部 → 内容留 72；底部 → 内容留 70；左侧 → 不留
+        // 顶部 → 内容留 72；底部 → 内容留 72；左侧 → 内容右移 84，避免和竖栏重叠
         SetPagesTopInset(useTop ? 72 : 0);
         SetPagesBottomInset(useBottom ? 72 : 0);
+        SetPagesLeftInset(useLeft ? 84 : 0);
 
         if (useBottom)
         {
@@ -181,6 +203,23 @@ public partial class MainWindow
             BottomDock.VerticalAlignment = VerticalAlignment.Top;
             BottomDock.HorizontalAlignment = HorizontalAlignment.Center;
             BottomDock.Margin = new Thickness(0, 10, 0, 0);
+        }
+
+        // 扫描线：像素与终端
+        if (ScanlineOverlay != null)
+        {
+            ScanlineOverlay.Visibility = (_pixel || _terminal) ? Visibility.Visible : Visibility.Collapsed;
+            ScanlineOverlay.Opacity = _terminal ? 0.10 : 0.18;
+        }
+
+        // 极光：整屏 3D 岛背景
+        if (AuroraBackdrop != null)
+        {
+            AuroraBackdrop.Visibility = _aurora ? Visibility.Visible : Visibility.Collapsed;
+            if (_aurora)
+            {
+                InitAuroraBackdrop();
+            }
         }
 
         // 首页形态：仪表盘 / 活页清单 / 方块网格 / 经典大图
@@ -208,6 +247,25 @@ public partial class MainWindow
         }
 
         UpdateDock(_currentPage);
+    }
+
+    /// <summary>左侧竖栏占位：内容页整体右移，避免压在导航上。</summary>
+    private void SetPagesLeftInset(double left)
+    {
+        foreach (var page in new FrameworkElement[]
+                 {
+                     LaunchPage, InstallPage, ContentPage, AccountPage, SettingsPage,
+                     UpdatesPage, OnlinePage, VersionsPage, FunPage, CreationPage,
+                 })
+        {
+            if (page == null)
+            {
+                continue;
+            }
+
+            var m = page.Margin;
+            page.Margin = new Thickness(left, m.Top, m.Right, m.Bottom);
+        }
     }
 
     /// <summary>底部状态条是浮层，给内容页让出空间。</summary>
@@ -252,6 +310,17 @@ public partial class MainWindow
     // ---------------- 仪表盘上的 3D 方块岛 ----------------
 
     private bool _dashSceneReady;
+
+    private void InitAuroraBackdrop()
+    {
+        if (AuroraBackdrop == null || AuroraBackdrop.Children.Count > 0)
+        {
+            return;
+        }
+
+        AuroraBackdrop.Children.Add(new ModelVisual3D { Content = HeroScene.Lights(_heroBiome) });
+        AuroraBackdrop.Children.Add(HeroScene.Build(_heroBiome));
+    }
 
     private void InitDashboardScene()
     {
@@ -865,14 +934,22 @@ public partial class MainWindow
             HueText.Text = _hueShift.Text();
         }
 
-        if (!IsLoaded || !_vivid)
+        if (!IsLoaded || _style == "classic")
         {
             return;
         }
 
         _settings.UiHue = _hueShift;
-        ApplyUiLayout(_settings.UiLayout);
-        ConfigStore.Save(_settings);
+
+        // 节流：拖动时每 70ms 才重算一次画刷，松手后再完整刷新
+        _hueTimer ??= new System.Windows.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(70),
+        };
+        _hueTimer.Stop();
+        _hueTimer.Tick -= OnHueTimerTick;
+        _hueTimer.Tick += OnHueTimerTick;
+        _hueTimer.Start();
     }
 
     /// <summary>把当前主题的渐变整体旋转色相，实现「粉 / 青 / 绿 / 橙」自由选。</summary>

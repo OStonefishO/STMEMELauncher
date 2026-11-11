@@ -7,7 +7,7 @@
         MinHeight="620" MinWidth="1040"
         WindowStyle="None" ResizeMode="CanResize"
         Background="{DynamicResource AppBg}"
-        FontFamily="Microsoft YaHei UI" FontSize="13"
+        FontFamily="{DynamicResource FontBody}" FontSize="13"
         TextOptions.TextFormattingMode="Ideal"
         TextOptions.TextRenderingMode="Grayscale"
         UseLayoutRounding="True"
@@ -49,6 +49,7 @@
         <SolidColorBrush x:Key="InkDim" Color="#FF99A2B5"/>
         <SolidColorBrush x:Key="InkFaint" Color="#FF6D7588"/>
         <FontFamily x:Key="FontHead">Microsoft YaHei UI Light</FontFamily>
+        <FontFamily x:Key="FontBody">Microsoft YaHei UI</FontFamily>
         <FontFamily x:Key="FontNum">Segoe UI Variable Display</FontFamily>
 
         <!-- 窗口按钮 -->
@@ -429,6 +430,28 @@
     <Grid ClipToBounds="True">
         <!-- 背景 -->
         <Border Background="{DynamicResource AppBg}"/>
+        <!-- 极光版：整屏 3D 方块岛背景 -->
+        <Viewport3D x:Name="AuroraBackdrop" IsHitTestVisible="False" Opacity="0.42" Visibility="Collapsed">
+            <Viewport3D.Camera>
+                <PerspectiveCamera Position="17,13,21" LookDirection="-17,-7.5,-21" UpDirection="0,1,0" FieldOfView="42"/>
+            </Viewport3D.Camera>
+        </Viewport3D>
+
+        <!-- 扫描线（像素 / 终端） -->
+        <Rectangle x:Name="ScanlineOverlay" IsHitTestVisible="False" Visibility="Collapsed" Opacity="0.16">
+            <Rectangle.Fill>
+                <DrawingBrush TileMode="Tile" Viewport="0,0,4,4" ViewportUnits="Absolute">
+                    <DrawingBrush.Drawing>
+                        <GeometryDrawing Brush="#22000000">
+                            <GeometryDrawing.Geometry>
+                                <RectangleGeometry Rect="0,0,4,1"/>
+                            </GeometryDrawing.Geometry>
+                        </GeometryDrawing>
+                    </DrawingBrush.Drawing>
+                </DrawingBrush>
+            </Rectangle.Fill>
+        </Rectangle>
+
 
         <!-- 极光色块 -->
         <Ellipse Width="900" Height="900" HorizontalAlignment="Right" VerticalAlignment="Top"
@@ -665,6 +688,24 @@
                             </Border>
 
                             <StackPanel Grid.Row="1">
+                                <Grid>
+                                    <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-6,4,0"
+                                            Background="#FFF4D27A" CornerRadius="3" Padding="14,8"
+                                            RenderTransformOrigin="0.5,0.5" Panel.ZIndex="2">
+                                        <Border.RenderTransform>
+                                            <RotateTransform Angle="3.2"/>
+                                        </Border.RenderTransform>
+                                        <Border.Effect>
+                                            <DropShadowEffect Color="#552B2622" BlurRadius="10" ShadowDepth="2" Opacity="0.5"/>
+                                        </Border.Effect>
+                                        <StackPanel>
+                                            <TextBlock Text="记得先备份存档 ✍" FontFamily="Segoe Script" FontSize="13"
+                                                       Foreground="#FF6B4A2E"/>
+                                            <TextBlock Text="装模组前把 saves 复制一份" FontFamily="Segoe Script" FontSize="10.5"
+                                                       Foreground="#FF8A6A4A" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
                                 <Border CornerRadius="6" Background="{DynamicResource Glass}" BorderBrush="{DynamicResource GlassLine}"
                                         BorderThickness="1" Padding="20,14" Margin="0,0,0,8">
                                     <Grid>
