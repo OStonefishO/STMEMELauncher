@@ -1741,6 +1741,9 @@
                                                         Click="OnVmOpenVersionDir"/>
                                                 <Button Content="设为安装目标" Style="{StaticResource GlassButton}" Margin="0,0,8,8"
                                                         Click="OnVmSetAsTarget"/>
+                                                <Button Content="补齐配置" Style="{StaticResource GlassButton}" Margin="0,0,8,8"
+                                                        Click="OnVmFixConfig"
+                                                        ToolTip="补上 mods / config / saves 等文件夹、options.txt 和 launcher_profiles.json"/>
                                                 <Button Content="修复资源" Style="{StaticResource GlassButton}" Margin="0,0,8,8"
                                                         Click="OnVmRepair"
                                                         ToolTip="补下缺失的 assets / 依赖库（闪退报 NoSuchFileException 时用）"/>

@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.61";
+    private const string AppVersion = "0.15.62";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -635,6 +635,13 @@ public partial class MainWindow : Window
             {
                 SetStatus($"缺 {missingLibs.Count} 个库文件，启动多半会失败");
                 ShowToast("库文件不全", "建议在「内容 → 安装版本」里重装这个版本", "⚠", 5200);
+            }
+
+            // 先把配置垫上：缺 mods/config 文件夹、options.txt 时不少模组会直接报错
+            var createdConfig = _service.EnsureConfigFiles(versionInfo);
+            if (createdConfig.Count > 0)
+            {
+                SetStatus("已补齐配置：" + string.Join("、", createdConfig.Take(5)));
             }
 
             // 启动前把 assets 也体检一遍：缺资源的话游戏会在加载贴图时直接崩（NoSuchFileException）
@@ -2169,6 +2176,34 @@ public partial class MainWindow : Window
 
         var versionsDir = Path.GetDirectoryName(versionDirectory.TrimEnd(Path.DirectorySeparatorChar));
         return string.IsNullOrEmpty(versionsDir) ? null : Path.GetDirectoryName(versionsDir);
+    }
+
+    /// <summary>补齐配置：文件夹、options.txt、launcher_profiles.json。</summary>
+    private void OnVmFixConfig(object sender, RoutedEventArgs e)
+    {
+        if (_vmCurrent == null)
+        {
+            return;
+        }
+
+        var resolved = _service.Resolve(_vmCurrent.Id);
+        if (resolved == null)
+        {
+            VmStatus.Text = "找不到这个版本";
+            return;
+        }
+
+        var created = _service.EnsureConfigFiles(resolved);
+        if (created.Count == 0)
+        {
+            VmStatus.Text = "配置已经是齐的，没缺东西";
+            ShowToast("配置齐全", "没缺东西", "✓", 3500);
+            return;
+        }
+
+        var list = string.Join("、", created.Take(6));
+        VmStatus.Text = "已补齐：" + list;
+        ShowToast("已补齐配置", list, "✓", 5000);
     }
 
     /// <summary>修复资源：把缺失的 assets 对象、依赖库按版本 json 重新补一遍。</summary>

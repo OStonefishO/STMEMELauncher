@@ -153,6 +153,63 @@ public sealed partial class LauncherService
     }
 
     /// <summary>
+    /// 补齐版本目录里的基础配置：常用文件夹、options.txt、游戏根目录的 launcher_profiles.json。
+    /// 缺这些不影响启动器，但不少模组 / 加载器安装器会因此报错，先垫上更省事。
+    /// </summary>
+    public List<string> EnsureConfigFiles(ResolvedVersion version)
+    {
+        var created = new List<string>();
+
+        try
+        {
+            var gameDir = string.IsNullOrWhiteSpace(version.Directory)
+                ? Settings.GameDirectory
+                : version.Directory;
+
+            var root = GameRootOf(version.Directory) ?? Settings.GameDirectory;
+
+            foreach (var folder in new[] { "mods", "config", "saves", "resourcepacks", "shaderpacks", "logs" })
+            {
+                var path = Path.Combine(gameDir, folder);
+                if (!Directory.Exists(path))
+                {
+                    Directory.CreateDirectory(path);
+                    created.Add(folder + "/");
+                }
+            }
+
+            var options = Path.Combine(gameDir, "options.txt");
+            if (!File.Exists(options))
+            {
+                File.WriteAllText(options,
+                    "version:3955\n" +
+                    "lang:zh_cn\n" +
+                    "renderDistance:12\n" +
+                    "graphicsMode:1\n" +
+                    "guiScale:0\n" +
+                    "fov:0.0\n" +
+                    "maxFps:120\n" +
+                    "pauseOnLostFocus:true\n");
+                created.Add("options.txt");
+            }
+
+            var profiles = Path.Combine(root, "launcher_profiles.json");
+            if (!File.Exists(profiles))
+            {
+                File.WriteAllText(profiles,
+                    "{\n  \"profiles\": {},\n  \"settings\": {},\n  \"version\": 3\n}\n");
+                created.Add("launcher_profiles.json");
+            }
+        }
+        catch
+        {
+            // 补配置失败不影响启动
+        }
+
+        return created;
+    }
+
+    /// <summary>
     /// 启动前体检：assets 缺不缺，缺就自动补齐（补完再启动）。
     /// 返回补了多少个文件，0 表示本来就齐。
     /// </summary>
