@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.43";
+    private const string AppVersion = "0.15.44";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -134,6 +134,21 @@ public partial class MainWindow : Window
                 InitSettingsScene();
                 ApplySettingsMob();
             }
+            // 调试用：--show-kill 强制显示「强制关闭」按钮（截图用）
+            if (argv.Contains("--show-kill"))
+            {
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    foreach (var b in new[] { ForceKillButton, DashKillButton, PaperKillButton, PixelKillButton })
+                    {
+                        if (b != null)
+                        {
+                            b.Visibility = Visibility.Visible;
+                        }
+                    }
+                }), System.Windows.Threading.DispatcherPriority.Loaded);
+            }
+
             // 调试用：--guide 直接打开开服教程（截图用）
             if (argv.Contains("--guide"))
             {
