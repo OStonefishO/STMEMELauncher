@@ -199,7 +199,7 @@ public partial class MainWindow
             return 1.0;
         }
 
-        return Math.Clamp(dipWidth / BiliTargetCssWidth, 0.5, 1.25);
+        return Math.Clamp(dipWidth / BiliTargetCssWidth, 0.5, 1.45);
     }
 
     private void ApplyBiliZoom(double zoom, bool manual)

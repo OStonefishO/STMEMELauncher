@@ -247,6 +247,18 @@ public partial class MainWindow
         }
 
         UpdateDock(_currentPage);
+
+        // 布局变化后重新算 B 站自适应缩放，避免被压成 86%
+        if (BiliWeb != null)
+        {
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (!_biliManualZoom && BiliWeb.ActualWidth > 100)
+                {
+                    ApplyBiliZoom(FitZoomFor(BiliWeb.ActualWidth), manual: false);
+                }
+            }), System.Windows.Threading.DispatcherPriority.Loaded);
+        }
     }
 
     /// <summary>左侧竖栏占位：内容页整体右移，避免压在导航上。</summary>
