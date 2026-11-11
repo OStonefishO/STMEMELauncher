@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.55";
+    private const string AppVersion = "0.15.56";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -125,6 +125,15 @@ public partial class MainWindow : Window
                     ? ms
                     : 0;
                 _ = CaptureAndExitAsync(argv[shotFlag + 1], waitMs);
+            }
+
+            // 调试用：--prompt-test 打开「输入版本名确认」窗口（截图看配色用）
+            if (argv.Contains("--prompt-test"))
+            {
+                _ = Task.Delay(1200).ContinueWith(_ => Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    PromptForText("确认删除（2/3）", "把版本名原样输入一次才继续：1.21.11", "1.21.11");
+                })));
             }
 
             // 调试用：--fake-downloads 往下载管理里塞两条假任务（截图看布局用）
@@ -2258,6 +2267,59 @@ public partial class MainWindow : Window
     }
 
     /// <summary>一个简单的输入框（重命名、备注之类的用）。</summary>
+    /// <summary>
+    /// 代码弹出来的窗口不在主窗口的资源树里，拿不到隐式样式（TextBox 会变成系统默认的黑框）。
+    /// 这里统一按当前主题刷一遍：窗口底、输入框、只读文本。
+    /// </summary>
+    private void StyleDialogWindow(Window window)
+    {
+        // 弹窗不在主窗口资源树里，先把主题资源整份复制过去，样式里的 DynamicResource 才解析得出颜色
+        foreach (var key in Resources.Keys.Cast<object>().ToList())
+        {
+            try
+            {
+                window.Resources[key] = Resources[key];
+            }
+            catch
+            {
+                // 个别键复制不了就跳过
+            }
+        }
+
+        try
+        {
+            window.Background = (Brush)FindResource("AppBg");
+        }
+        catch
+        {
+            // 取不到就保持原样
+        }
+
+        window.Loaded += (_, __) => StyleDialogInputs(window);
+    }
+
+    private void StyleDialogInputs(DependencyObject root)
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+
+            if (child is TextBox box)
+            {
+                box.Background = (Brush)FindResource("FieldBg");
+                box.Foreground = (Brush)FindResource("Ink");
+                box.BorderBrush = (Brush)FindResource("FieldLine");
+                box.CaretBrush = (Brush)FindResource("Ink");
+                box.Padding = new Thickness(10, 7, 10, 7);
+                box.VerticalContentAlignment = VerticalAlignment.Center;
+                box.FocusVisualStyle = null;
+                box.BorderThickness = new Thickness(1);
+            }
+
+            StyleDialogInputs(child);
+        }
+    }
+
     private string? PromptForText(string title, string label, string initial)
     {
         var window = new Window
@@ -2269,8 +2331,10 @@ public partial class MainWindow : Window
             Owner = this,
             ResizeMode = ResizeMode.NoResize,
             WindowStyle = WindowStyle.ToolWindow,
-            Background = (Brush)FindResource("Bg"),
+            Background = (Brush)FindResource("AppBg"),
         };
+
+        StyleDialogWindow(window);
 
         var panel = new StackPanel { Margin = new Thickness(22, 18, 22, 18) };
         panel.Children.Add(new TextBlock
@@ -3993,9 +4057,11 @@ public partial class MainWindow : Window
             SizeToContent = SizeToContent.Height,
             ResizeMode = ResizeMode.NoResize,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Background = (Brush)FindResource("Bg"),
+            Background = (Brush)FindResource("AppBg"),
             Content = panel,
         };
+
+        StyleDialogWindow(window);
 
         var apply = new Button
         {
@@ -4550,6 +4616,8 @@ public partial class MainWindow : Window
             Content = new Border { Margin = new Thickness(14), Child = shell },
         };
 
+        StyleDialogWindow(window);
+
         // 拖窗 + 关闭
         headerGrid.MouseLeftButtonDown += (s2, e2) =>
         {
@@ -4888,9 +4956,11 @@ public partial class MainWindow : Window
             SizeToContent = SizeToContent.Height,
             ResizeMode = ResizeMode.NoResize,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Background = (Brush)FindResource("Bg"),
+            Background = (Brush)FindResource("AppBg"),
             Content = panel,
         };
+
+        StyleDialogWindow(window);
 
         ok.Click += (_, __) => window.DialogResult = true;
         return window;
@@ -4974,9 +5044,11 @@ public partial class MainWindow : Window
             SizeToContent = SizeToContent.Height,
             ResizeMode = ResizeMode.NoResize,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Background = (Brush)FindResource("Bg"),
+            Background = (Brush)FindResource("AppBg"),
             Content = panel,
         };
+
+        StyleDialogWindow(window);
 
         // 打开就自动复制验证码并拉起浏览器，玩家只需要在网页里确认
         window.Loaded += (_, __) =>

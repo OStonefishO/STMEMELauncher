@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -350,9 +350,11 @@ public partial class MainWindow
             Owner = this,
             ResizeMode = ResizeMode.NoResize,
             WindowStyle = WindowStyle.ToolWindow,
-            Background = (Brush)FindResource("Bg"),
+            Background = (Brush)FindResource("AppBg"),
             ShowInTaskbar = false,
         };
+
+        StyleDialogWindow(window);
 
         var panel = new StackPanel { Margin = new Thickness(24, 20, 24, 18) };
         panel.Children.Add(new TextBlock
