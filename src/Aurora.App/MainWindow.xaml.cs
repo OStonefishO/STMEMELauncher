@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.51";
+    private const string AppVersion = "0.15.52";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -3581,7 +3581,10 @@ public partial class MainWindow : Window
 
                 if (UpdateStatus != null)
                 {
-                    UpdateStatus.Text = $"已是最新版本（v{AppVersion}）";
+                    var published = release.PublishedAt == default
+                        ? string.Empty
+                        : $" · 发布于 {release.PublishedAt.ToLocalTime():yyyy-MM-dd HH:mm}";
+                    UpdateStatus.Text = $"已是最新（当前 v{AppVersion} · 线上最新 {release.Tag}{published}）";
                 }
             }
         }
