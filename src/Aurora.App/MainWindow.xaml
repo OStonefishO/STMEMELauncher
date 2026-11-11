@@ -6,7 +6,7 @@
         Title="MEME Launcher" Height="800" Width="1280"
         MinHeight="620" MinWidth="1040"
         WindowStyle="None" ResizeMode="CanResize"
-        Background="#070A12"
+        Background="{DynamicResource AppBg}"
         FontFamily="Microsoft YaHei UI" FontSize="13"
         TextOptions.TextFormattingMode="Ideal"
         TextOptions.TextRenderingMode="Grayscale"
@@ -36,6 +36,7 @@
             <GradientStop Color="#FF7C5CFF" Offset="1"/>
         </LinearGradientBrush>
 
+        <SolidColorBrush x:Key="DockBg" Color="#F0120A20"/>
         <SolidColorBrush x:Key="Glass" Color="#B3121620"/>
         <SolidColorBrush x:Key="GlassLine" Color="#26FFFFFF"/>
         <SolidColorBrush x:Key="Ink" Color="#FFE6EAF2"/>
@@ -500,7 +501,7 @@
 
                 <!-- 底部浮动 dock（新版布局：侧栏换成底部胶囊条） -->
                 <Border x:Name="BottomDock" Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Center"
-                        Margin="0,10,0,0" CornerRadius="22" Background="#F0120A20"
+                        Margin="0,10,0,0" CornerRadius="22" Background="{DynamicResource DockBg}"
                         BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="10,6"
                         Visibility="Collapsed">
                     <Border.Effect>
@@ -1678,6 +1679,9 @@
                                                   SelectionChanged="OnUiLayoutChanged">
                                             <ComboBoxItem Content="新版（动感 / 高对比）" Tag="vivid"/>
                                             <ComboBoxItem Content="终端（荧光绿 / 等宽感）" Tag="terminal"/>
+                                            <ComboBoxItem Content="纸质便签（浅色 / 衬线）" Tag="paper"/>
+                                            <ComboBoxItem Content="像素 8bit（NES 配色）" Tag="pixel"/>
+                                            <ComboBoxItem Content="毛玻璃极光（柔和渐变）" Tag="aurora"/>
                                             <ComboBoxItem Content="经典（旧版布局）" Tag="classic"/>
                                         </ComboBox>
                                         <Grid Margin="0,12,0,0">
