@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.42";
+    private const string AppVersion = "0.15.43";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -5591,7 +5591,7 @@ public partial class MainWindow : Window
     private WindowState _fullscreenRestoreState = WindowState.Normal;
 
     /// <summary>真正用代码换主题：新版大胆配色 + 动感过渡，经典回到原来的冷蓝。</summary>
-    private void ApplyUiLayout(string layout)
+    private void ApplyUiLayout(string layout, bool fullRefresh = true)
     {
         _style = (layout ?? "vivid").Trim().ToLowerInvariant();
         _terminal = _style == "terminal";
@@ -5766,6 +5766,11 @@ public partial class MainWindow : Window
                 "classic" => 5,
                 _ => 0,
             };
+        }
+
+        if (!fullRefresh)
+        {
+            return;   // 拖色相滑块时只换颜色，避免整页重排导致闪烁
         }
 
         // 让当前页重新高亮一次（胶囊只在 vivid 下出现）
