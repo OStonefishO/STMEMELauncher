@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.50";
+    private const string AppVersion = "0.15.52";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -54,6 +54,13 @@ public partial class MainWindow : Window
         _settings = ConfigStore.Load();
 
         // 调试用：--ui classic / vivid 强制指定布局（截图用）
+        var cvFlag = Array.IndexOf(Environment.GetCommandLineArgs(), "--cv-value");
+        if (cvFlag >= 0 && cvFlag + 1 < Environment.GetCommandLineArgs().Length)
+        {
+            _contentVersionMode = ContentVersionMode.Specific;
+            _contentVersionValue = Environment.GetCommandLineArgs()[cvFlag + 1];
+        }
+
         var hueFlag = Array.IndexOf(Environment.GetCommandLineArgs(), "--hue");
         if (hueFlag >= 0 && hueFlag + 1 < Environment.GetCommandLineArgs().Length &&
             int.TryParse(Environment.GetCommandLineArgs()[hueFlag + 1], out var hueValue))
@@ -69,6 +76,7 @@ public partial class MainWindow : Window
 
         // 界面布局（新版 / 经典）：构造后立刻套用一次
         ApplyUiLayout(_settings.UiLayout);
+        BuildContentVersionFilter();
         PreviewKeyDown += OnWindowKeyDown;
         _service = new LauncherService(_settings);
 
@@ -112,6 +120,41 @@ public partial class MainWindow : Window
             if (shotFlag >= 0 && shotFlag + 1 < argv.Length)
             {
                 _ = CaptureAndExitAsync(argv[shotFlag + 1]);
+            }
+
+            // 调试用：--picker 直接展开版本选择弹层（截图用）
+            if (argv.Contains("--picker"))
+            {
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    if (VersionList.ItemsSource is IEnumerable<VersionCard> pickerCards)
+                    {
+                        OpenVersionPicker(pickerCards.ToList());
+                    }
+                }), System.Windows.Threading.DispatcherPriority.Background);
+            }
+
+            // 调试用：--shot-picker <png>，把窗口 + 版本弹层合成一张图（弹层是独立窗口，普通 --shot 截不到）
+            var shotPickerFlag = Array.IndexOf(argv, "--shot-picker");
+            if (shotPickerFlag >= 0 && shotPickerFlag + 1 < argv.Length)
+            {
+                _ = CapturePickerAsync(argv[shotPickerFlag + 1]);
+            }
+
+            // 调试用：--cv 直接展开「内容 → 内容下载」的版本筛选（截图用）
+            var cvQueryFlag = Array.IndexOf(argv, "--cv-query");
+            var cvQueryValue = cvQueryFlag >= 0 && cvQueryFlag + 1 < argv.Length ? argv[cvQueryFlag + 1] : null;
+            if (argv.Contains("--cv") || cvQueryValue != null)
+            {
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    SetPage(2);
+                    ToggleContentVersionPopup();
+                    if (cvQueryValue != null && _cvSearch != null)
+                    {
+                        _cvSearch.Text = cvQueryValue;
+                    }
+                }), System.Windows.Threading.DispatcherPriority.Background);
             }
 
             // 调试用：--demo-crash，拿一条假崩溃跑一遍崩溃窗口
@@ -1083,22 +1126,19 @@ public partial class MainWindow : Window
             .Distinct()
             .ToList();
 
-        var items = new List<string> { "跟随当前版本", "全部版本" };
-        items.AddRange(versions);
-        VersionCombo.ItemsSource = items;
-        VersionCombo.SelectedIndex = 0;
+        SeedContentVersionFilter(versions);
         ContentLoaderCombo.SelectedIndex = 0;
         _ = ReloadCategoriesAsync();
     }
 
     private string? EffectiveVersion()
     {
-        if (VersionCombo.SelectedIndex <= 0)
+        return _contentVersionMode switch
         {
-            return (VersionList.SelectedItem as VersionCard)?.Summary.ClientVersion;
-        }
-
-        return VersionCombo.SelectedIndex == 1 ? null : VersionCombo.SelectedItem as string;
+            ContentVersionMode.All => null,
+            ContentVersionMode.Specific => _contentVersionValue,
+            _ => (VersionList.SelectedItem as VersionCard)?.Summary.ClientVersion,
+        };
     }
 
     private string? EffectiveLoader()
@@ -3541,7 +3581,10 @@ public partial class MainWindow : Window
 
                 if (UpdateStatus != null)
                 {
-                    UpdateStatus.Text = $"已是最新版本（v{AppVersion}）";
+                    var published = release.PublishedAt == default
+                        ? string.Empty
+                        : $" · 发布于 {release.PublishedAt.ToLocalTime():yyyy-MM-dd HH:mm}";
+                    UpdateStatus.Text = $"已是最新（当前 v{AppVersion} · 线上最新 {release.Tag}{published}）";
                 }
             }
         }
@@ -5858,6 +5901,11 @@ public partial class MainWindow : Window
             HueShiftResources(_hueShift);
         }
 
+        // 版本选择弹层：每套界面一套自己的配色
+        ApplyPopTheme();
+        RefreshVersionPickerTheme();
+        RefreshContentVersionFilterTheme();
+
         // 同步下拉框选中项（0 新版 / 1 终端 / 2 经典）
         if (UiLayoutCombo != null)
         {
@@ -6077,6 +6125,8 @@ public partial class MainWindow : Window
         VersionPickerText.Text = VersionList.SelectedItem is VersionCard card
             ? $"{card.Summary.Id}"
             : "未选择";
+
+        RefreshContentVersionLabel();
     }
 
     private void OnPickVersion(object sender, RoutedEventArgs e)
@@ -6093,92 +6143,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        BuildVersionPopover(list);
-        VersionPopover.IsOpen = !VersionPopover.IsOpen;
-    }
-
-    private void BuildVersionPopover(List<VersionCard> versions)
-    {
-        if (VersionPopoverList == null)
-        {
-            return;
-        }
-
-        VersionPopoverList.Children.Clear();
-        var current = (VersionList.SelectedItem as VersionCard)?.Summary.Id;
-
-        foreach (var card in versions)
-        {
-            var isCurrent = string.Equals(card.Summary.Id, current, StringComparison.OrdinalIgnoreCase);
-
-            var row = new Grid { Margin = new Thickness(0, 0, 0, 2) };
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-            var text = new StackPanel { Margin = new Thickness(12, 8, 8, 8) };
-            text.Children.Add(new TextBlock
-            {
-                Text = card.Summary.Id,
-                FontSize = 12.5,
-                FontWeight = isCurrent ? FontWeights.SemiBold : FontWeights.Normal,
-                Foreground = (Brush)FindResource(isCurrent ? "Ink" : "InkDim"),
-                TextTrimming = TextTrimming.CharacterEllipsis,
-            });
-            text.Children.Add(new TextBlock
-            {
-                Text = $"MC {card.Summary.ClientVersion} · {card.Summary.Loader} · {card.Summary.ModCount} mods",
-                FontSize = 10,
-                Foreground = (Brush)FindResource("InkFaint"),
-                Margin = new Thickness(0, 3, 0, 0),
-            });
-            row.Children.Add(text);
-
-            if (isCurrent)
-            {
-                var badge = new TextBlock
-                {
-                    Text = "✓",
-                    FontSize = 13,
-                    Foreground = new SolidColorBrush(Color.FromRgb(0x86, 0xEF, 0xAC)),
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(0, 0, 10, 0),
-                };
-                Grid.SetColumn(badge, 1);
-                row.Children.Add(badge);
-            }
-
-            var border = new Border
-            {
-                CornerRadius = new CornerRadius(9),
-                Background = isCurrent
-                    ? new SolidColorBrush(Color.FromArgb(0x33, 0x5B, 0x8C, 0xFF))
-                    : Brushes.Transparent,
-                Child = row,
-                Cursor = System.Windows.Input.Cursors.Hand,
-            };
-
-            border.MouseEnter += (_, __) =>
-            {
-                if (!isCurrent)
-                {
-                    border.Background = new SolidColorBrush(Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF));
-                }
-            };
-            border.MouseLeave += (_, __) =>
-            {
-                if (!isCurrent)
-                {
-                    border.Background = Brushes.Transparent;
-                }
-            };
-            border.MouseLeftButtonUp += (_, __) =>
-            {
-                VersionList.SelectedItem = card;
-                VersionPopover.IsOpen = false;
-            };
-
-            VersionPopoverList.Children.Add(border);
-        }
+        OpenVersionPicker(list);
     }
 
     private void OnVersionWheel(object sender, MouseWheelEventArgs e)
