@@ -192,7 +192,7 @@ public partial class MainWindow
         // 顶部 → 内容留 72；底部 → 内容留 72；左侧 → 内容右移 84，避免和竖栏重叠
         SetPagesTopInset(useTop ? 72 : 0);
         SetPagesBottomInset(useBottom ? 72 : 0);
-        SetPagesLeftInset(useLeft ? 84 : 0);
+        SetPagesLeftInset(_paper ? 84 : 0);
 
         if (useBottom)
         {
@@ -938,11 +938,13 @@ public partial class MainWindow
 
     private void SetRailExpanded(bool expanded)
     {
-        // 只有经典布局的左侧图标栏才做「悬停展开」；其它布局展开会压到内容上，引发来回闪
-        if (_style != "classic" || RailColumn == null || RailPanel == null || _railExpanded == expanded)
+        // 侧栏「悬停展开」会压到内容上（经典/纸质都中招），直接停用，保持固定 74px
+        if (RailColumn == null || RailPanel == null || _railExpanded == expanded)
         {
             return;
         }
+
+        return;
 
         _railExpanded = expanded;
         var gridAnim = new GridLengthAnimation(
