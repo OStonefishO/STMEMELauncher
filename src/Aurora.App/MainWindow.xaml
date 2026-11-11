@@ -363,7 +363,7 @@
                                     <Thumb>
                                         <Thumb.Template>
                                             <ControlTemplate TargetType="Thumb">
-                                                <Border Background="#38FFFFFF" CornerRadius="3" Margin="1,2"/>
+                                                <Border Background="#66FFFFFF" CornerRadius="5" Margin="3,2"/>
                                             </ControlTemplate>
                                         </Thumb.Template>
                                     </Thumb>
@@ -461,54 +461,6 @@
             </Setter>
         </Style>
 
-        <!-- 全局滚动条：加粗到 14px，滑块更好抓 -->
-        <Style TargetType="ScrollBar">
-            <Setter Property="Width" Value="14"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ScrollBar">
-                        <Grid Background="Transparent">
-                            <Track x:Name="PART_Track" IsDirectionReversed="True">
-                                <Track.Thumb>
-                                    <Thumb>
-                                        <Thumb.Template>
-                                            <ControlTemplate TargetType="Thumb">
-                                                <Border Background="#59FFFFFF" CornerRadius="5" Margin="3,2"/>
-                                            </ControlTemplate>
-                                        </Thumb.Template>
-                                            </Thumb>
-                                </Track.Thumb>
-                                <Track.IncreaseRepeatButton>
-                                    <RepeatButton Command="ScrollBar.PageDownCommand" Opacity="0">
-                                        <RepeatButton.Template>
-                                            <ControlTemplate TargetType="RepeatButton">
-                                                <Border Background="Transparent"/>
-                                            </ControlTemplate>
-                                        </RepeatButton.Template>
-                                    </RepeatButton>
-                                </Track.IncreaseRepeatButton>
-                                <Track.DecreaseRepeatButton>
-                                    <RepeatButton Command="ScrollBar.PageUpCommand" Opacity="0">
-                                        <RepeatButton.Template>
-                                            <ControlTemplate TargetType="RepeatButton">
-                                                <Border Background="Transparent"/>
-                                            </ControlTemplate>
-                                        </RepeatButton.Template>
-                                    </RepeatButton>
-                                </Track.DecreaseRepeatButton>
-                            </Track>
-                        </Grid>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="Orientation" Value="Horizontal">
-                                <Setter Property="Height" Value="14"/>
-                                <Setter Property="Width" Value="Auto"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
 
     </Window.Resources>
 
@@ -1209,6 +1161,9 @@
                                                        VerticalAlignment="Center" FontSize="11.5"
                                                        Foreground="{DynamicResource InkFaint}"/>
                                         </Grid>
+                                        <CheckBox x:Name="SnapshotToggle" Content="含预览版（快照 / 愚人节）" FontSize="11.5"
+                                                  Foreground="{DynamicResource InkDim}" Margin="2,8,0,0"
+                                                  Checked="OnSnapshotToggle" Unchecked="OnSnapshotToggle"/>
                                     </StackPanel>
                                     <ListBox x:Name="McVersionList" Background="Transparent" BorderThickness="0"
                                              Foreground="{DynamicResource Ink}" SelectionChanged="OnMcVersionSelected">
@@ -1541,6 +1496,19 @@
                                 <DockPanel>
                                     <TextBlock DockPanel.Dock="Top" Text="已安装版本" FontSize="11.5"
                                                Foreground="{DynamicResource InkFaint}" Margin="12,10,10,8"/>
+                                    <Grid DockPanel.Dock="Top" Margin="8,0,8,8">
+                                        <TextBox x:Name="VmSearchBox" Height="32"
+                                                 FontSize="12" Background="{DynamicResource FieldBg}"
+                                                 BorderBrush="{DynamicResource FieldLine}" BorderThickness="1"
+                                                 Foreground="{DynamicResource Ink}" Padding="10,0"
+                                                 VerticalContentAlignment="Center"
+                                                 TextChanged="OnVmSearchChanged" KeyDown="OnVmSearchKeyDown"
+                                                 ToolTip="直接打字过滤，例如 1.12.2 / forge / fabric；回车选第一个"/>
+                                        <TextBlock x:Name="VmSearchHint" Text="输入版本号过滤，如 1.12.2"
+                                                   FontSize="12" Foreground="{DynamicResource InkFaint}"
+                                                   VerticalAlignment="Center" Margin="12,0,0,0"
+                                                   IsHitTestVisible="False"/>
+                                    </Grid>
                                     <ListBox x:Name="VmVersionList" Background="Transparent" BorderThickness="0"
                                              Foreground="{DynamicResource Ink}" SelectionChanged="OnVmVersionSelected">
                                         <ListBox.ItemTemplate>

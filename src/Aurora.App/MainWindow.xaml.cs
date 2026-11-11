@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.45";
+    private const string AppVersion = "0.15.46";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -762,6 +762,11 @@ public partial class MainWindow : Window
 
     // ---------------- 安装页 ----------------
 
+    private void OnSnapshotToggle(object sender, RoutedEventArgs e)
+    {
+        _ = LoadMcVersionsAsync();
+    }
+
     private async Task LoadMcVersionsAsync()
     {
         try
@@ -769,14 +774,19 @@ public partial class MainWindow : Window
             InstallText.Text = "正在获取 Minecraft 版本清单…";
             var installer = _service.CreateInstaller();
             var all = await installer.GetManifestAsync();
-            _mcVersions = all.Where(v => v.Type == "release").Take(80).ToList();
+            var includeSnapshots = SnapshotToggle?.IsChecked == true;
+            _mcVersions = includeSnapshots
+                ? all.Where(v => v.Type is "release" or "snapshot" or "old_beta" or "old_alpha").Take(160).ToList()
+                : all.Where(v => v.Type == "release").Take(80).ToList();
             McVersionList.ItemsSource = _mcVersions;
             if (_mcVersions.Count > 0)
             {
                 McVersionList.SelectedIndex = 0;
             }
 
-            InstallText.Text = $"共 {all.Count} 个版本，已列出最近 {_mcVersions.Count} 个正式版";
+            InstallText.Text = includeSnapshots
+                ? $"共 {all.Count} 个版本，已列出最近 {_mcVersions.Count} 个（含预览版）"
+                : $"共 {all.Count} 个版本，已列出最近 {_mcVersions.Count} 个正式版";
         }
         catch (Exception ex)
         {
@@ -1600,6 +1610,7 @@ public partial class MainWindow : Window
         public string Subtitle { get; init; } = string.Empty;
     }
 
+    private List<VmVersionItem> _vmAllItems = new();
     private VersionSummary? _vmCurrent;
     private bool _vmLoaded;
 
@@ -1630,10 +1641,65 @@ public partial class MainWindow : Window
             })
             .ToList();
 
-        VmVersionList.ItemsSource = items;
-        if (items.Count > 0)
+        _vmAllItems = items;
+        ApplyVmFilter(VmSearchBox?.Text ?? string.Empty, keepSelection: false);
+    }
+
+    /// <summary>版本列表按输入内容过滤（id / 加载器 / MC 版本都参与匹配）。</summary>
+    private void ApplyVmFilter(string query, bool keepSelection = true)
+    {
+        if (VmVersionList == null)
         {
-            VmVersionList.SelectedIndex = 0;
+            return;
+        }
+
+        if (VmSearchHint != null)
+        {
+            VmSearchHint.Visibility = string.IsNullOrEmpty(query) ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        var previous = (VmVersionList.SelectedItem as VmVersionItem)?.Id;
+        var q = (query ?? string.Empty).Trim();
+
+        var filtered = q.Length == 0
+            ? _vmAllItems
+            : _vmAllItems
+                .Where(v => v.Id.Contains(q, StringComparison.OrdinalIgnoreCase)
+                            || v.Subtitle.Contains(q, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+        VmVersionList.ItemsSource = filtered;
+
+        if (filtered.Count == 0)
+        {
+            return;
+        }
+
+        var target = keepSelection && previous != null
+            ? filtered.FirstOrDefault(v => v.Id == previous) ?? filtered[0]
+            : filtered[0];
+
+        VmVersionList.SelectedItem = target;
+    }
+
+    private void OnVmSearchChanged(object sender, TextChangedEventArgs e)
+        => ApplyVmFilter((sender as TextBox)?.Text ?? string.Empty);
+
+    private void OnVmSearchKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+        {
+            ApplyVmFilter((sender as TextBox)?.Text ?? string.Empty, keepSelection: false);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape)
+        {
+            if (sender is TextBox box)
+            {
+                box.Text = string.Empty;
+            }
+
+            e.Handled = true;
         }
     }
 
