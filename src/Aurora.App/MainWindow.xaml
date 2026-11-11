@@ -137,6 +137,41 @@
         </Style>
 
         <!-- 次级按钮 -->
+
+        <!-- 强制关闭：比普通按钮明显大一号，红橙强调 -->
+        <Style x:Key="DangerButton" TargetType="Button">
+            <Setter Property="Foreground" Value="#FFFFB4A8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Height" Value="42"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="18,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="b" CornerRadius="12" Background="#2EFF5B5B"
+                                BorderBrush="#7AFF6B5B" BorderThickness="1.5"
+                                Padding="{TemplateBinding Padding}">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock Text="✕" FontSize="12" Margin="0,1,8,0" VerticalAlignment="Center"
+                                           Foreground="{TemplateBinding Foreground}"/>
+                                <ContentPresenter VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="#48FF5B5B"/>
+                                <Setter TargetName="b" Property="BorderBrush" Value="#B3FF8B7B"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="#66FF5B5B"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="GlassButton" TargetType="Button">
             <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
             <Setter Property="Background" Value="#14FFFFFF"/>
@@ -681,7 +716,7 @@
                                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                         <Button Content="▶  开始游戏" Style="{StaticResource HeroButton}" Width="210" Height="46"
                                                 FontSize="15" Click="OnLaunch" Tag="noBounce"/>
-                                        <Button x:Name="PaperKillButton" Content="强制关闭游戏" Style="{StaticResource GlassButton}"
+                                        <Button x:Name="PaperKillButton" Content="强制关闭游戏" Style="{StaticResource DangerButton}"
                                                 Margin="0,8,0,0" Click="OnForceKillGame" Visibility="Collapsed"/>
                                     </StackPanel>
                                 </Grid>
@@ -806,7 +841,7 @@
                                                TextWrapping="Wrap" Text="{Binding Text, ElementName=DetMeta}"/>
                                     <Button Content="▶ START" Style="{StaticResource HeroButton}" Height="52" Margin="0,20,0,0"
                                             FontFamily="{DynamicResource FontNum}" FontSize="15" Click="OnLaunch" Tag="noBounce"/>
-                                    <Button x:Name="PixelKillButton" Content="强制关闭" Style="{StaticResource GlassButton}"
+                                    <Button x:Name="PixelKillButton" Content="强制关闭" Style="{StaticResource DangerButton}"
                                             Margin="0,8,0,0" Click="OnForceKillGame" Visibility="Collapsed"/>
                                 </StackPanel>
                             </Border>
@@ -876,7 +911,7 @@
                                         <Button Content="打开目录" Style="{StaticResource GlassButton}" Click="OnOpenFolder"/>
                                         <Button Content="内容库" Style="{StaticResource GlassButton}" Margin="8,0,0,0" Tag="2" Click="OnNavClick"/>
                                         <Button Content="版本管理" Style="{StaticResource GlassButton}" Margin="8,0,0,0" Tag="7" Click="OnNavClick"/>
-                                        <Button x:Name="DashKillButton" Content="强制关闭游戏" Style="{StaticResource GlassButton}"
+                                        <Button x:Name="DashKillButton" Content="强制关闭游戏" Style="{StaticResource DangerButton}"
                                                 Margin="8,0,0,0" Click="OnForceKillGame" Visibility="Collapsed"/>
                                     </WrapPanel>
                                 </StackPanel>
@@ -992,7 +1027,7 @@
                                         <TextBlock Text="开始游戏" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </Button>
-                                <Button x:Name="ForceKillButton" Content="强制关闭游戏" Style="{StaticResource GlassButton}"
+                                <Button x:Name="ForceKillButton" Content="强制关闭游戏" Style="{StaticResource DangerButton}"
                                         Height="32" HorizontalAlignment="Left" Margin="0,10,0,0"
                                         Visibility="Collapsed" Click="OnForceKillGame"/>
 
