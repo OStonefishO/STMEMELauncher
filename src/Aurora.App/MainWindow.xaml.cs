@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.38";
+    private const string AppVersion = "0.15.39";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -5622,6 +5622,7 @@ public partial class MainWindow : Window
     // ---------------- 界面布局（新版 / 经典） ----------------
 
     private bool _vivid;
+    private bool _terminal;
     private bool _fullscreen;
     private Rect _fullscreenRestore = Rect.Empty;
     private WindowState _fullscreenRestoreState = WindowState.Normal;
@@ -5629,7 +5630,8 @@ public partial class MainWindow : Window
     /// <summary>真正用代码换主题：新版大胆配色 + 动感过渡，经典回到原来的冷蓝。</summary>
     private void ApplyUiLayout(string layout)
     {
-        _vivid = !string.Equals(layout, "classic", StringComparison.OrdinalIgnoreCase);
+        _terminal = string.Equals(layout, "terminal", StringComparison.OrdinalIgnoreCase);
+        _vivid = !string.Equals(layout, "classic", StringComparison.OrdinalIgnoreCase) && !_terminal;
 
         _hueShift = _settings.UiHue;
         _syncingHue = true;
@@ -5649,7 +5651,20 @@ public partial class MainWindow : Window
         void Set(string key, Color from, Color to, Color? mid = null)
             => res[key] = MakeGradient(from, to, mid);
 
-        if (_vivid)
+        if (_terminal)
+        {
+            // 终端风：近黑的墨绿底 + 荧光绿主色，等宽感、无渐变堆叠
+            Set("AppBg", Color.FromRgb(0x04, 0x07, 0x06), Color.FromRgb(0x06, 0x0B, 0x09), Color.FromRgb(0x08, 0x12, 0x0D));
+            Set("AccentGrad", Color.FromRgb(0x35, 0xF0, 0x7A), Color.FromRgb(0x00, 0xC8, 0xA0), Color.FromRgb(0x9C, 0xFF, 0x6A));
+            Set("TitleGrad", Color.FromRgb(0xE9, 0xFF, 0xF0), Color.FromRgb(0x35, 0xF0, 0x7A), Color.FromRgb(0x00, 0xC8, 0xA0));
+            res["Glass"] = Frozen(Color.FromArgb(0xE6, 0x08, 0x0F, 0x0B));
+            res["GlassLine"] = Frozen(Color.FromArgb(0x66, 0x35, 0xF0, 0x7A));
+            res["Ink"] = Frozen(Color.FromRgb(0xC9, 0xF7, 0xD2));
+            res["InkDim"] = Frozen(Color.FromRgb(0x77, 0xC2, 0x8C));
+            res["InkFaint"] = Frozen(Color.FromRgb(0x41, 0x7A, 0x52));
+            res["FontNum"] = new FontFamily("Consolas");   // 终端风：等宽数字
+        }
+        else if (_vivid)
         {
             Set("AppBg", Color.FromRgb(0x07, 0x03, 0x10), Color.FromRgb(0x04, 0x06, 0x0C), Color.FromRgb(0x1A, 0x08, 0x33));
             Set("AccentGrad", Color.FromRgb(0xFF, 0x3D, 0x8B), Color.FromRgb(0x00, 0xE5, 0xFF), Color.FromRgb(0x7A, 0x3C, 0xFF));
@@ -5659,6 +5674,7 @@ public partial class MainWindow : Window
             res["Ink"] = Frozen(Color.FromRgb(0xF4, 0xF6, 0xFF));
             res["InkDim"] = Frozen(Color.FromRgb(0xAB, 0xAE, 0xCB));
             res["InkFaint"] = Frozen(Color.FromRgb(0x74, 0x77, 0x96));
+            res["FontNum"] = new FontFamily("Segoe UI Variable Display");
         }
         else
         {
@@ -5670,6 +5686,7 @@ public partial class MainWindow : Window
             res["Ink"] = Frozen(Color.FromRgb(0xE6, 0xEA, 0xF2));
             res["InkDim"] = Frozen(Color.FromRgb(0x99, 0xA2, 0xB5));
             res["InkFaint"] = Frozen(Color.FromRgb(0x6D, 0x75, 0x88));
+            res["FontNum"] = new FontFamily("Segoe UI Variable Display");
         }
 
         // 色相偏移：在基础配色上整体旋转
@@ -5678,10 +5695,10 @@ public partial class MainWindow : Window
             HueShiftResources(_hueShift);
         }
 
-        // 同步下拉框选中项
+        // 同步下拉框选中项（0 新版 / 1 终端 / 2 经典）
         if (UiLayoutCombo != null)
         {
-            UiLayoutCombo.SelectedIndex = _vivid ? 0 : 1;
+            UiLayoutCombo.SelectedIndex = _terminal ? 1 : (_vivid ? 0 : 2);
         }
 
         // 让当前页重新高亮一次（胶囊只在 vivid 下出现）
@@ -5808,11 +5825,11 @@ public partial class MainWindow : Window
     /// <summary>标题栏右侧的小圆钮：一键在新版 / 经典之间切换。</summary>
     private void OnToggleLayout(object sender, RoutedEventArgs e)
     {
-        var next = _vivid ? "classic" : "vivid";
+        var next = _vivid ? "terminal" : (_terminal ? "classic" : "vivid");
         _settings.UiLayout = next;
         ApplyUiLayout(next);
         ConfigStore.Save(_settings);
-        ShowToast("界面布局", _vivid ? "新版（动感）" : "经典（旧版）", "◐", 1600);
+        ShowToast("界面布局", _vivid ? "新版（动感）" : (_terminal ? "终端（荧光绿）" : "经典（旧版）"), "◐", 1600);
     }
 
     private void OnMinimize(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
