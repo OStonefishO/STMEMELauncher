@@ -32,8 +32,80 @@ public sealed class DownloadClient : IDisposable
 
     public bool UseMirror { get; set; }
 
-    /// <summary>自建镜像站（http://127.0.0.1:8123 这种），有值时优先走它。</summary>
+    /// <summary>自建镜像站（http://127.0.0.1:8123 这种），有值时优先走它 —— 但连不上会自动跳过。</summary>
     public string MirrorBaseUrl { get; set; } = string.Empty;
+
+    /// <summary>自建镜像站探测缓存（地址 → 结果），60 秒内不重复探。</summary>
+    private static readonly Dictionary<string, (bool Ok, DateTime At)> MirrorProbeCache = new(StringComparer.OrdinalIgnoreCase);
+
+    private static readonly object MirrorProbeLock = new();
+
+    /// <summary>上次判定「自建镜像连不上、已回退 BMCLAPI」的地址，UI 拿它提示用户。</summary>
+    public static string? LastDeadMirror { get; private set; }
+
+    /// <summary>探测自建镜像端口能不能连（800ms 超时，结果缓存 60 秒）。</summary>
+    public static bool MirrorReachable(string baseUrl, int timeoutMs = 800)
+    {
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            return false;
+        }
+
+        lock (MirrorProbeLock)
+        {
+            if (MirrorProbeCache.TryGetValue(baseUrl, out var hit) && (DateTime.UtcNow - hit.At).TotalSeconds < 60)
+            {
+                return hit.Ok;
+            }
+        }
+
+        var ok = false;
+        try
+        {
+            var uri = new Uri(baseUrl);
+            using var tcp = new System.Net.Sockets.TcpClient();
+            var connect = tcp.ConnectAsync(uri.Host, uri.Port <= 0 ? 80 : uri.Port);
+            ok = connect.Wait(timeoutMs) && tcp.Connected;
+        }
+        catch
+        {
+            ok = false;
+        }
+
+        lock (MirrorProbeLock)
+        {
+            MirrorProbeCache[baseUrl] = (ok, DateTime.UtcNow);
+        }
+
+        if (!ok)
+        {
+            LastDeadMirror = baseUrl;
+        }
+
+        return ok;
+    }
+
+    /// <summary>给设置页用的异步探测（保存镜像地址时立刻给结论）。</summary>
+    public static async Task<bool> ProbeMirrorAsync(string baseUrl, int timeoutMs = 1200)
+    {
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            return false;
+        }
+
+        try
+        {
+            var uri = new Uri(baseUrl);
+            using var tcp = new System.Net.Sockets.TcpClient();
+            using var cts = new CancellationTokenSource(timeoutMs);
+            await tcp.ConnectAsync(uri.Host, uri.Port <= 0 ? 80 : uri.Port, cts.Token).ConfigureAwait(false);
+            return tcp.Connected;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 
     /// <summary>进度回调（已下载字节 / 总字节，可能为 -1）。</summary>
     public IProgress<(long Done, long Total)>? Progress { get; set; }
@@ -46,7 +118,7 @@ public sealed class DownloadClient : IDisposable
         }
 
         var custom = MirrorBaseUrl?.Trim();
-        if (!string.IsNullOrEmpty(custom))
+        if (!string.IsNullOrEmpty(custom) && MirrorReachable(custom))
         {
             var b = custom.TrimEnd('/');
             return url

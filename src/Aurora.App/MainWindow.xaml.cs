@@ -114,6 +114,7 @@ public partial class MainWindow : Window
             _ = SplashFadeOutAsync();
             _ = InitSkinWebAsync();
             _ = CheckUpdatesAsync(silent: true);
+            _ = ProbeMirrorNoticeAsync();
 
             // 调试用：--shot <png>，等界面稳定后自己存一张图然后退出
             var shotFlag = Array.IndexOf(argv, "--shot");
@@ -3357,7 +3358,37 @@ public partial class MainWindow : Window
         try
         {
             DetailStatus.Text = $"安装 {version.Number}…";
-    
+
+            var file = new ContentFile
+            {
+                Id = version.Id,
+                FileName = version.FileName,
+                DisplayName = version.Number,
+                Url = version.Url,
+                Size = version.Size,
+                GameVersions = version.GameVersions,
+                Loaders = version.Loaders,
+            };
+
+            // 整合包：不问目录，直接装成独立版本（缺的原版 / 加载器会自动补齐）
+            if (item.Kind == ContentKind.Modpack)
+            {
+                DetailStatus.Text = "整合包：自动补齐原版和加载器，然后导入…";
+                if (button != null)
+                {
+                    button.IsEnabled = false;
+                }
+
+                await InstallContentModpackAsync(file);
+
+                if (button != null)
+                {
+                    button.IsEnabled = true;
+                }
+
+                return;
+            }
+
         var target = VersionList.SelectedItem as VersionCard;
             var resolved = target == null ? null : _service.Resolve(target.Summary.Id);
             var gameDir = resolved == null ? _settings.GameDirectory : _service.GameDirectoryFor(resolved);
@@ -3374,17 +3405,6 @@ public partial class MainWindow : Window
             }
 
             gameDir = chosen;
-
-            var file = new ContentFile
-            {
-                Id = version.Id,
-                FileName = version.FileName,
-                DisplayName = version.Number,
-                Url = version.Url,
-                Size = version.Size,
-                GameVersions = version.GameVersions,
-                Loaders = version.Loaders,
-            };
 
             var task = _service.CreateDownloadManager().Enqueue(file, item.Kind, gameDir);
             DetailStatus.Text = "已加入下载管理: " + task.FileName;
@@ -3484,7 +3504,7 @@ public partial class MainWindow : Window
             }
         }
     }
-    /// <summary>整合包：下载 + 解包 + 建版本，一条龙，进度走下载管理。</summary>
+    /// <summary>整合包：下载 → 自动补原版/加载器 → 解包成独立版本，一条龙，进度走下载管理。</summary>
     private async Task InstallContentModpackAsync(ContentFile file)
     {
         var manager = _service.CreateDownloadManager();
@@ -3492,7 +3512,7 @@ public partial class MainWindow : Window
         var cts = new CancellationTokenSource();
         _installCts[job.Id] = cts;
         CancelInstallButton.Visibility = Visibility.Visible;
-        ContentStatus.Text = "正在下载并导入整合包…";
+        ContentStatus.Text = "正在下载整合包…";
 
         try
         {
@@ -3507,13 +3527,27 @@ public partial class MainWindow : Window
                 ContentStatus.Text = $"[{p.Stage}] {p.Message} · {p.Percent:0}%";
             });
 
-            var id = await _service.CreateModpackInstaller().InstallAsync(file, progress, cts.Token);
+            var installer = _service.CreateModpackInstaller();
+            var plan = await installer.PrepareAsync(file, progress, cts.Token);
+
+            // 缺原版 / 加载器就自动补，玩家不用自己去安装页折腾
+            if (!string.IsNullOrEmpty(plan.Loader) &&
+                string.IsNullOrEmpty(installer.FindLoader(plan.McVersion, plan.Loader, plan.LoaderVersion)))
+            {
+                await EnsureModpackBaseAsync(plan, progress, cts.Token, manager, job);
+                plan.LoaderId = installer.FindLoader(plan.McVersion, plan.Loader, plan.LoaderVersion);
+                LoadVersions();
+            }
+
+            var id = await installer.InstallPreparedAsync(plan, progress, cts.Token);
             manager.CompleteJob(job, true);
             LoadVersions();
             ReloadVmVersions();
 
-            ContentStatus.Text = "整合包已导入成版本：" + id + "（已按设置做版本隔离）";
-            ShowToast("整合包已导入", id, "✓", 5000);
+            // 装完直接切到新版本，玩家点「开始游戏」就能玩，不用再手动导入
+            SelectVersionById(id);
+            ContentStatus.Text = "整合包已装好：" + id + "（已按设置做版本隔离）";
+            ShowToast("整合包装好了", $"{id} · 直接点开始游戏", "✓", 6000);
         }
         catch (OperationCanceledException)
         {
@@ -3533,6 +3567,47 @@ public partial class MainWindow : Window
             {
                 CancelInstallButton.Visibility = Visibility.Collapsed;
             }
+        }
+    }
+
+    /// <summary>整合包要的原版 / 加载器没装时自动补上（先原版，再挑一个匹配的加载器版本）。</summary>
+    private async Task EnsureModpackBaseAsync(ModpackPlan plan, IProgress<InstallProgress> progress,
+        CancellationToken ct, DownloadManager manager, DownloadItem job)
+    {
+        var mcJson = Path.Combine(_settings.GameDirectory, "versions", plan.McVersion, plan.McVersion + ".json");
+        if (!File.Exists(mcJson))
+        {
+            manager.UpdateJob(job, 2, "先补齐原版 " + plan.McVersion);
+            await _service.CreateInstaller().InstallVanillaAsync(plan.McVersion, progress, downloadAssets: true, ct);
+        }
+
+        manager.UpdateJob(job, 6, $"安装 {plan.Loader} {plan.LoaderVersion}");
+        var options = await _service.CreateLoaderInstaller().ListAsync(plan.Loader, plan.McVersion, ct);
+        if (options.Count == 0)
+        {
+            throw new InvalidOperationException($"{plan.Loader} 没有适配 {plan.McVersion} 的版本");
+        }
+
+        var option = options.FirstOrDefault(o => !string.IsNullOrEmpty(plan.LoaderVersion) &&
+                                                 (o.Version.Contains(plan.LoaderVersion!) ||
+                                                  plan.LoaderVersion!.Contains(o.Version)))
+                     ?? options[0];
+
+        await _service.CreateLoaderInstaller().InstallAsync(option, progress, ct);
+    }
+
+    /// <summary>按版本 id 在启动页选中它（装完整合包用）。</summary>
+    private void SelectVersionById(string id)
+    {
+        if (VersionList?.ItemsSource is not IEnumerable<VersionCard> cards)
+        {
+            return;
+        }
+
+        var card = cards.FirstOrDefault(c => string.Equals(c.Summary.Id, id, StringComparison.OrdinalIgnoreCase));
+        if (card != null)
+        {
+            VersionList.SelectedItem = card;
         }
     }
 
@@ -5510,10 +5585,61 @@ public partial class MainWindow : Window
         Aurora.Core.Net.Translator.Configure(_settings.TranslateApiKey, _settings.TranslateBaseUrl, _settings.TranslateModel);
             SaveStatus.Text = "已保存 · " + ConfigStore.ConfigPath;
             SetStatus("设置已保存");
+
+            // 自建镜像填了就连一下：连不上立刻说清楚，别让玩家以为是网慢
+            if (!string.IsNullOrWhiteSpace(_settings.MirrorBaseUrl))
+            {
+                _ = ProbeMirrorAfterSaveAsync(_settings.MirrorBaseUrl);
+            }
         }
         catch (Exception ex)
         {
             SaveStatus.Text = "保存失败: " + ex.Message;
+        }
+    }
+
+    private async Task ProbeMirrorAfterSaveAsync(string mirror)
+    {
+        try
+        {
+            var ok = await Aurora.Core.Net.DownloadClient.ProbeMirrorAsync(mirror);
+            if (ok)
+            {
+                ShowToast("自建镜像可用", mirror, "✓", 4000);
+                return;
+            }
+
+            SaveStatus.Text = $"自建镜像 {mirror} 连不上，下载会自动改用 BMCLAPI";
+            SetStatus("自建镜像连不上，已自动改用 BMCLAPI");
+            ShowToast("自建镜像连不上", "下载会自动改用 BMCLAPI", "⚠", 6000);
+        }
+        catch
+        {
+            // 探测失败不影响保存
+        }
+    }
+
+    /// <summary>启动时看一眼自建镜像还在不在，挂了就提前说，别等下载卡住才发现。</summary>
+    private async Task ProbeMirrorNoticeAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_settings.MirrorBaseUrl))
+        {
+            return;
+        }
+
+        try
+        {
+            var ok = await Aurora.Core.Net.DownloadClient.ProbeMirrorAsync(_settings.MirrorBaseUrl);
+            if (ok)
+            {
+                return;
+            }
+
+            ShowToast("自建镜像连不上", $"{_settings.MirrorBaseUrl} 没响应，下载已自动改用 BMCLAPI", "⚠", 8000);
+        }
+        catch
+        {
+            // 忽略
         }
     }
 
