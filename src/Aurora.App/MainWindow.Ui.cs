@@ -185,7 +185,9 @@ public partial class MainWindow
         BuildDock();
         BottomDock.Visibility = (useTop || useBottom) ? Visibility.Visible : Visibility.Collapsed;
         RailPanel.Visibility = useLeft ? Visibility.Visible : Visibility.Collapsed;
+        RailColumn.BeginAnimation(ColumnDefinition.WidthProperty, null);
         RailColumn.Width = new GridLength(useLeft ? 74 : 0);
+        _railExpanded = false;
 
         // 顶部 → 内容留 72；底部 → 内容留 72；左侧 → 内容右移 84，避免和竖栏重叠
         SetPagesTopInset(useTop ? 72 : 0);
@@ -880,7 +882,8 @@ public partial class MainWindow
 
     private void SetRailExpanded(bool expanded)
     {
-        if (!_vivid || RailColumn == null || RailPanel == null || _railExpanded == expanded)
+        // 只有经典布局的左侧图标栏才做「悬停展开」；其它布局展开会压到内容上，引发来回闪
+        if (_style != "classic" || RailColumn == null || RailPanel == null || _railExpanded == expanded)
         {
             return;
         }
