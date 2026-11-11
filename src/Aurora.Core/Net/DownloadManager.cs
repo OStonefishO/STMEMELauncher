@@ -290,6 +290,11 @@ public sealed class DownloadManager
         {
             item.ReceivedBytes = success ? 100 : item.ReceivedBytes;
             item.State = success ? DownloadState.Completed : DownloadState.Failed;
+
+            if (success)
+            {
+                ScheduleAutoClear(item);
+            }
             if (!string.IsNullOrEmpty(error))
             {
                 item.Error = error!;
@@ -346,11 +351,30 @@ public sealed class DownloadManager
             cts.Cancel();
         }
 
-        Ui(() => item.State = DownloadState.Canceled);
+        Ui(() =>
+        {
+            item.State = DownloadState.Canceled;
+            ScheduleAutoClear(item);
+        });
         TryDelete(item.TargetPath + ".part");
     }
 
     /// <summary>从列表里删掉某一条任务（正在下的先取消，安装类任务顺手掐掉它的取消令牌）。</summary>
+    /// <summary>完成 / 取消的任务在列表里留几秒，让玩家看见结果，然后自动移除。</summary>
+    private static readonly TimeSpan AutoClearDelay = TimeSpan.FromSeconds(4);
+
+    private void ScheduleAutoClear(DownloadItem item)
+    {
+        _ = Task.Delay(AutoClearDelay).ContinueWith(_ => Ui(() =>
+        {
+            if (Tasks.Contains(item) &&
+                item.State is DownloadState.Completed or DownloadState.Canceled)
+            {
+                Tasks.Remove(item);
+            }
+        }));
+    }
+
     public void Remove(DownloadItem item)
     {
         if (_running.TryGetValue(item.Id, out var cts))

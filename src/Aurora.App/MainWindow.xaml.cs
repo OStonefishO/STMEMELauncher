@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.59";
+    private const string AppVersion = "0.15.60";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -635,6 +635,23 @@ public partial class MainWindow : Window
             {
                 SetStatus($"缺 {missingLibs.Count} 个库文件，启动多半会失败");
                 ShowToast("库文件不全", "建议在「内容 → 安装版本」里重装这个版本", "⚠", 5200);
+            }
+
+            // 启动前把 assets 也体检一遍：缺资源的话游戏会在加载贴图时直接崩（NoSuchFileException）
+            SetStatus("检查游戏资源（assets）…");
+            try
+            {
+                var repairedAssets = await _service.EnsureAssetsAsync(versionInfo,
+                    new Progress<string>(t => SetStatus(t)), CancellationToken.None);
+                if (repairedAssets > 0)
+                {
+                    SetStatus($"已补齐 {repairedAssets} 个资源文件");
+                    ShowToast("已补齐游戏资源", $"{repairedAssets} 个文件 · 继续启动", "✓", 4000);
+                }
+            }
+            catch (Exception ex)
+            {
+                SetStatus("资源检查失败（不影响继续启动）: " + ex.Message);
             }
 
             // Java 先挑一遍：一台都没有、或者没有正好的版本，就先问要不要自动装

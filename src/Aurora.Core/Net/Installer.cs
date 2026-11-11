@@ -140,6 +140,58 @@ public sealed class Installer
     /// 启动前体检：把缺失或大小不对的 assets 对象 / 库文件补回来。
     /// 返回补下的文件数。0 表示本来就是完好的。
     /// </summary>
+    /// <summary>数一下 assets 对象缺多少个（只做文件存在性检查，很快）。</summary>
+    public int CountMissingAssets(ResolvedVersion resolved)
+    {
+        try
+        {
+            if (resolved.AssetIndex is not { Id: { Length: > 0 } id })
+            {
+                return 0;
+            }
+
+            var indexPath = Path.Combine(AssetsDirectory, "indexes", id + ".json");
+            if (!File.Exists(indexPath))
+            {
+                return 1;
+            }
+
+            using var doc = JsonDocument.Parse(File.ReadAllText(indexPath));
+            if (!doc.RootElement.TryGetProperty("objects", out var objects) ||
+                objects.ValueKind != JsonValueKind.Object)
+            {
+                return 0;
+            }
+
+            var missing = 0;
+            foreach (var entry in objects.EnumerateObject())
+            {
+                if (!entry.Value.TryGetProperty("hash", out var hashProp))
+                {
+                    continue;
+                }
+
+                var hash = hashProp.GetString();
+                if (string.IsNullOrEmpty(hash) || hash.Length < 2)
+                {
+                    continue;
+                }
+
+                var path = Path.Combine(AssetsDirectory, "objects", hash[..2], hash);
+                if (!File.Exists(path))
+                {
+                    missing++;
+                }
+            }
+
+            return missing;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
     /// <summary>
     /// 按解析好的版本（已合并继承链）修资源：assets 对象 + 依赖库。
     /// 直接读版本自己的 json 是不行的 —— Forge/NeoForge 的版本只写 inheritsFrom，assetIndex 和库都在父版本里。

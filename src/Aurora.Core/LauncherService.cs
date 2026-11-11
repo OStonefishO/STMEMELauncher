@@ -140,6 +140,39 @@ public sealed partial class LauncherService
     /// 启动前补齐这个版本缺的库文件（Forge/NeoForge 的 bootstraplauncher、securejarhandler 这些）。
     /// 返回补不上的文件列表，空表示齐了。
     /// </summary>
+    /// <summary>从 versions\xxx 反推游戏根目录（assets、libraries 都在那一层）。</summary>
+    private static string? GameRootOf(string? versionDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(versionDirectory))
+        {
+            return null;
+        }
+
+        var versionsDir = Path.GetDirectoryName(versionDirectory.TrimEnd(Path.DirectorySeparatorChar));
+        return string.IsNullOrEmpty(versionsDir) ? null : Path.GetDirectoryName(versionsDir);
+    }
+
+    /// <summary>
+    /// 启动前体检：assets 缺不缺，缺就自动补齐（补完再启动）。
+    /// 返回补了多少个文件，0 表示本来就齐。
+    /// </summary>
+    public async Task<int> EnsureAssetsAsync(ResolvedVersion version, IProgress<string>? progress = null,
+        CancellationToken ct = default)
+    {
+        var root = GameRootOf(version.Directory) ?? Settings.GameDirectory;
+        var installer = CreateInstaller(root);
+
+        var missing = installer.CountMissingAssets(version);
+        if (missing <= 0)
+        {
+            return 0;
+        }
+
+        progress?.Report($"游戏资源缺 {missing} 个，正在补齐…");
+        var detail = new Progress<InstallProgress>(p => progress?.Report($"[{p.Stage}] {p.Message} · {p.Percent:0}%"));
+        return await installer.RepairAsync(version, detail, ct);
+    }
+
     public async Task<List<string>> EnsureLibrariesAsync(ResolvedVersion version, IProgress<string>? progress = null,
         CancellationToken ct = default)
     {
