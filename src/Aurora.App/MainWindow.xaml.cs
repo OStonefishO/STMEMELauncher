@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.44";
+    private const string AppVersion = "0.15.45";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -360,6 +360,17 @@ public partial class MainWindow : Window
         };
         AnimatePageIn(target);
         AttachMotionHooks(target);
+
+        if (index == 8 && BiliWeb != null)
+        {
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (!_biliManualZoom && BiliWeb.ActualWidth > 100)
+                {
+                    ApplyBiliZoom(FitZoomFor(BiliWeb.ActualWidth), manual: false);
+                }
+            }), System.Windows.Threading.DispatcherPriority.Loaded);
+        }
         UpdateDock(index);
 
         if (index == 1 && _mcVersions.Count == 0)
