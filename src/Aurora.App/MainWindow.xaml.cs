@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.60";
+    private const string AppVersion = "0.15.61";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -701,29 +701,25 @@ public partial class MainWindow : Window
             }
 
             SetStatus($"{resolved.Id} · 运行中（{plan.JavaPath}）");
+            ShowToast("正在启动游戏", $"{resolved.Id} · 检查资源 → 拼参数 → 拉起 JVM", "⏳", 600000);
 
             var launcher = new GameLauncher();
             _gameLauncher = launcher;
             launcher.Started += pid => Dispatcher.BeginInvoke(() =>
             {
-                if (ForceKillButton != null)
-                {
-                    ForceKillButton.Visibility = Visibility.Visible;
-                }
-
-                if (DashKillButton != null)
-                {
-                    DashKillButton.Visibility = Visibility.Visible;
-                }
+                SetKillButtonsVisible(true);
 
                 SetStatus($"游戏已启动（pid {pid}），点「强制关闭游戏」可以强杀");
+                ShowToast("游戏启动中", $"pid {pid} · 窗口出来可能要十几秒", "▶", 6000);
             });
             launcher.OutputReceived += line =>
                 Dispatcher.BeginInvoke(() => SetStatus(Trim(line, 140)));
 
             var result = await Task.Run(() => launcher.LaunchAsync(plan));
 
-            var killedByUser = _killedByUser;
+            SetKillButtonsVisible(false);
+
+        var killedByUser = _killedByUser;
             _killedByUser = false;
 
             // 每次启动都把日志落一份，玩家发过来就能查
@@ -732,6 +728,7 @@ public partial class MainWindow : Window
             if (!string.IsNullOrEmpty(result.CrashSummary))
             {
                 SetStatus("崩溃：" + result.CrashSummary);
+                ShowToast("游戏崩溃了", result.CrashSummary, "⚠", 8000);
                 if (result.Insight != null && !killedByUser)
                 {
                     ShowCrashWindow(result.Insight);
@@ -766,6 +763,7 @@ public partial class MainWindow : Window
                 };
 
                 SetStatus("游戏刚启动就退出了（0s），已生成诊断报告");
+                ShowToast("启动失败", "游戏刚启动就退出了，已生成诊断报告", "⚠", 8000);
                 ShowCrashWindow(quick);
             }
             else
@@ -773,6 +771,19 @@ public partial class MainWindow : Window
                 SetStatus(result.ExitCode == 0
                     ? $"游戏已退出（{result.Duration.TotalSeconds:0}s）"
                     : $"异常退出，退出码 {result.ExitCode}");
+
+            if (killedByUser)
+            {
+                ShowToast("已强制关闭游戏", $"{resolved.Id} · 玩了 {result.Duration.TotalSeconds:0} 秒", "■", 5000);
+            }
+            else if (result.ExitCode == 0)
+            {
+                ShowToast("游戏已正常退出", $"{resolved.Id} · {result.Duration.TotalSeconds:0} 秒", "✓", 5000);
+            }
+            else
+            {
+                ShowToast("游戏异常退出", $"退出码 {result.ExitCode} · 日志已保存", "⚠", 8000);
+            }
             }
         }
         catch (Exception ex)
@@ -783,6 +794,20 @@ public partial class MainWindow : Window
         {
             _busy = false;
             LaunchButton.IsEnabled = true;
+        }
+    }
+
+    /// <summary>六个首页各自的「强制关闭」按钮，统一开/关。</summary>
+    private void SetKillButtonsVisible(bool visible)
+    {
+        var state = visible ? Visibility.Visible : Visibility.Collapsed;
+        foreach (var button in new[] { ForceKillButton, DashKillButton, PaperKillButton, VividKillButton,
+                     TermKillButton, AuroraKillButton, PixelKillButton })
+        {
+            if (button != null)
+            {
+                button.Visibility = state;
+            }
         }
     }
 
@@ -1704,11 +1729,7 @@ public partial class MainWindow : Window
             SetStatus("强制关闭失败: " + ex.Message);
         }
 
-        ForceKillButton.Visibility = Visibility.Collapsed;
-        if (DashKillButton != null)
-        {
-            DashKillButton.Visibility = Visibility.Collapsed;
-        }
+        SetKillButtonsVisible(false);
     }
 
     // ---------------- 版本管理 ----------------
@@ -2986,6 +3007,8 @@ public partial class MainWindow : Window
         _ = ShowContentDetailAsync(card.Item);
     }
 
+    private int _toastSeq;
+
     private async void ShowToast(string title, string detail, string icon = "⇩", int milliseconds = 3200)
     {
         try
@@ -2995,7 +3018,9 @@ public partial class MainWindow : Window
                 return;
             }
 
-            ToastIcon.Text = icon;
+            
+            var seq = ++_toastSeq;
+ToastIcon.Text = icon;
             ToastTitle.Text = title;
             ToastDetail.Text = detail;
 
@@ -3004,6 +3029,11 @@ public partial class MainWindow : Window
             ToastHost.BeginAnimation(OpacityProperty, fadeIn);
 
             await Task.Delay(milliseconds);
+
+            if (seq != _toastSeq)
+            {
+                return;
+            }
 
             var fadeOut = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(260));
             fadeOut.Completed += (_, __) => ToastHost.Visibility = Visibility.Collapsed;
