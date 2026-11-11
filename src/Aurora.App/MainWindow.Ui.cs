@@ -224,11 +224,14 @@ public partial class MainWindow
             }
         }
 
-        // 首页形态：仪表盘 / 活页清单 / 方块网格 / 经典大图
+        // 首页形态：每套布局一个独立面板
         HeroGrid.Visibility = Visibility.Collapsed;
         DashboardGrid.Visibility = Visibility.Collapsed;
         PaperHome.Visibility = Visibility.Collapsed;
         PixelHome.Visibility = Visibility.Collapsed;
+        VividHome.Visibility = Visibility.Collapsed;
+        TerminalHome.Visibility = Visibility.Collapsed;
+        AuroraHome.Visibility = Visibility.Collapsed;
 
         if (_paper)
         {
@@ -238,10 +241,18 @@ public partial class MainWindow
         {
             PixelHome.Visibility = Visibility.Visible;
         }
+        else if (_terminal)
+        {
+            TerminalHome.Visibility = Visibility.Visible;
+        }
+        else if (_aurora)
+        {
+            AuroraHome.Visibility = Visibility.Visible;
+        }
         else if (_vivid)
         {
-            DashboardGrid.Visibility = Visibility.Visible;
-            InitDashboardScene();
+            VividHome.Visibility = Visibility.Visible;
+            InitVividScene();
         }
         else
         {
@@ -325,6 +336,49 @@ public partial class MainWindow
 
     private bool _dashSceneReady;
 
+    private bool _vividSceneReady;
+
+    private void InitVividScene()
+    {
+        if (_vividSceneReady || VividViewport == null)
+        {
+            return;
+        }
+
+        _vividSceneReady = true;
+        var cam = HeroScene.Camera();
+        cam.Width *= 1.2;
+        VividViewport.Camera = cam;
+        RefreshVividScene();
+    }
+
+    private void RefreshVividScene()
+    {
+        if (VividViewport == null)
+        {
+            return;
+        }
+
+        VividViewport.Children.Clear();
+        VividViewport.Children.Add(new ModelVisual3D { Content = HeroScene.Lights(_heroBiome) });
+        VividViewport.Children.Add(HeroScene.Build(_heroBiome));
+        if (VividBiomeText != null)
+        {
+            VividBiomeText.Text = HeroScene.BiomeName(_heroBiome) + " · 点一下换群系";
+        }
+    }
+
+    private void RefreshAuroraBackdrop()
+    {
+        if (AuroraBackdrop == null || AuroraBackdrop.Children.Count == 0)
+        {
+            return;
+        }
+
+        AuroraBackdrop.Children.Clear();
+        InitAuroraBackdrop();
+    }
+
     private void InitAuroraBackdrop()
     {
         if (AuroraBackdrop == null || AuroraBackdrop.Children.Count > 0)
@@ -376,6 +430,8 @@ public partial class MainWindow
         };
 
         RefreshDashboardScene();
+        RefreshVividScene();
+        RefreshAuroraBackdrop();
         if (HeroViewport != null)
         {
             ApplyHeroBiome();
