@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.39";
+    private const string AppVersion = "0.15.40";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -5623,6 +5623,10 @@ public partial class MainWindow : Window
 
     private bool _vivid;
     private bool _terminal;
+    private bool _paper;
+    private bool _pixel;
+    private bool _aurora;
+    private string _style = "vivid";
     private bool _fullscreen;
     private Rect _fullscreenRestore = Rect.Empty;
     private WindowState _fullscreenRestoreState = WindowState.Normal;
@@ -5630,8 +5634,23 @@ public partial class MainWindow : Window
     /// <summary>真正用代码换主题：新版大胆配色 + 动感过渡，经典回到原来的冷蓝。</summary>
     private void ApplyUiLayout(string layout)
     {
-        _terminal = string.Equals(layout, "terminal", StringComparison.OrdinalIgnoreCase);
-        _vivid = !string.Equals(layout, "classic", StringComparison.OrdinalIgnoreCase) && !_terminal;
+        _style = (layout ?? "vivid").Trim().ToLowerInvariant();
+        _terminal = _style == "terminal";
+        _paper = _style == "paper";
+        _pixel = _style == "pixel";
+        _aurora = _style == "aurora";
+        _vivid = _style != "classic";
+        if (_vivid)
+        {
+            _style = _style switch
+            {
+                "terminal" => "terminal",
+                "paper" => "paper",
+                "pixel" => "pixel",
+                "aurora" => "aurora",
+                _ => "vivid",
+            };
+        }
 
         _hueShift = _settings.UiHue;
         _syncingHue = true;
@@ -5651,7 +5670,53 @@ public partial class MainWindow : Window
         void Set(string key, Color from, Color to, Color? mid = null)
             => res[key] = MakeGradient(from, to, mid);
 
-        if (_terminal)
+        if (_paper)
+        {
+            // 纸质便签：米白纸面 + 深棕墨 + 陶土橙，浅色系
+            Set("AppBg", Color.FromRgb(0xFA, 0xF4, 0xE8), Color.FromRgb(0xF3, 0xEA, 0xD9), Color.FromRgb(0xEE, 0xE2, 0xCC));
+            Set("AccentGrad", Color.FromRgb(0xC4, 0x55, 0x3A), Color.FromRgb(0xE0, 0x9C, 0x3C));
+            Set("TitleGrad", Color.FromRgb(0x2B, 0x26, 0x22), Color.FromRgb(0xC4, 0x55, 0x3A), Color.FromRgb(0x7A, 0x3B, 0x22));
+            res["Glass"] = Frozen(Color.FromArgb(0xF2, 0xFD, 0xF9, 0xF0));
+            res["GlassLine"] = Frozen(Color.FromArgb(0xFF, 0xDD, 0xCF, 0xB8));
+            res["Ink"] = Frozen(Color.FromRgb(0x2B, 0x26, 0x22));
+            res["InkDim"] = Frozen(Color.FromRgb(0x6E, 0x61, 0x52));
+            res["InkFaint"] = Frozen(Color.FromRgb(0x9A, 0x8C, 0x7A));
+            res["FontNum"] = new FontFamily("Georgia");
+            res["FontHead"] = new FontFamily("Georgia");
+            res["DockBg"] = Frozen(Color.FromArgb(0xF5, 0xFD, 0xF9, 0xF0));
+        }
+        else if (_pixel)
+        {
+            // 像素 8bit：黑底 + NES 主色，纯色不渐变
+            Set("AppBg", Color.FromRgb(0x08, 0x08, 0x10), Color.FromRgb(0x10, 0x10, 0x1C), Color.FromRgb(0x08, 0x08, 0x10));
+            // 8bit：硬边两段色，不做平滑过渡
+            res["AccentGrad"] = HardGradient(Color.FromRgb(0xF8, 0x38, 0x58), Color.FromRgb(0xFC, 0xA0, 0x44));
+            res["TitleGrad"] = HardGradient(Color.FromRgb(0xFF, 0xFF, 0xFF), Color.FromRgb(0xF8, 0x38, 0x58));
+            res["Glass"] = Frozen(Color.FromArgb(0xF0, 0x18, 0x18, 0x2C));
+            res["GlassLine"] = Frozen(Color.FromRgb(0x58, 0xD8, 0x54));
+            res["Ink"] = Frozen(Color.FromRgb(0xF8, 0xF8, 0xF8));
+            res["InkDim"] = Frozen(Color.FromRgb(0x9C, 0x9C, 0xB8));
+            res["InkFaint"] = Frozen(Color.FromRgb(0x60, 0x60, 0x80));
+            res["FontNum"] = new FontFamily("Consolas");
+            res["FontHead"] = new FontFamily("Consolas");
+            res["DockBg"] = Frozen(Color.FromArgb(0xF0, 0x18, 0x18, 0x2C));
+        }
+        else if (_aurora)
+        {
+            // 毛玻璃极光：柔和蓝紫青渐变，低对比、大圆角感
+            Set("AppBg", Color.FromRgb(0x0A, 0x14, 0x2E), Color.FromRgb(0x14, 0x22, 0x46), Color.FromRgb(0x1A, 0x2A, 0x52));
+            Set("AccentGrad", Color.FromRgb(0x7F, 0xB8, 0xFF), Color.FromRgb(0xB6, 0x9C, 0xFF), Color.FromRgb(0x8A, 0xF0, 0xE0));
+            Set("TitleGrad", Color.FromRgb(0xEA, 0xF3, 0xFF), Color.FromRgb(0xB6, 0x9C, 0xFF), Color.FromRgb(0x8A, 0xF0, 0xE0));
+            res["Glass"] = Frozen(Color.FromArgb(0xB8, 0x1A, 0x2A, 0x4A));
+            res["GlassLine"] = Frozen(Color.FromArgb(0x40, 0xB6, 0xC8, 0xFF));
+            res["Ink"] = Frozen(Color.FromRgb(0xEC, 0xF3, 0xFF));
+            res["InkDim"] = Frozen(Color.FromRgb(0xA8, 0xBB, 0xDC));
+            res["InkFaint"] = Frozen(Color.FromRgb(0x74, 0x88, 0xAC));
+            res["FontNum"] = new FontFamily("Segoe UI Variable Display");
+            res["FontHead"] = new FontFamily("Microsoft YaHei UI Light");
+            res["DockBg"] = Frozen(Color.FromArgb(0xC8, 0x1A, 0x2A, 0x4A));
+        }
+        else if (_terminal)
         {
             // 终端风：近黑的墨绿底 + 荧光绿主色，等宽感、无渐变堆叠
             Set("AppBg", Color.FromRgb(0x04, 0x07, 0x06), Color.FromRgb(0x06, 0x0B, 0x09), Color.FromRgb(0x08, 0x12, 0x0D));
@@ -5663,6 +5728,7 @@ public partial class MainWindow : Window
             res["InkDim"] = Frozen(Color.FromRgb(0x77, 0xC2, 0x8C));
             res["InkFaint"] = Frozen(Color.FromRgb(0x41, 0x7A, 0x52));
             res["FontNum"] = new FontFamily("Consolas");   // 终端风：等宽数字
+            res["DockBg"] = Frozen(Color.FromArgb(0xF0, 0x08, 0x0F, 0x0B));
         }
         else if (_vivid)
         {
@@ -5675,6 +5741,7 @@ public partial class MainWindow : Window
             res["InkDim"] = Frozen(Color.FromRgb(0xAB, 0xAE, 0xCB));
             res["InkFaint"] = Frozen(Color.FromRgb(0x74, 0x77, 0x96));
             res["FontNum"] = new FontFamily("Segoe UI Variable Display");
+            res["DockBg"] = Frozen(Color.FromArgb(0xF0, 0x12, 0x0A, 0x20));
         }
         else
         {
@@ -5687,6 +5754,8 @@ public partial class MainWindow : Window
             res["InkDim"] = Frozen(Color.FromRgb(0x99, 0xA2, 0xB5));
             res["InkFaint"] = Frozen(Color.FromRgb(0x6D, 0x75, 0x88));
             res["FontNum"] = new FontFamily("Segoe UI Variable Display");
+            res["FontHead"] = new FontFamily("Microsoft YaHei UI Light");
+            res["DockBg"] = Frozen(Color.FromArgb(0xF0, 0x12, 0x0A, 0x20));
         }
 
         // 色相偏移：在基础配色上整体旋转
@@ -5698,13 +5767,37 @@ public partial class MainWindow : Window
         // 同步下拉框选中项（0 新版 / 1 终端 / 2 经典）
         if (UiLayoutCombo != null)
         {
-            UiLayoutCombo.SelectedIndex = _terminal ? 1 : (_vivid ? 0 : 2);
+            UiLayoutCombo.SelectedIndex = _style switch
+            {
+                "terminal" => 1,
+                "paper" => 2,
+                "pixel" => 3,
+                "aurora" => 4,
+                "classic" => 5,
+                _ => 0,
+            };
         }
 
         // 让当前页重新高亮一次（胶囊只在 vivid 下出现）
         ApplyNavigationStyle();
         SetPage(_currentPage);
         RefreshMotionLayer();
+    }
+
+    /// <summary>硬边渐变：同色重复两次，做出 8bit 的两段色阶。</summary>
+    private static LinearGradientBrush HardGradient(Color a, Color b)
+    {
+        var brush = new LinearGradientBrush
+        {
+            StartPoint = new Point(0, 0),
+            EndPoint = new Point(1, 1),
+        };
+        brush.GradientStops.Add(new GradientStop(a, 0));
+        brush.GradientStops.Add(new GradientStop(a, 0.5));
+        brush.GradientStops.Add(new GradientStop(b, 0.5));
+        brush.GradientStops.Add(new GradientStop(b, 1));
+        brush.Freeze();
+        return brush;
     }
 
     private static SolidColorBrush Frozen(Color color)
@@ -5825,11 +5918,28 @@ public partial class MainWindow : Window
     /// <summary>标题栏右侧的小圆钮：一键在新版 / 经典之间切换。</summary>
     private void OnToggleLayout(object sender, RoutedEventArgs e)
     {
-        var next = _vivid ? "terminal" : (_terminal ? "classic" : "vivid");
+        var next = _style switch
+        {
+            "vivid" => "terminal",
+            "terminal" => "paper",
+            "paper" => "pixel",
+            "pixel" => "aurora",
+            "aurora" => "classic",
+            _ => "vivid",
+        };
         _settings.UiLayout = next;
         ApplyUiLayout(next);
         ConfigStore.Save(_settings);
-        ShowToast("界面布局", _vivid ? "新版（动感）" : (_terminal ? "终端（荧光绿）" : "经典（旧版）"), "◐", 1600);
+        var label = _style switch
+        {
+            "terminal" => "终端（荧光绿）",
+            "paper" => "纸质便签（浅色）",
+            "pixel" => "像素 8bit",
+            "aurora" => "毛玻璃极光",
+            "classic" => "经典（旧版）",
+            _ => "新版（动感）",
+        };
+        ShowToast("界面布局", label, "◐", 1600);
     }
 
     private void OnMinimize(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
