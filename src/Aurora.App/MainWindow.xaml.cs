@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.58";
+    private const string AppVersion = "0.15.59";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -2204,25 +2204,17 @@ public partial class MainWindow : Window
             $"目录：{dir}\n\n" +
             "整个文件夹都会没：mods、saves（存档）、config、截图全在里面，\n" +
             "删掉后启动器里也不再列出这个版本。",
-            "删除版本（1/3）", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No);
+            "删除版本（1/2）", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No);
         if (first != MessageBoxResult.Yes)
         {
             VmStatus.Text = "已取消删除";
             return;
         }
 
-        // 第 2 次：手打版本名，防止连点
-        var typed = PromptForText("确认删除（2/3）", $"把版本名原样输入一次才继续：{id}", string.Empty);
-        if (string.IsNullOrWhiteSpace(typed) || !string.Equals(typed.Trim(), id, StringComparison.OrdinalIgnoreCase))
-        {
-            VmStatus.Text = "版本名对不上，已取消删除";
-            return;
-        }
-
-        // 第 3 次：最后一道
+        // 第 2 次：最后一道（不再手打版本名，两道确认够了）
         var last = MessageBox.Show(this,
             $"最后确认：删除「{id}」？\n\n版本会连同 mods 和存档一起进回收站。",
-            "删除版本（3/3）", MessageBoxButton.YesNo, MessageBoxImage.Stop, MessageBoxResult.No);
+            "删除版本（2/2）", MessageBoxButton.YesNo, MessageBoxImage.Stop, MessageBoxResult.No);
         if (last != MessageBoxResult.Yes)
         {
             VmStatus.Text = "已取消删除";
