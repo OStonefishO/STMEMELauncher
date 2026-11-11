@@ -1,4 +1,4 @@
-using Aurora.Core.Accounts;
+﻿using Aurora.Core.Accounts;
 using Aurora.Core.Auth;
 using Aurora.Core.Configuration;
 using Aurora.Core.Java;
@@ -487,6 +487,13 @@ public sealed partial class LauncherService
         }
 
         return await launcher.LaunchAsync(plan, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>给指定游戏目录造一个安装器（版本页可以修别的目录里的版本）。</summary>
+    public Installer CreateInstaller(string? gameDirectory)
+    {
+        var dir = string.IsNullOrWhiteSpace(gameDirectory) ? Settings.GameDirectory : gameDirectory!;
+        return new Installer(new DownloadClient(Settings.UseMirror) { MirrorBaseUrl = Settings.MirrorBaseUrl }, dir);
     }
 
     public Installer CreateInstaller(bool? useMirror = null)

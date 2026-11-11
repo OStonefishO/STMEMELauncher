@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Aurora.Core.Infrastructure;
 using Aurora.Core.Models;
 
@@ -140,6 +140,75 @@ public sealed class Installer
     /// 启动前体检：把缺失或大小不对的 assets 对象 / 库文件补回来。
     /// 返回补下的文件数。0 表示本来就是完好的。
     /// </summary>
+    /// <summary>
+    /// 按解析好的版本（已合并继承链）修资源：assets 对象 + 依赖库。
+    /// 直接读版本自己的 json 是不行的 —— Forge/NeoForge 的版本只写 inheritsFrom，assetIndex 和库都在父版本里。
+    /// </summary>
+    public async Task<int> RepairAsync(ResolvedVersion resolved, IProgress<InstallProgress>? progress = null,
+        CancellationToken ct = default)
+    {
+        var repaired = 0;
+        try
+        {
+            if (resolved.AssetIndex is { Id.Length: > 0 } index && !string.IsNullOrEmpty(index.Id))
+            {
+                var indexPath = Path.Combine(AssetsDirectory, "indexes", index.Id + ".json");
+                if (!File.Exists(indexPath) && !string.IsNullOrEmpty(index.Url))
+                {
+                    progress?.Report(new InstallProgress { Stage = "资源索引", Message = "补下 assets index" });
+                    await _client.DownloadFileAsync(index.Url!, indexPath, ct: ct).ConfigureAwait(false);
+                }
+
+                if (File.Exists(indexPath))
+                {
+                    var before = CountAssetObjectsOnDisk(indexPath);
+                    await DownloadAssetObjectsAsync(indexPath, progress, ct).ConfigureAwait(false);
+                    repaired += Math.Max(0, CountAssetObjectsOnDisk(indexPath) - before);
+                }
+            }
+
+            foreach (var lib in resolved.Libraries)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                var artifact = lib.Downloads?.Artifact;
+                if (artifact == null || string.IsNullOrEmpty(artifact.Path) || string.IsNullOrEmpty(artifact.Url))
+                {
+                    continue;
+                }
+
+                var target = Path.Combine(GameDirectory, "libraries",
+                    artifact.Path!.Replace('/', Path.DirectorySeparatorChar));
+
+                var expected = artifact.Size ?? -1;
+                if (File.Exists(target) && (expected <= 0 || new FileInfo(target).Length == expected))
+                {
+                    continue;
+                }
+
+                progress?.Report(new InstallProgress
+                {
+                    Stage = "依赖库",
+                    Message = "补下 " + Path.GetFileName(artifact.Path),
+                });
+
+                await _client.DownloadFileAsync(artifact.Url!, target, artifact.Sha1,
+                    expected > 0 ? expected : null, ct).ConfigureAwait(false);
+                repaired++;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            // 体检失败不影响启动
+        }
+
+        return repaired;
+    }
+
     public async Task<int> RepairAsync(string versionId, IProgress<InstallProgress>? progress = null,
         CancellationToken ct = default)
     {

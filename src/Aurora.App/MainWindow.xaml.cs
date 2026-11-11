@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
@@ -202,39 +202,12 @@ public partial class MainWindow : Window
                 }), System.Windows.Threading.DispatcherPriority.Background);
             }
 
-            // 调试用：--picker 直接展开版本选择弹层（截图用）
-            if (argv.Contains("--picker"))
-            {
-                Dispatcher.BeginInvoke(new Action(() =>
-                {
-                    if (VersionList.ItemsSource is IEnumerable<VersionCard> pickerCards)
-                    {
-                        OpenVersionPicker(pickerCards.ToList());
-                    }
-                }), System.Windows.Threading.DispatcherPriority.Background);
-            }
 
-            // 调试用：--shot-picker <png>，把窗口 + 版本弹层合成一张图（弹层是独立窗口，普通 --shot 截不到）
-            var shotPickerFlag = Array.IndexOf(argv, "--shot-picker");
-            if (shotPickerFlag >= 0 && shotPickerFlag + 1 < argv.Length)
+            // 调试用：--repair <游戏目录> <版本id>，直接补齐 assets / 依赖库后退出
+            var repairFlag = Array.IndexOf(argv, "--repair");
+            if (repairFlag >= 0 && repairFlag + 2 < argv.Length)
             {
-                _ = CapturePickerAsync(argv[shotPickerFlag + 1]);
-            }
-
-            // 调试用：--cv 直接展开「内容 → 内容下载」的版本筛选（截图用）
-            var cvQueryFlag = Array.IndexOf(argv, "--cv-query");
-            var cvQueryValue = cvQueryFlag >= 0 && cvQueryFlag + 1 < argv.Length ? argv[cvQueryFlag + 1] : null;
-            if (argv.Contains("--cv") || cvQueryValue != null)
-            {
-                Dispatcher.BeginInvoke(new Action(() =>
-                {
-                    SetPage(2);
-                    ToggleContentVersionPopup();
-                    if (cvQueryValue != null && _cvSearch != null)
-                    {
-                        _cvSearch.Text = cvQueryValue;
-                    }
-                }), System.Windows.Threading.DispatcherPriority.Background);
+                _ = RepairAndExitAsync(argv[repairFlag + 1], argv[repairFlag + 2]);
             }
 
             // 调试用：--demo-crash，拿一条假崩溃跑一遍崩溃窗口
@@ -2122,6 +2095,88 @@ public partial class MainWindow : Window
         if (VmDeleteButton != null)
         {
             VmDeleteButton.IsEnabled = true;
+        }
+    }
+
+    /// <summary>调试：无界面跑一遍资源修复，结果写日志后退出。</summary>
+    private async Task RepairAndExitAsync(string gameDir, string versionId)
+    {
+        var log = @"D:\综合创作\_repair.log";
+        try
+        {
+            var lines = new List<string>();
+            var progress = new Progress<InstallProgress>(p => lines.Add($"[{p.Stage}] {p.Message} · {p.Percent:0}%"));
+            var resolved = _service.Resolve(versionId);
+            var count = resolved != null
+                ? await _service.CreateInstaller(gameDir).RepairAsync(resolved, progress)
+                : await _service.CreateInstaller(gameDir).RepairAsync(versionId, progress);
+            lines.Add($"RESULT 补齐 {count} 个文件");
+            File.WriteAllLines(log, lines);
+        }
+        catch (Exception ex)
+        {
+            File.WriteAllText(log, ex.ToString());
+        }
+
+        Application.Current.Shutdown();
+    }
+
+    /// <summary>从 versions\xxx 反推出游戏根目录（assets、libraries 都在那一层）。</summary>
+    private static string? GameRootFor(string? versionDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(versionDirectory))
+        {
+            return null;
+        }
+
+        var versionsDir = Path.GetDirectoryName(versionDirectory.TrimEnd(Path.DirectorySeparatorChar));
+        return string.IsNullOrEmpty(versionsDir) ? null : Path.GetDirectoryName(versionsDir);
+    }
+
+    /// <summary>修复资源：把缺失的 assets 对象、依赖库按版本 json 重新补一遍。</summary>
+    private async void OnVmRepair(object sender, RoutedEventArgs e)
+    {
+        if (_vmCurrent == null)
+        {
+            return;
+        }
+
+        var id = _vmCurrent.Id;
+
+        // assets / libraries 在游戏根目录，不在隔离后的版本目录里
+        var gameDir = GameRootFor(_vmCurrent.Directory);
+        if (string.IsNullOrWhiteSpace(gameDir))
+        {
+            VmStatus.Text = "找不到这个版本的游戏目录";
+            return;
+        }
+
+        var manager = _service.CreateDownloadManager();
+        var job = manager.EnqueueJob("修复资源 " + id, "修复");
+        VmStatus.Text = "正在检查 assets 和依赖库…";
+
+        try
+        {
+            var progress = new Progress<InstallProgress>(p =>
+            {
+                manager.UpdateJob(job, p.Percent, $"[{p.Stage}] {p.Message}");
+                VmStatus.Text = $"[{p.Stage}] {p.Message} · {p.Percent:0}%";
+            });
+
+            var resolved = _service.Resolve(id);
+            var fixedCount = resolved != null
+                ? await _service.CreateInstaller(gameDir).RepairAsync(resolved, progress)
+                : await _service.CreateInstaller(gameDir).RepairAsync(id, progress);
+            manager.CompleteJob(job, true);
+            VmStatus.Text = fixedCount > 0
+                ? $"修复完成：补了 {fixedCount} 个文件，重新启动游戏试试"
+                : "检查完了：资源都是齐的（如果还闪退，把崩溃报告发我）";
+            ShowToast("资源检查完成", fixedCount > 0 ? $"补齐 {fixedCount} 个文件" : "没有缺失", "✓", 5000);
+        }
+        catch (Exception ex)
+        {
+            manager.CompleteJob(job, false, ex.Message);
+            VmStatus.Text = "修复失败: " + ex.Message;
         }
     }
 
