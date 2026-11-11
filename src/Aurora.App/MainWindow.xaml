@@ -43,6 +43,17 @@
         <SolidColorBrush x:Key="ComboItemActive" Color="#335B8CFF"/>
         <SolidColorBrush x:Key="FieldBg" Color="#12FFFFFF"/>
         <SolidColorBrush x:Key="FieldLine" Color="#26FFFFFF"/>
+
+        <!-- 版本选择弹层（各主题在 ApplyUiLayout 里覆盖） -->
+        <SolidColorBrush x:Key="PopBg" Color="#FF141A26"/>
+        <SolidColorBrush x:Key="PopField" Color="#14FFFFFF"/>
+        <SolidColorBrush x:Key="PopLine" Color="#33FFFFFF"/>
+        <SolidColorBrush x:Key="PopHover" Color="#1FFFFFFF"/>
+        <SolidColorBrush x:Key="PopActive" Color="#335B8CFF"/>
+        <SolidColorBrush x:Key="PopInk" Color="#FFE6EAF2"/>
+        <SolidColorBrush x:Key="PopSub" Color="#FF99A2B5"/>
+        <SolidColorBrush x:Key="PopFaint" Color="#FF6D7588"/>
+        <SolidColorBrush x:Key="PopAccent" Color="#FF5B8CFF"/>
         <SolidColorBrush x:Key="Glass" Color="#B3121620"/>
         <SolidColorBrush x:Key="GlassLine" Color="#26FFFFFF"/>
         <SolidColorBrush x:Key="Ink" Color="#FFE6EAF2"/>
@@ -1225,15 +1236,16 @@
                                     </StackPanel>
                                 </Button>
                                 <Popup x:Name="VersionPopover" PlacementTarget="{Binding ElementName=VersionPickerButton}"
-                                       Placement="Top" StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade">
-                                    <Border CornerRadius="14" Background="#F2141A24" BorderBrush="#3A5B8CFF"
-                                            BorderThickness="1" Padding="6" Margin="0,0,0,8" Width="380">
+                                       Placement="Top" StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade"
+                                       Opened="OnVersionPopoverOpened">
+                                    <!-- 配色跟着主题走：六套主题各自设 PopBg / PopLine / PopHover / PopActive 等 -->
+                                    <Border x:Name="VersionPopoverCard" CornerRadius="14"
+                                            Background="{DynamicResource PopBg}" BorderBrush="{DynamicResource PopLine}"
+                                            BorderThickness="1" Padding="10" Margin="0,0,0,10" Width="442">
                                         <Border.Effect>
-                                            <DropShadowEffect Color="#000000" BlurRadius="24" ShadowDepth="6" Opacity="0.55"/>
+                                            <DropShadowEffect Color="#000000" BlurRadius="26" ShadowDepth="8" Opacity="0.5"/>
                                         </Border.Effect>
-                                        <ScrollViewer MaxHeight="300" VerticalScrollBarVisibility="Auto">
-                                            <StackPanel x:Name="VersionPopoverList"/>
-                                        </ScrollViewer>
+                                        <StackPanel x:Name="VersionPopoverRoot"/>
                                     </Border>
                                 </Popup>
 
@@ -1415,7 +1427,7 @@
                                         <ComboBoxItem Content="Modrinth"/>
                                         <ComboBoxItem Content="CurseForge"/>
                                     </ComboBox>
-                                    <ComboBox x:Name="VersionCombo" Width="128" Margin="8,0,0,0"/>
+                                    <Grid x:Name="ContentVersionHost" Width="190" Height="36" Margin="8,0,0,0"/>
                                     <ComboBox x:Name="ContentLoaderCombo" Width="112" Margin="8,0,0,0" SelectedIndex="0">
                                         <ComboBoxItem Content="任意加载器"/>
                                         <ComboBoxItem Content="fabric"/>

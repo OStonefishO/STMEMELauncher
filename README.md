@@ -114,6 +114,7 @@ Windows 11 的 **Smart App Control** 会拦掉所有没有数字签名的 exe，
 | 参数占位符替换 | 含 `${classpath}` `${library_directory}` 等 |
 | Java 探测与匹配 | 读 `release` 文件，找不到再跑 `java -version`，按主版本择优 |
 | 版本隔离 | auto：版本目录里有 mods/config/saves 就单独用该目录做游戏目录 |
+| 版本搜索 | 启动页「版本 ▾」可直接输 `1.21.11` / `forge` 过滤，可折叠分组；内容页也能输任意版本号（如 `1.20.1`）按版本找整合包 |
 | 崩溃定位 | 读 `crash-reports` 最新报告，提取 Description / 异常行 |
 
 ### 安装
