@@ -202,6 +202,41 @@ public partial class MainWindow : Window
                 }), System.Windows.Threading.DispatcherPriority.Background);
             }
 
+            // 调试用：--picker 直接展开版本选择弹层（截图用）
+            if (argv.Contains("--picker"))
+            {
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    if (VersionList.ItemsSource is IEnumerable<VersionCard> pickerCards)
+                    {
+                        OpenVersionPicker(pickerCards.ToList());
+                    }
+                }), System.Windows.Threading.DispatcherPriority.Background);
+            }
+
+            // 调试用：--shot-picker <png>，把窗口 + 版本弹层合成一张图（弹层是独立窗口，普通 --shot 截不到）
+            var shotPickerFlag = Array.IndexOf(argv, "--shot-picker");
+            if (shotPickerFlag >= 0 && shotPickerFlag + 1 < argv.Length)
+            {
+                _ = CapturePickerAsync(argv[shotPickerFlag + 1]);
+            }
+
+            // 调试用：--cv 直接展开「内容 → 内容下载」的版本筛选（截图用）
+            var cvQueryFlag = Array.IndexOf(argv, "--cv-query");
+            var cvQueryValue = cvQueryFlag >= 0 && cvQueryFlag + 1 < argv.Length ? argv[cvQueryFlag + 1] : null;
+            if (argv.Contains("--cv") || cvQueryValue != null)
+            {
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    SetPage(2);
+                    ToggleContentVersionPopup();
+                    if (cvQueryValue != null && _cvSearch != null)
+                    {
+                        _cvSearch.Text = cvQueryValue;
+                    }
+                }), System.Windows.Threading.DispatcherPriority.Background);
+            }
+
             // 调试用：--demo-crash，拿一条假崩溃跑一遍崩溃窗口
             if (argv.Contains("--demo-crash"))
             {
