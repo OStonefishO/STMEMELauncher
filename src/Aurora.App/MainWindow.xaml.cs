@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.53";
+    private const string AppVersion = "0.15.54";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -120,7 +120,11 @@ public partial class MainWindow : Window
             var shotFlag = Array.IndexOf(argv, "--shot");
             if (shotFlag >= 0 && shotFlag + 1 < argv.Length)
             {
-                _ = CaptureAndExitAsync(argv[shotFlag + 1]);
+                var waitFlag = Array.IndexOf(argv, "--shot-wait");
+                var waitMs = waitFlag >= 0 && waitFlag + 1 < argv.Length && int.TryParse(argv[waitFlag + 1], out var ms)
+                    ? ms
+                    : 0;
+                _ = CaptureAndExitAsync(argv[shotFlag + 1], waitMs);
             }
 
             // 调试用：--banner 强制显示更新横幅（截图看配色用）
@@ -279,11 +283,11 @@ public partial class MainWindow : Window
     // ---------------- 导航 ----------------
 
     /// <summary>调试：把当前窗口内容渲染成 PNG（不含 WebView2 的网页内容），然后退出。</summary>
-    private async Task CaptureAndExitAsync(string path)
+    private async Task CaptureAndExitAsync(string path, int extraWaitMs = 0)
     {
         try
         {
-            await Task.Delay(3800);
+            await Task.Delay(3800 + extraWaitMs);
 
             // 有弹窗就截弹窗
             Window target = this;
@@ -3212,7 +3216,7 @@ public partial class MainWindow : Window
         {
             Tag = "deps",
             CornerRadius = new CornerRadius(12),
-            Background = new SolidColorBrush(Color.FromArgb(0x1A, 0xFF, 0xB4, 0x4A)),
+            Background = (Brush)FindResource("WarnBg"),
             Padding = new Thickness(14, 12, 14, 12),
             Margin = new Thickness(0, 0, 8, 12),
         };
@@ -3223,7 +3227,7 @@ public partial class MainWindow : Window
             Text = $"前置模组（{required.Count} 个，不装会启动失败）",
             FontSize = 12.5,
             FontWeight = FontWeights.SemiBold,
-            Foreground = new SolidColorBrush(Color.FromRgb(0xFF, 0xC8, 0x7A)),
+            Foreground = (Brush)FindResource("WarnInk"),
         });
 
         foreach (var dependency in required)
@@ -3461,7 +3465,7 @@ public partial class MainWindow : Window
         return new Border
         {
             CornerRadius = new CornerRadius(9),
-            Background = new SolidColorBrush(Color.FromArgb(0x10, 0xFF, 0xFF, 0xFF)),
+            Background = (Brush)FindResource("FieldBg"),
             Padding = new Thickness(12, 8, 10, 8),
             Margin = new Thickness(0, 0, 8, 0),
             Child = grid,
@@ -4296,7 +4300,7 @@ public partial class MainWindow : Window
 
         var template = new ControlTemplate(typeof(Button)) { VisualTree = border };
         var hover = new Trigger { Property = IsMouseOverProperty, Value = true };
-        hover.Setters.Add(new Setter(Border.BackgroundProperty, new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)), "bd"));
+        hover.Setters.Add(new Setter(Border.BackgroundProperty, new SolidColorBrush(Color.FromArgb(0x24, 0x80, 0x80, 0x80)), "bd"));
         template.Triggers.Add(hover);
         return template;
     }
@@ -4318,7 +4322,7 @@ public partial class MainWindow : Window
             var card = new Border
             {
                 CornerRadius = new CornerRadius(14),
-                Background = new SolidColorBrush(Color.FromArgb(0x16, 0xFF, 0xFF, 0xFF)),
+                Background = (Brush)FindResource("FieldBg"),
                 BorderBrush = glassLine,
                 BorderThickness = new Thickness(1),
                 Padding = new Thickness(16, 13, 16, 13),
@@ -5071,7 +5075,7 @@ public partial class MainWindow : Window
             Width = 40,
             Height = 40,
             CornerRadius = new CornerRadius(20),
-            Background = new SolidColorBrush(Color.FromArgb(0x33, 0x5B, 0x8C, 0xFF)),
+            Background = (Brush)FindResource("PopActive"),
             Child = new Grid
             {
                 Children = { initialText, headImage },
@@ -5850,14 +5854,14 @@ public partial class MainWindow : Window
         var badge = new Border
         {
             CornerRadius = new CornerRadius(8),
-            Background = new SolidColorBrush(Color.FromArgb(0x33, 0x5B, 0x8C, 0xFF)),
+            Background = (Brush)FindResource("PopActive"),
             Padding = new Thickness(10, 4, 10, 4),
             Child = new TextBlock
             {
                 Text = entry.Version,
                 FontSize = 11.5,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(Color.FromRgb(0xB9, 0xC8, 0xFF)),
+                Foreground = (Brush)FindResource("PopInk"),
             },
         };
         head.Children.Add(badge);
@@ -5911,7 +5915,7 @@ public partial class MainWindow : Window
                     Width = 356,
                     Height = 229,
                     CornerRadius = new CornerRadius(12),
-                    Background = new SolidColorBrush(Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF)),
+                    Background = (Brush)FindResource("FieldBg"),
                     Margin = new Thickness(0, 0, 12, 12),
                     ClipToBounds = true,
                     Child = image,

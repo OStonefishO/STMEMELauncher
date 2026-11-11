@@ -44,6 +44,8 @@
         <SolidColorBrush x:Key="FieldBg" Color="#12FFFFFF"/>
         <SolidColorBrush x:Key="FieldLine" Color="#26FFFFFF"/>
 
+        <SolidColorBrush x:Key="WarnBg" Color="#1AFFB44A"/>
+        <SolidColorBrush x:Key="WarnInk" Color="#FFC87A"/>
         <SolidColorBrush x:Key="DangerBg" Color="#2EFF5B5B"/>
         <SolidColorBrush x:Key="DangerBgHover" Color="#48FF5B5B"/>
         <SolidColorBrush x:Key="DangerLine" Color="#7AFF6B5B"/>

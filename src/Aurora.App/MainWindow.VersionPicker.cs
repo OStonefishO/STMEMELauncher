@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -99,6 +99,20 @@ public partial class MainWindow
         res["DangerBgHover"] = PopBrush(danger.Hover);
         res["DangerLine"] = PopBrush(danger.Line);
         res["DangerInk"] = PopBrush(danger.Ink);
+
+        // 警示卡（前置模组那种）：浅色主题下要能看清字
+        var warn = _style switch
+        {
+            "paper" => (Bg: "#1FC98A2B", Ink: "#8A5410"),
+            "pixel" => (Bg: "#26FCA044", Ink: "#FFD9A0"),
+            "terminal" => (Bg: "#1E9CFF6A", Ink: "#D8FFC8"),
+            "aurora" => (Bg: "#22FFC46B", Ink: "#FFE0A8"),
+            "vivid" => (Bg: "#24FFB44A", Ink: "#FFD79A"),
+            _ => (Bg: "#1AFFB44A", Ink: "#FFC87A"),
+        };
+
+        res["WarnBg"] = PopBrush(warn.Bg);
+        res["WarnInk"] = PopBrush(warn.Ink);
     }
 
     private static SolidColorBrush PopBrush(string hex)
