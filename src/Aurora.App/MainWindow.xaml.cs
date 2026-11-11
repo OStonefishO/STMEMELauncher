@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.54";
+    private const string AppVersion = "0.15.55";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -125,6 +125,27 @@ public partial class MainWindow : Window
                     ? ms
                     : 0;
                 _ = CaptureAndExitAsync(argv[shotFlag + 1], waitMs);
+            }
+
+            // 调试用：--fake-downloads 往下载管理里塞两条假任务（截图看布局用）
+            if (argv.Contains("--fake-downloads"))
+            {
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    var manager = _service.CreateDownloadManager();
+                    var running = manager.EnqueueJob("安装 Minecraft 26.3（forge）", "版本");
+                    manager.UpdateJob(running, 37, "[加载器] 下载安装器");
+
+                    var failed = manager.Enqueue("modmenu-21.0.0.jar" != null
+                        ? new ContentFile { FileName = "modmenu-21.0.0.jar", Url = "https://example.invalid/x.jar", Size = 837000 }
+                        : new ContentFile(), ContentKind.Mod, _settings.GameDirectory);
+                    manager.CompleteJob(failed, false, "已取消");
+
+                    if (DownloadPanel != null)
+                    {
+                        DownloadPanel.Visibility = Visibility.Visible;
+                    }
+                }), System.Windows.Threading.DispatcherPriority.Background);
             }
 
             // 调试用：--banner 强制显示更新横幅（截图看配色用）
@@ -2937,6 +2958,32 @@ public partial class MainWindow : Window
             _service.CreateDownloadManager().Cancel(item);
             UpdateDownloadHint();
         }
+    }
+
+    /// <summary>删掉某一条下载任务（正在下的先取消，再把它从列表里移除）。</summary>
+    private void OnRemoveDownload(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: DownloadItem item })
+        {
+            return;
+        }
+
+        if (_installCts.TryGetValue(item.Id, out var cts))
+        {
+            try
+            {
+                cts.Cancel();
+            }
+            catch
+            {
+                // 忽略
+            }
+
+            _installCts.Remove(item.Id);
+        }
+
+        _service.CreateDownloadManager().Remove(item);
+        UpdateDownloadHint();
     }
 
     private void OnClearDownloads(object sender, RoutedEventArgs e)

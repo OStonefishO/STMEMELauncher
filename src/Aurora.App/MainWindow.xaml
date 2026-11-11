@@ -1582,6 +1582,10 @@
                                                                     Padding="10,3" FontSize="10.5" Margin="6,0,0,0" Click="OnResumeDownload"/>
                                                             <Button Content="取消" Style="{StaticResource GlassButton}"
                                                                     Padding="10,3" FontSize="10.5" Margin="6,0,0,0" Click="OnCancelDownload"/>
+                                                            <Button Content="删除" Style="{StaticResource DangerButton}"
+                                                                    Height="24" Padding="10,0" FontSize="10.5" Margin="10,0,0,0"
+                                                                    Click="OnRemoveDownload"
+                                                                    ToolTip="把这条任务从列表里删掉（正在下的会先停掉）"/>
                                                         </StackPanel>
                                                     </StackPanel>
                                                 </Border>

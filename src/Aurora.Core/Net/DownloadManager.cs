@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Net.Http;
@@ -348,6 +348,27 @@ public sealed class DownloadManager
 
         Ui(() => item.State = DownloadState.Canceled);
         TryDelete(item.TargetPath + ".part");
+    }
+
+    /// <summary>从列表里删掉某一条任务（正在下的先取消，安装类任务顺手掐掉它的取消令牌）。</summary>
+    public void Remove(DownloadItem item)
+    {
+        if (_running.TryGetValue(item.Id, out var cts))
+        {
+            try
+            {
+                cts.Cancel();
+            }
+            catch
+            {
+                // 忽略
+            }
+
+            _running.Remove(item.Id);
+        }
+
+        TryDelete(item.TargetPath + ".part");
+        Ui(() => Tasks.Remove(item));
     }
 
     public void ClearFinished()
