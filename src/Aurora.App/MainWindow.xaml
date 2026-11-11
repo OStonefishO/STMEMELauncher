@@ -1,4 +1,4 @@
-<Window x:Class="Aurora.App.MainWindow"
+﻿<Window x:Class="Aurora.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
@@ -43,6 +43,11 @@
         <SolidColorBrush x:Key="ComboItemActive" Color="#335B8CFF"/>
         <SolidColorBrush x:Key="FieldBg" Color="#12FFFFFF"/>
         <SolidColorBrush x:Key="FieldLine" Color="#26FFFFFF"/>
+
+        <SolidColorBrush x:Key="DangerBg" Color="#2EFF5B5B"/>
+        <SolidColorBrush x:Key="DangerBgHover" Color="#48FF5B5B"/>
+        <SolidColorBrush x:Key="DangerLine" Color="#7AFF6B5B"/>
+        <SolidColorBrush x:Key="DangerInk" Color="#FFFFB4A8"/>
 
         <!-- 版本选择弹层（各主题在 ApplyUiLayout 里覆盖） -->
         <SolidColorBrush x:Key="PopBg" Color="#FF141A26"/>
@@ -151,7 +156,7 @@
 
         <!-- 强制关闭：比普通按钮明显大一号，红橙强调 -->
         <Style x:Key="DangerButton" TargetType="Button">
-            <Setter Property="Foreground" Value="#FFFFB4A8"/>
+            <Setter Property="Foreground" Value="{DynamicResource DangerInk}"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Height" Value="42"/>
             <Setter Property="FontSize" Value="13"/>
@@ -175,7 +180,7 @@
                                 <Setter TargetName="b" Property="BorderBrush" Value="#B3FF8B7B"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="b" Property="Background" Value="#66FF5B5B"/>
+                                <Setter TargetName="b" Property="Background" Value="{DynamicResource DangerBgHover}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -256,7 +261,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Slider">
                         <Grid Height="18" VerticalAlignment="Center" Background="Transparent">
-                            <Border Height="4" CornerRadius="2" Background="#26FFFFFF" VerticalAlignment="Center"/>
+                            <Border Height="4" CornerRadius="2" Background="{DynamicResource FieldLine}" VerticalAlignment="Center"/>
                             <Track x:Name="PART_Track"
                                    Minimum="{TemplateBinding Minimum}"
                                    Maximum="{TemplateBinding Maximum}"
@@ -330,8 +335,8 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ListBoxItem">
-                        <Border x:Name="b" Width="224" CornerRadius="14" Background="#0EFFFFFF"
-                                BorderBrush="#1AFFFFFF" BorderThickness="1" Padding="14,11">
+                        <Border x:Name="b" Width="224" CornerRadius="14" Background="{DynamicResource FieldBg}"
+                                BorderBrush="{DynamicResource FieldLine}" BorderThickness="1" Padding="14,11">
                             <ContentPresenter/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -351,9 +356,9 @@
 
         <!-- 输入框 -->
         <Style TargetType="TextBox">
-            <Setter Property="Background" Value="#12FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource FieldBg}"/>
             <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
-            <Setter Property="BorderBrush" Value="#26FFFFFF"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource FieldLine}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="10,7"/>
             <Setter Property="CaretBrush" Value="{DynamicResource Ink}"/>
@@ -552,7 +557,7 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
-                    <Border CornerRadius="10" Background="#12FFFFFF" Padding="10,5" Margin="0,0,10,0"
+                    <Border CornerRadius="10" Background="{DynamicResource FieldBg}" Padding="10,5" Margin="0,0,10,0"
                             BorderBrush="{DynamicResource GlassLine}" BorderThickness="1">
                         <StackPanel Orientation="Horizontal">
                             <Ellipse Width="7" Height="7" Fill="#FF4ADE80" VerticalAlignment="Center" Margin="0,0,7,0"/>
@@ -682,11 +687,11 @@
                         </Canvas>
 
                         <Border x:Name="UpdateBanner" Grid.Row="0" Visibility="Collapsed" CornerRadius="12"
-                                Background="#1E2A44" BorderBrush="#505B8CFF" BorderThickness="1"
+                                Background="{DynamicResource FieldBg}" BorderBrush="{DynamicResource PopAccent}" BorderThickness="1"
                                 Padding="14,10" Margin="26,0,0,12">
                             <Grid>
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="⇪" FontSize="15" Foreground="#FF8AB4FF" VerticalAlignment="Center"
+                                    <TextBlock Text="⇪" FontSize="15" Foreground="{DynamicResource PopAccent}" VerticalAlignment="Center"
                                                Margin="0,0,10,0"/>
                                     <TextBlock x:Name="UpdateBannerText" Text="发现新版本" FontSize="12.5"
                                                Foreground="{DynamicResource Ink}" VerticalAlignment="Center"/>
@@ -1080,7 +1085,7 @@
                             </Border>
 
                             <!-- 3D 方块岛（新版首页保留的招牌画面） -->
-                            <Border Grid.Column="1" Grid.Row="0" CornerRadius="20" Background="#0AFFFFFF"
+                            <Border Grid.Column="1" Grid.Row="0" CornerRadius="20" Background="{DynamicResource FieldBg}"
                                     BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" ClipToBounds="True"
                                     Margin="0,0,0,8">
                                 <Grid Background="Transparent" Cursor="Hand" MouseLeftButtonDown="OnDashboardBiomeClick">
@@ -1143,7 +1148,7 @@
                                            Margin="0,6,0,0" TextWrapping="Wrap"/>
 
                                 <WrapPanel Margin="0,20,0,0">
-                                    <Border CornerRadius="9" Background="#10FFFFFF" BorderBrush="{DynamicResource GlassLine}"
+                                    <Border CornerRadius="9" Background="{DynamicResource FieldBg}" BorderBrush="{DynamicResource GlassLine}"
                                             BorderThickness="1" Padding="12,7" Margin="0,0,8,0">
                                         <StackPanel>
                                             <TextBlock Text="JAVA" FontSize="9.5" Foreground="{DynamicResource InkFaint}"/>
@@ -1151,7 +1156,7 @@
                                                        Margin="0,2,0,0" MaxWidth="180" TextTrimming="CharacterEllipsis"/>
                                         </StackPanel>
                                     </Border>
-                                    <Border CornerRadius="9" Background="#10FFFFFF" BorderBrush="{DynamicResource GlassLine}"
+                                    <Border CornerRadius="9" Background="{DynamicResource FieldBg}" BorderBrush="{DynamicResource GlassLine}"
                                             BorderThickness="1" Padding="12,7" Margin="0,0,8,0">
                                         <StackPanel>
                                             <TextBlock Text="MODS" FontSize="9.5" Foreground="{DynamicResource InkFaint}"/>
@@ -1159,7 +1164,7 @@
                                                        Margin="0,2,0,0"/>
                                         </StackPanel>
                                     </Border>
-                                    <Border CornerRadius="9" Background="#10FFFFFF" BorderBrush="{DynamicResource GlassLine}"
+                                    <Border CornerRadius="9" Background="{DynamicResource FieldBg}" BorderBrush="{DynamicResource GlassLine}"
                                             BorderThickness="1" Padding="12,7" Margin="0,0,0,8">
                                         <StackPanel>
                                             <TextBlock Text="内存" FontSize="9.5" Foreground="{DynamicResource InkFaint}"/>
@@ -1213,9 +1218,9 @@
                                 <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,14"
                                             IsHitTestVisible="False">
                                     <TextBlock x:Name="HeroBiomeText" Text="主世界 · 点一下换群系" FontSize="10.5"
-                                               Foreground="#8FA0C0" HorizontalAlignment="Center"/>
+                                               Foreground="{DynamicResource InkFaint}" HorizontalAlignment="Center"/>
                                     <TextBlock x:Name="HeroBiomeHint" Text="草地、木头、还有两颗小树" FontSize="9.5"
-                                               Foreground="#5F6E8A" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                               Foreground="{DynamicResource InkFaint}" HorizontalAlignment="Center" Margin="0,3,0,0"/>
                                 </StackPanel>
                             </Grid>
                         </Grid>
@@ -1377,7 +1382,7 @@
                                 </StackPanel>
 
                                 <ProgressBar x:Name="InstallBar" Height="5" Margin="0,14,0,0" Minimum="0" Maximum="100"
-                                             Foreground="{DynamicResource AccentGrad}" Background="#1AFFFFFF" BorderThickness="0"/>
+                                             Foreground="{DynamicResource AccentGrad}" Background="{DynamicResource FieldBg}" BorderThickness="0"/>
                                 <TextBlock x:Name="InstallText" Text="等待选择" FontSize="11.5" Margin="0,8,0,0"
                                            Foreground="{DynamicResource InkDim}" TextWrapping="Wrap"/>
                             </StackPanel>
@@ -1413,7 +1418,7 @@
                             </Grid.RowDefinitions>
 
                             <StackPanel Grid.Row="0" Margin="0,0,0,12">
-                                <StackPanel Orientation="Horizontal">
+                                <WrapPanel Orientation="Horizontal">
                                     <ComboBox x:Name="KindCombo" Width="110" SelectedIndex="0" SelectionChanged="OnKindChanged">
                                         <ComboBoxItem Content="模组"/>
                                         <ComboBoxItem Content="整合包"/>
@@ -1436,10 +1441,10 @@
                                         <ComboBoxItem Content="quilt"/>
                                     </ComboBox>
                                     <ComboBox x:Name="CategoryCombo" Width="150" Margin="8,0,0,0"/>
-                                </StackPanel>
+                                </WrapPanel>
 
-                                <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                                    <Grid Width="300">
+                                <WrapPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                    <Grid Width="300" Margin="0,0,0,6">
                                         <TextBox x:Name="QueryBox" VerticalContentAlignment="Center" Padding="9,6,9,6"
                                                  TextChanged="OnQueryTextChanged"/>
                                         <TextBlock x:Name="QueryHint" Text="搜索模组 / 整合包 / 光影 / 资源包"
@@ -1455,7 +1460,7 @@
                                             Margin="10,0,0,0" Padding="12,6" FontSize="11.5" Click="OnPrevPage" IsEnabled="False"/>
                                     <Button x:Name="NextButton" Content="下一页 ›" Style="{StaticResource GlassButton}"
                                             Margin="6,0,0,0" Padding="12,6" FontSize="11.5" Click="OnNextPage" IsEnabled="False"/>
-                                </StackPanel>
+                                </WrapPanel>
 
                                 <!-- 站外搜索：这些站没有开放 API，直接带关键词跳过去 -->
                                 <WrapPanel Margin="0,8,0,0">
@@ -1499,7 +1504,7 @@
                                                     <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
 
-                                                <Border Width="44" Height="44" CornerRadius="10" Background="#14FFFFFF"
+                                                <Border Width="44" Height="44" CornerRadius="10" Background="{DynamicResource FieldBg}"
                                                         VerticalAlignment="Top">
                                                     <Grid>
                                                         <TextBlock Text="▦" FontSize="15" Foreground="{DynamicResource InkFaint}"
@@ -1531,7 +1536,7 @@
                                    Foreground="{DynamicResource InkDim}" TextWrapping="Wrap"/>
                         <!-- 下载管理抽屉 -->
                         <Border x:Name="DownloadPanel" Visibility="Collapsed" Width="420" HorizontalAlignment="Right"
-                                Margin="0,10,16,16" CornerRadius="16" Background="#F210141C"
+                                Margin="0,10,16,16" CornerRadius="16" Background="{DynamicResource PopBg}"
                                 BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="16,14">
                             <Grid>
                                 <Grid.RowDefinitions>
@@ -1557,7 +1562,7 @@
                                     <ItemsControl x:Name="DownloadList">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Border CornerRadius="10" Background="#12FFFFFF" Padding="12,10"
+                                                <Border CornerRadius="10" Background="{DynamicResource FieldBg}" Padding="12,10"
                                                         Margin="0,0,0,8">
                                                     <StackPanel>
                                                         <TextBlock Text="{Binding FileName}" FontSize="12"
@@ -1566,7 +1571,7 @@
                                                                    Foreground="{DynamicResource InkFaint}" Margin="0,3,0,6"
                                                                    TextTrimming="CharacterEllipsis"/>
                                                         <ProgressBar Height="3" Minimum="0" Maximum="100" Value="{Binding Progress, Mode=OneWay}"
-                                                                     Background="#1AFFFFFF" Foreground="{DynamicResource AccentGrad}"
+                                                                     Background="{DynamicResource FieldBg}" Foreground="{DynamicResource AccentGrad}"
                                                                      BorderThickness="0"/>
                                                         <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                                                             <Button Content="暂停" Style="{StaticResource GlassButton}"
@@ -1590,7 +1595,7 @@
 
                         <!-- 内容详情浮层 -->
                         <Grid x:Name="ContentDetailPanel" Grid.RowSpan="3" Visibility="Collapsed"
-                              Background="#FF0B0E13">
+                              Background="{DynamicResource PopBg}">
                             <Grid.Effect>
                                 <DropShadowEffect Color="#000000" BlurRadius="24" ShadowDepth="0" Opacity="0.5"/>
                             </Grid.Effect>
@@ -1607,7 +1612,7 @@
                                     <Button x:Name="DetailTranslateButton" Content="翻译为中文" Style="{StaticResource GlassButton}"
                                             Margin="8,0,0,0" Click="OnDetailTranslate"
                                             ToolTip="翻译这个模组的简介（优先用 MC 百科的中文，没有就机翻）"/>
-                                    <Border Width="44" Height="44" CornerRadius="12" Background="#14FFFFFF" Margin="16,0,0,0">
+                                    <Border Width="44" Height="44" CornerRadius="12" Background="{DynamicResource FieldBg}" Margin="16,0,0,0">
                                         <Image x:Name="DetailIcon" Stretch="UniformToFill"/>
                                     </Border>
                                     <TextBlock x:Name="DetailTitle" Text="" FontSize="22" FontFamily="{DynamicResource FontHead}"
@@ -1699,33 +1704,42 @@
                                                         Style="{StaticResource GlassButton}" Padding="10,4" FontSize="10.5"
                                                         Margin="12,0,0,0" VerticalAlignment="Center" IsEnabled="False"
                                                         Click="OnVmRename" ToolTip="改版本名（文件夹、json、id 一起改）"/>
+                                                <Button x:Name="VmDeleteButton" Content="删除版本"
+                                                        Style="{StaticResource DangerButton}" Height="30" Padding="14,0"
+                                                        FontSize="10.5" Margin="8,0,0,0" VerticalAlignment="Center"
+                                                        IsEnabled="False" Click="OnVmDeleteVersion"
+                                                        ToolTip="删掉整个版本文件夹（会问三次，删完进回收站）"/>
                                             </StackPanel>
                                             <TextBlock x:Name="VmPath" Text="" FontSize="11" Margin="0,6,0,0"
                                                        Foreground="{DynamicResource InkFaint}" TextWrapping="Wrap"/>
 
-                                            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                                                <TextBox x:Name="VmNoteBox" Width="440" Height="30" MaxLength="120"
+                                            <Grid Margin="0,10,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBox x:Name="VmNoteBox" Height="30" MaxLength="120"
                                                          ToolTip="这个版本的备注，导出整合包时会写进说明里"/>
-                                                <Button Content="保存备注" Style="{StaticResource GlassButton}" Height="30"
+                                                <Button Grid.Column="1" Content="保存备注" Style="{StaticResource GlassButton}" Height="30"
                                                         Margin="8,0,0,0" FontSize="11" Click="OnVmSaveNote"/>
-                                            </StackPanel>
+                                            </Grid>
 
-                                            <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
-                                                <TextBlock Text="运行内存 (MB) · 全局" FontSize="11.5" VerticalAlignment="Center"
+                                            <WrapPanel Margin="0,12,0,0">
+                                                <TextBlock Text="运行内存 (MB) · 全局" FontSize="11.5" VerticalAlignment="Center" Margin="0,0,10,8"
                                                            Foreground="{DynamicResource InkDim}"/>
-                                                <TextBox x:Name="VmMemoryBox" Width="110" Margin="10,0,0,0"
+                                                <TextBox x:Name="VmMemoryBox" Width="110" Margin="0,0,8,8"
                                                          HorizontalContentAlignment="Center"/>
-                                                <Button Content="应用" Style="{StaticResource GlassButton}" Margin="8,0,0,0"
+                                                <Button Content="应用" Style="{StaticResource GlassButton}" Margin="0,0,8,8"
                                                         Click="OnVmSaveMemory"/>
-                                                <Button Content="打开版本目录" Style="{StaticResource GlassButton}" Margin="8,0,0,0"
+                                                <Button Content="打开版本目录" Style="{StaticResource GlassButton}" Margin="0,0,8,8"
                                                         Click="OnVmOpenVersionDir"/>
-                                                <Button Content="设为安装目标" Style="{StaticResource GlassButton}" Margin="8,0,0,0"
+                                                <Button Content="设为安装目标" Style="{StaticResource GlassButton}" Margin="0,0,8,8"
                                                         Click="OnVmSetAsTarget"/>
                                                 <Button x:Name="IsolationButton" Content="版本隔离：跟随全局"
-                                                        Style="{StaticResource GlassButton}" Margin="8,0,0,0"
+                                                        Style="{StaticResource GlassButton}" Margin="0,0,8,8"
                                                         Click="OnToggleIsolation"
                                                         ToolTip="开启后这个版本用自己目录里的 mods / config / saves，不跟全局共用"/>
-                                            </StackPanel>
+                                            </WrapPanel>
 
                                             <TextBlock x:Name="IsolationHint" Text="" FontSize="10.5" Margin="0,8,0,0"
                                                        Foreground="{DynamicResource InkFaint}" TextWrapping="Wrap"/>
@@ -1770,7 +1784,7 @@
                                                            Foreground="{DynamicResource InkFaint}"/>
                                             </Grid>
 
-                                            <Border CornerRadius="10" Background="#0B0E13" Padding="10"
+                                            <Border CornerRadius="10" Background="{DynamicResource FieldBg}" BorderBrush="{DynamicResource FieldLine}" BorderThickness="1" Padding="10"
                                                     AllowDrop="True" Drop="OnVmModsDrop" DragOver="OnVmModsDragOver">
                                                 <ScrollViewer MaxHeight="330" VerticalScrollBarVisibility="Auto">
                                                     <StackPanel x:Name="VmModList"/>
@@ -1912,9 +1926,9 @@
                                             <TextBlock x:Name="TunnelStatus" Text="未启动" FontSize="11.5" Margin="0,10,0,0"
                                                        Foreground="{DynamicResource InkFaint}" TextWrapping="Wrap"/>
 
-                                            <Border CornerRadius="10" Background="#0B0E13" Margin="0,10,0,0" Padding="10" Height="150">
+                                            <Border CornerRadius="10" Background="{DynamicResource FieldBg}" BorderBrush="{DynamicResource FieldLine}" BorderThickness="1" Margin="0,10,0,0" Padding="10" Height="150">
                                                 <TextBox x:Name="TunnelLog" Background="Transparent" BorderThickness="0"
-                                                         Foreground="#FF9AA6BA" FontFamily="Consolas" FontSize="11"
+                                                         Foreground="{DynamicResource InkDim}" FontFamily="Consolas" FontSize="11"
                                                          IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap"
                                                          VerticalScrollBarVisibility="Auto"/>
                                             </Border>
@@ -1957,9 +1971,9 @@
                                             Margin="0,14,0,0">
                                         <StackPanel>
                                             <TextBlock Text="服务端控制台" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
-                                            <Border CornerRadius="10" Background="#0B0E13" Margin="0,10,0,0" Padding="10" Height="280">
+                                            <Border CornerRadius="10" Background="{DynamicResource FieldBg}" BorderBrush="{DynamicResource FieldLine}" BorderThickness="1" Margin="0,10,0,0" Padding="10" Height="280">
                                                 <TextBox x:Name="ServerLog" Background="Transparent" BorderThickness="0"
-                                                         Foreground="#FF9AA6BA" FontFamily="Consolas" FontSize="11"
+                                                         Foreground="{DynamicResource InkDim}" FontFamily="Consolas" FontSize="11"
                                                          IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap"
                                                          VerticalScrollBarVisibility="Auto"/>
                                             </Border>
@@ -2043,7 +2057,7 @@
                                                        Foreground="{DynamicResource InkFaint}" Margin="0,3,0,0"
                                                        TextWrapping="Wrap"/>
                                         </StackPanel>
-                                        <Border CornerRadius="10" Background="#0B0E13" Margin="0,10,0,0" Height="190"
+                                        <Border CornerRadius="10" Background="{DynamicResource FieldBg}" BorderBrush="{DynamicResource FieldLine}" BorderThickness="1" Margin="0,10,0,0" Height="190"
                                                 ClipToBounds="True">
                                             <Grid>
                                                 <Image x:Name="AccountSkinImage" Stretch="Uniform" Visibility="Collapsed"/>
@@ -2289,7 +2303,7 @@
                                             <Border.Effect>
                                                 <DropShadowEffect Color="#5B8CFF" BlurRadius="22" ShadowDepth="0" Opacity="0.45"/>
                                             </Border.Effect>
-                                            <Border CornerRadius="36" Margin="3" Background="#FF0B0E13">
+                                            <Border CornerRadius="36" Margin="3" Background="{DynamicResource PopBg}">
                                                 <Image Source="/Assets/brand/avatar.jpg" Stretch="UniformToFill"
                                                        RenderOptions.BitmapScalingMode="HighQuality">
                                                     <Image.Clip>
@@ -2319,7 +2333,7 @@
                             </StackPanel>
                         </ScrollViewer>
                         <Border Grid.Row="1" Width="366" HorizontalAlignment="Right" VerticalAlignment="Stretch"
-                                Margin="0,0,24,14" CornerRadius="18" Background="#0AFFFFFF"
+                                Margin="0,0,24,14" CornerRadius="18" Background="{DynamicResource FieldBg}"
                                 BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" ClipToBounds="True">
                             <Grid Background="Transparent" Cursor="Hand"
                                   MouseLeftButtonDown="OnSettingsSceneClick"
@@ -2332,7 +2346,7 @@
                                     <TextBlock x:Name="SettingsMobHint" Text="" FontSize="10.5"
                                                Foreground="{DynamicResource InkFaint}" HorizontalAlignment="Center"
                                                Margin="0,4,0,0"/>
-                                    <TextBlock Text="点一下换角色" FontSize="9.5" Foreground="#5F6E8A"
+                                    <TextBlock Text="点一下换角色" FontSize="9.5" Foreground="{DynamicResource InkFaint}"
                                                HorizontalAlignment="Center" Margin="0,8,0,0"/>
                                 </StackPanel>
                             </Grid>
@@ -2454,7 +2468,7 @@
                                                 </ListBox.ItemContainerStyle>
                                                 <ListBox.ItemTemplate>
                                                     <DataTemplate>
-                                                        <Border Margin="0,3" Padding="12,9" CornerRadius="10" Background="#0CFFFFFF">
+                                                        <Border Margin="0,3" Padding="12,9" CornerRadius="10" Background="{DynamicResource FieldBg}">
                                                             <Grid>
                                                                 <Grid.ColumnDefinitions>
                                                                     <ColumnDefinition Width="Auto"/>
@@ -2549,7 +2563,7 @@
                                                TextTrimming="CharacterEllipsis" MaxWidth="420"/>
                                 </StackPanel>
 
-                                <Border Grid.Row="1" CornerRadius="14" Background="#FF0B0E13"
+                                <Border Grid.Row="1" CornerRadius="14" Background="{DynamicResource FieldBg}"
                                         BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" ClipToBounds="True"
                                         SizeChanged="OnBiliSizeChanged">
                                     <Grid>
@@ -2640,7 +2654,7 @@
                                                            FontSize="11" Foreground="{DynamicResource InkFaint}"
                                                            TextTrimming="CharacterEllipsis" MaxWidth="420"/>
                                                 <TextBlock x:Name="LyricSource" Text="" FontSize="10"
-                                                           Foreground="#FF7FA6FF" Margin="10,1,0,0"
+                                                           Foreground="{DynamicResource InkFaint}" Margin="10,1,0,0"
                                                            VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </StackPanel>
@@ -2710,11 +2724,11 @@
 
         <!-- 右下角提示 -->
         <Border x:Name="ToastHost" HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                Margin="0,0,26,54" CornerRadius="12" Background="#F2141A24"
-                BorderBrush="#3A5B8CFF" BorderThickness="1" Padding="14,11"
+                Margin="0,0,26,54" CornerRadius="12" Background="{DynamicResource PopBg}"
+                BorderBrush="{DynamicResource PopLine}" BorderThickness="1" Padding="14,11"
                 MaxWidth="380" Visibility="Collapsed" Opacity="0">
             <StackPanel Orientation="Horizontal">
-                <TextBlock x:Name="ToastIcon" Text="⇩" FontSize="16" Foreground="#FF8AB4FF"
+                <TextBlock x:Name="ToastIcon" Text="⇩" FontSize="16" Foreground="{DynamicResource PopAccent}"
                            VerticalAlignment="Center" Margin="0,0,10,0"/>
                 <StackPanel>
                     <TextBlock x:Name="ToastTitle" Text="" FontSize="12.5" FontWeight="SemiBold"

@@ -83,6 +83,22 @@ public partial class MainWindow
         res["PopSub"] = PopBrush(p.S);
         res["PopFaint"] = PopBrush(p.O);
         res["PopAccent"] = PopBrush(p.C);
+
+        // 危险按钮（删除版本这种）：浅色主题下用深一档的红，别糊成粉
+        var danger = _style switch
+        {
+            "paper" => (Bg: "#1FC4553A", Hover: "#33C4553A", Line: "#C4553A", Ink: "#A33A24"),
+            "pixel" => (Bg: "#2CF83858", Hover: "#40F83858", Line: "#F83858", Ink: "#FFD6DE"),
+            "terminal" => (Bg: "#22FF5B5B", Hover: "#38FF5B5B", Line: "#FF8B94", Ink: "#FFC9C9"),
+            "aurora" => (Bg: "#26FF7A9C", Hover: "#3CFF7A9C", Line: "#FF9AB8", Ink: "#FFD2DE"),
+            "vivid" => (Bg: "#26FF5CC8", Hover: "#3CFF5CC8", Line: "#FF8AD8", Ink: "#FFD8EE"),
+            _ => (Bg: "#2EFF5B5B", Hover: "#48FF5B5B", Line: "#7AFF6B5B", Ink: "#FFB4A8"),
+        };
+
+        res["DangerBg"] = PopBrush(danger.Bg);
+        res["DangerBgHover"] = PopBrush(danger.Hover);
+        res["DangerLine"] = PopBrush(danger.Line);
+        res["DangerInk"] = PopBrush(danger.Ink);
     }
 
     private static SolidColorBrush PopBrush(string hex)

@@ -38,12 +38,28 @@ public sealed class UpdateChecker
     }
 
     public async Task<ReleaseInfo?> GetLatestAsync(CancellationToken ct = default)
+        => await GetLatestAsync(null, ct).ConfigureAwait(false);
+
+    /// <summary>
+    /// 先问 Gitee：有比当前版本更新的就直接用，不碰 GitHub（国内 GitHub API 经常超时）。
+    /// Gitee 没新版本 / 不可达时，再问 GitHub，两个源都有就取新的那个。
+    /// </summary>
+    public async Task<ReleaseInfo?> GetLatestAsync(string? currentVersion, CancellationToken ct = default)
     {
-        // 两个源都问一遍，谁新用谁（Gitee 镜像可能没同步，不能因为它旧就说“已是最新”）
         ReleaseInfo? gitee = null;
         if (!string.IsNullOrEmpty(_giteeRepository))
         {
             gitee = await GetFromGiteeAsync(ct).ConfigureAwait(false);
+            if (gitee != null && !string.IsNullOrWhiteSpace(currentVersion) &&
+                IsNewer(gitee.Tag, currentVersion!))
+            {
+                return gitee;
+            }
+
+            if (gitee != null && string.IsNullOrWhiteSpace(currentVersion))
+            {
+                return gitee;
+            }
         }
 
         var github = await GetFromGithubAsync(ct).ConfigureAwait(false);

@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.52";
+    private const string AppVersion = "0.15.53";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -121,6 +121,16 @@ public partial class MainWindow : Window
             if (shotFlag >= 0 && shotFlag + 1 < argv.Length)
             {
                 _ = CaptureAndExitAsync(argv[shotFlag + 1]);
+            }
+
+            // 调试用：--banner 强制显示更新横幅（截图看配色用）
+            if (argv.Contains("--banner") && UpdateBanner != null)
+            {
+                _ = Task.Delay(3000).ContinueWith(_ => Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    UpdateBannerText.Text = "发现新版本 v0.15.53 · 修复浅色主题下的深色块";
+                    UpdateBanner.Visibility = Visibility.Visible;
+                })));
             }
 
             // 调试用：--picker 直接展开版本选择弹层（截图用）
@@ -2039,6 +2049,134 @@ public partial class MainWindow : Window
         {
             VmRenameButton.IsEnabled = true;
         }
+
+        if (VmDeleteButton != null)
+        {
+            VmDeleteButton.IsEnabled = true;
+        }
+    }
+
+    /// <summary>删除版本：三次确认（讲清后果 → 手打版本名 → 最后确认），然后整个文件夹进回收站。</summary>
+    private void OnVmDeleteVersion(object sender, RoutedEventArgs e)
+    {
+        if (_vmCurrent == null)
+        {
+            return;
+        }
+
+        var id = _vmCurrent.Id;
+        var dir = _vmCurrent.Directory;
+
+        if (string.IsNullOrWhiteSpace(dir) || !Directory.Exists(dir))
+        {
+            VmStatus.Text = "找不到这个版本的目录（可能已经被删了）";
+            ReloadVmVersions();
+            return;
+        }
+
+        // 第 1 次：讲清楚会删掉什么
+        var first = MessageBox.Show(this,
+            $"要删除版本「{id}」吗？\n\n" +
+            $"目录：{dir}\n\n" +
+            "整个文件夹都会没：mods、saves（存档）、config、截图全在里面，\n" +
+            "删掉后启动器里也不再列出这个版本。",
+            "删除版本（1/3）", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No);
+        if (first != MessageBoxResult.Yes)
+        {
+            VmStatus.Text = "已取消删除";
+            return;
+        }
+
+        // 第 2 次：手打版本名，防止连点
+        var typed = PromptForText("确认删除（2/3）", $"把版本名原样输入一次才继续：{id}", string.Empty);
+        if (string.IsNullOrWhiteSpace(typed) || !string.Equals(typed.Trim(), id, StringComparison.OrdinalIgnoreCase))
+        {
+            VmStatus.Text = "版本名对不上，已取消删除";
+            return;
+        }
+
+        // 第 3 次：最后一道
+        var last = MessageBox.Show(this,
+            $"最后确认：删除「{id}」？\n\n版本会连同 mods 和存档一起进回收站。",
+            "删除版本（3/3）", MessageBoxButton.YesNo, MessageBoxImage.Stop, MessageBoxResult.No);
+        if (last != MessageBoxResult.Yes)
+        {
+            VmStatus.Text = "已取消删除";
+            return;
+        }
+
+        try
+        {
+            MoveToRecycleBin(dir);
+
+            if (string.Equals((VersionList.SelectedItem as VersionCard)?.Summary.Id, id, StringComparison.OrdinalIgnoreCase))
+            {
+                VersionList.SelectedItem = null;
+            }
+
+            _vmCurrent = null;
+            LoadVersions();
+            ReloadVmVersions();
+
+            VmTitle.Text = "先在左边选一个版本";
+            VmPath.Text = string.Empty;
+            VmModList.Children.Clear();
+            if (VmRenameButton != null)
+            {
+                VmRenameButton.IsEnabled = false;
+            }
+
+            if (VmDeleteButton != null)
+            {
+                VmDeleteButton.IsEnabled = false;
+            }
+
+            VmStatus.Text = $"已删除 {id}（在回收站里，需要可以还原）";
+            ShowToast("版本已删除", id + " · 已放进回收站", "✓", 5000);
+        }
+        catch (Exception ex)
+        {
+            VmStatus.Text = "删除失败: " + ex.Message;
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct SHFILEOPSTRUCT
+    {
+        public IntPtr hwnd;
+        public uint wFunc;
+        public string pFrom;
+        public string? pTo;
+        public ushort fFlags;
+        public int fAnyOperationsAborted;
+        public IntPtr hNameMappings;
+        public string? lpszProgressTitle;
+    }
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern int SHFileOperation(ref SHFILEOPSTRUCT fileOp);
+
+    private const uint FO_DELETE = 3;
+    private const ushort FOF_ALLOWUNDO = 0x40;
+    private const ushort FOF_NOCONFIRMATION = 0x10;
+    private const ushort FOF_SILENT = 0x4;
+    private const ushort FOF_NOERRORUI = 0x400;
+
+    /// <summary>删到回收站，而不是直接抹掉 —— 手滑还能捞回来。</summary>
+    private static void MoveToRecycleBin(string path)
+    {
+        var op = new SHFILEOPSTRUCT
+        {
+            wFunc = FO_DELETE,
+            pFrom = path + "\0\0",
+            fFlags = (ushort)(FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT | FOF_NOERRORUI),
+        };
+
+        var code = SHFileOperation(ref op);
+        if (code != 0)
+        {
+            throw new IOException($"回收站操作失败（代码 {code}）");
+        }
     }
 
     private void OnVmSaveNote(object sender, RoutedEventArgs e)
@@ -2384,7 +2522,9 @@ public partial class MainWindow : Window
             VmModList.Children.Add(new Border
             {
                 CornerRadius = new CornerRadius(9),
-                Background = new SolidColorBrush(Color.FromArgb(0x12, 0xFF, 0xFF, 0xFF)),
+                Background = Brushes.Transparent,
+                BorderBrush = (Brush)FindResource("GlassLine"),
+                BorderThickness = new Thickness(0, 0, 0, 1),
                 Padding = new Thickness(12, 8, 10, 8),
                 Child = row,
             });
@@ -3623,7 +3763,7 @@ public partial class MainWindow : Window
             }
 
             var checker = _service.CreateUpdateChecker();
-            var release = await checker.GetLatestAsync();
+            var release = await checker.GetLatestAsync(AppVersion);
             if (release == null)
             {
                 if (!silent && UpdateStatus != null)
@@ -3768,8 +3908,8 @@ public partial class MainWindow : Window
             AcceptsReturn = true,
             TextWrapping = TextWrapping.Wrap,
             Height = 240,
-            Background = new SolidColorBrush(Color.FromRgb(0x0B, 0x0E, 0x13)),
-            Foreground = new SolidColorBrush(Color.FromRgb(0x9A, 0xA6, 0xBA)),
+            Background = (Brush)FindResource("FieldBg"),
+            Foreground = (Brush)FindResource("InkDim"),
             BorderThickness = new Thickness(0),
             Padding = new Thickness(12),
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
