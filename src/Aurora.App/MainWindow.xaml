@@ -639,6 +639,12 @@
                             <TextBlock Text="设置" FontSize="10.5" HorizontalAlignment="Center" Margin="0,4,0,0"/>
                         </StackPanel>
                     </Button>
+                    <Button x:Name="NavOther" Style="{StaticResource RailButton}" Tag="10" Click="OnNavClick" Margin="0,6,0,0">
+                        <StackPanel>
+                            <TextBlock Text="⋯" FontSize="17" HorizontalAlignment="Center"/>
+                            <TextBlock Text="其他" FontSize="10.5" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
 
                 <!-- 页面 -->
@@ -2271,95 +2277,10 @@
 
 
                                 <!-- 下载与来源 -->
-                                <Border CornerRadius="16" Background="{DynamicResource Glass}"
-                                        BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="20,16"
-                                        Margin="0,0,0,12">
-                                    <StackPanel>
-                                        <TextBlock Text="下载来源" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
-                                        <TextBlock Text="镜像（BMCLAPI + MCIM）国内快，但偶尔会抽风；官方源最稳但慢。自动 = 镜像优先、失败回落官方。"
-                                                   FontSize="11.5" Foreground="{DynamicResource InkDim}" Margin="0,6,0,10" TextWrapping="Wrap"/>
-                                        <ComboBox x:Name="SettingsSourceCombo" Height="38" FontSize="12.5"
-                                                  SelectionChanged="OnDownloadSourceChanged">
-                                            <ComboBoxItem Content="自动（镜像优先，官方兜底）" Tag="auto"/>
-                                            <ComboBoxItem Content="官方源（Mojang / Modrinth / CurseForge 直连）" Tag="official"/>
-                                            <ComboBoxItem Content="镜像源（BMCLAPI + MCIM）" Tag="mirror"/>
-                                        </ComboBox>
-                                        <TextBlock x:Name="SourceHint" Text="" FontSize="10.5"
-                                                   Foreground="{DynamicResource InkFaint}" Margin="0,8,0,0" TextWrapping="Wrap"/>
-                                    </StackPanel>
-                                </Border>
 
                                 <!-- 其他 -->
-                                <Border CornerRadius="16" Background="{DynamicResource Glass}"
-                                        BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="20,16"
-                                        Margin="0,12,0,0">
-                                    <StackPanel>
-                                        <TextBlock Text="其他" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
-                                        <TextBlock Text="更新、配置备份、目录与缓存。"
-                                                   FontSize="11.5" Foreground="{DynamicResource InkDim}" Margin="0,6,0,10" TextWrapping="Wrap"/>
-                                        <WrapPanel>
-                                            <Button Content="检查更新" Style="{StaticResource GlassButton}" Padding="14,6" FontSize="11.5"
-                                                    Margin="0,0,8,8" Click="OnSettingsCheckUpdate"/>
-                                            <Button Content="导出设置" Style="{StaticResource GlassButton}" Padding="14,6" FontSize="11.5"
-                                                    Margin="0,0,8,8" Click="OnSettingsExport"/>
-                                            <Button Content="导入设置" Style="{StaticResource GlassButton}" Padding="14,6" FontSize="11.5"
-                                                    Margin="0,0,8,8" Click="OnSettingsImport"/>
-                                            <Button Content="打开配置目录" Style="{StaticResource GlassButton}" Padding="14,6" FontSize="11.5"
-                                                    Margin="0,0,8,8" Click="OnSettingsOpenConfig"/>
-                                            <Button Content="打开日志目录" Style="{StaticResource GlassButton}" Padding="14,6" FontSize="11.5"
-                                                    Margin="0,0,8,8" Click="OnSettingsOpenLogs"/>
-                                            <Button Content="清空下载缓存" Style="{StaticResource GlassButton}" Padding="14,6" FontSize="11.5"
-                                                    Margin="0,0,8,8" Click="OnSettingsClearCache"/>
-                                            <Button Content="打开游戏目录" Style="{StaticResource GlassButton}" Padding="14,6" FontSize="11.5"
-                                                    Margin="0,0,8,8" Click="OnSettingsOpenGameDir"/>
-                                            <Button Content="免责声明 / 许可" Style="{StaticResource GlassButton}" Padding="14,6" FontSize="11.5"
-                                                    Margin="0,0,8,8" Click="OnOpenLegal"/>
-                                        </WrapPanel>
-                                        <TextBlock x:Name="AboutVersionText" Text="" FontSize="10.5"
-                                                   Foreground="{DynamicResource InkFaint}" Margin="0,6,0,0" TextWrapping="Wrap"/>
-                                    </StackPanel>
-                                </Border>
 
                                 <!-- 高级选项 -->
-                                <Border CornerRadius="16" Background="{DynamicResource Glass}"
-                                        BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="20,16"
-                                        Margin="0,12,0,0">
-                                    <StackPanel>
-                                        <TextBlock Text="高级选项" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
-                                        <TextBlock Text="不懂就别改。改完点下面的「保存高级选项」生效。"
-                                                   FontSize="11.5" Foreground="{DynamicResource InkDim}" Margin="0,6,0,10" TextWrapping="Wrap"/>
-
-                                        <TextBlock Text="Java 虚拟机参数（-Xmx 由上面的内存决定，这里填额外的）"
-                                                   Foreground="{DynamicResource InkFaint}" FontSize="11"/>
-                                        <TextBox x:Name="AdvJvmArgs" Height="60" Margin="0,6,0,12"
-                                                 AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
-
-                                        <TextBlock Text="游戏参数（启动器自己会加 --username 那些，这里填额外的）"
-                                                   Foreground="{DynamicResource InkFaint}" FontSize="11"/>
-                                        <TextBox x:Name="AdvGameArgs" Margin="0,6,0,12"/>
-
-                                        <TextBlock Text="启动前执行命令（可选，cmd 语法，在游戏目录下执行）"
-                                                   Foreground="{DynamicResource InkFaint}" FontSize="11"/>
-                                        <TextBox x:Name="AdvPreLaunch" Margin="0,6,0,12"/>
-
-                                        <TextBlock Text="内存调优" Foreground="{DynamicResource InkFaint}" FontSize="11"/>
-                                        <ComboBox x:Name="AdvMemoryPreset" Margin="0,6,0,12">
-                                            <ComboBoxItem Content="默认（不额外加参数）" Tag="default"/>
-                                            <ComboBoxItem Content="调优 G1GC（推荐 4G 以上）" Tag="g1"/>
-                                            <ComboBoxItem Content="ZGC（Java 17+，超大内存）" Tag="zgc"/>
-                                        </ComboBox>
-
-                                        <CheckBox x:Name="AdvJavaWrapper" Content="启用 Java Launch Wrapper（修 Windows 下 Java 参数编码/类路径被搞坏的问题）"
-                                                  Foreground="{DynamicResource InkDim}" FontSize="11.5" Margin="0,0,0,10"/>
-                                        <CheckBox x:Name="AdvLwjglUnsafe" Content="启用 LWJGL Unsafe Agent（部分显卡/驱动下修 LWJGL 崩溃）"
-                                                  Foreground="{DynamicResource InkDim}" FontSize="11.5" Margin="0,0,0,10"/>
-                                        <CheckBox x:Name="AdvSoundEnabled" Content="界面音效（按钮、启动成功/失败提示音）"
-                                                  Foreground="{DynamicResource InkDim}" FontSize="11.5" Margin="0,0,0,10"/>
-
-                                        <Button Content="保存高级选项" Style="{StaticResource HeroButton}" Width="150" Height="38"
-                                                HorizontalAlignment="Left" Click="OnSaveAdvanced"/>
-                                    </StackPanel>
-                                </Border>
 
 
 
@@ -2557,6 +2478,120 @@
                             </Grid>
                         </Border>
                     </Grid>
+                    <Grid x:Name="OtherPage" Visibility="Collapsed">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Margin="26,6,0,14">
+                            <TextBlock Text="其他" FontSize="32" FontFamily="{DynamicResource FontHead}" Foreground="{DynamicResource TitleGrad}"/>
+                            <TextBlock Text="下载来源、配置备份、目录与缓存、高级选项" FontSize="12.5" Foreground="{DynamicResource InkDim}" Margin="0,6,0,0"/>
+                        </StackPanel>
+
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="26,0,400,0">
+                            <StackPanel MaxWidth="660" HorizontalAlignment="Left">
+                                    <Border CornerRadius="16" Background="{DynamicResource Glass}"
+                                            BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="20,16"
+                                            Margin="0,0,0,12">
+                                        <StackPanel>
+                                            <TextBlock Text="下载来源" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
+                                            <TextBlock Text="镜像（BMCLAPI + MCIM）国内快，但偶尔会抽风；官方源最稳但慢。自动 = 镜像优先、失败回落官方。"
+                                                       FontSize="11.5" Foreground="{DynamicResource InkDim}" Margin="0,6,0,10" TextWrapping="Wrap"/>
+                                            <ComboBox x:Name="SettingsSourceCombo" Height="38" FontSize="12.5"
+                                                      SelectionChanged="OnDownloadSourceChanged">
+                                                <ComboBoxItem Content="自动（镜像优先，官方兜底）" Tag="auto"/>
+                                                <ComboBoxItem Content="官方源（Mojang / Modrinth / CurseForge 直连）" Tag="official"/>
+                                                <ComboBoxItem Content="镜像源（BMCLAPI + MCIM）" Tag="mirror"/>
+                                            </ComboBox>
+
+                                            <TextBlock Text="模组内容来源（Modrinth / CurseForge）" FontSize="11" Margin="0,10,0,0"
+                                                       Foreground="{DynamicResource InkFaint}"/>
+                                            <ComboBox x:Name="SettingsContentSourceCombo" Height="38" FontSize="12.5" Margin="0,6,0,0"
+                                                      SelectionChanged="OnContentSourceChanged">
+                                                <ComboBoxItem Content="自动（MCIM 镜像优先，失败回落官方）" Tag="auto"/>
+                                                <ComboBoxItem Content="官方（Modrinth / CurseForge 直连）" Tag="official"/>
+                                                <ComboBoxItem Content="镜像（只用 MCIM）" Tag="mcim"/>
+                                            </ComboBox>
+                                            <TextBlock x:Name="SourceHint" Text="" FontSize="10.5"
+                                                       Foreground="{DynamicResource InkFaint}" Margin="0,8,0,0" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border CornerRadius="16" Background="{DynamicResource Glass}"
+                                            BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="20,16"
+                                            Margin="0,12,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="其他" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
+                                            <TextBlock Text="更新、配置备份、目录与缓存。"
+                                                       FontSize="11.5" Foreground="{DynamicResource InkDim}" Margin="0,6,0,10" TextWrapping="Wrap"/>
+                                            <WrapPanel>
+                                                <Button Content="检查更新" Style="{StaticResource GlassButton}" Padding="14,6" FontSize="11.5"
+                                                        Margin="0,0,8,8" Click="OnSettingsCheckUpdate"/>
+                                                <Button Content="导出设置" Style="{StaticResource GlassButton}" Padding="14,6" FontSize="11.5"
+                                                        Margin="0,0,8,8" Click="OnSettingsExport"/>
+                                                <Button Content="导入设置" Style="{StaticResource GlassButton}" Padding="14,6" FontSize="11.5"
+                                                        Margin="0,0,8,8" Click="OnSettingsImport"/>
+                                                <Button Content="打开配置目录" Style="{StaticResource GlassButton}" Padding="14,6" FontSize="11.5"
+                                                        Margin="0,0,8,8" Click="OnSettingsOpenConfig"/>
+                                                <Button Content="打开日志目录" Style="{StaticResource GlassButton}" Padding="14,6" FontSize="11.5"
+                                                        Margin="0,0,8,8" Click="OnSettingsOpenLogs"/>
+                                                <Button Content="清空下载缓存" Style="{StaticResource GlassButton}" Padding="14,6" FontSize="11.5"
+                                                        Margin="0,0,8,8" Click="OnSettingsClearCache"/>
+                                                <Button Content="打开游戏目录" Style="{StaticResource GlassButton}" Padding="14,6" FontSize="11.5"
+                                                        Margin="0,0,8,8" Click="OnSettingsOpenGameDir"/>
+                                                <Button Content="免责声明 / 许可" Style="{StaticResource GlassButton}" Padding="14,6" FontSize="11.5"
+                                                        Margin="0,0,8,8" Click="OnOpenLegal"/>
+                                            </WrapPanel>
+                                            <TextBlock x:Name="AboutVersionText" Text="" FontSize="10.5"
+                                                       Foreground="{DynamicResource InkFaint}" Margin="0,6,0,0" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border CornerRadius="16" Background="{DynamicResource Glass}"
+                                            BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="20,16"
+                                            Margin="0,12,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="高级选项" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
+                                            <TextBlock Text="不懂就别改。改完点下面的「保存高级选项」生效。"
+                                                       FontSize="11.5" Foreground="{DynamicResource InkDim}" Margin="0,6,0,10" TextWrapping="Wrap"/>
+
+                                            <TextBlock Text="Java 虚拟机参数（-Xmx 由上面的内存决定，这里填额外的）"
+                                                       Foreground="{DynamicResource InkFaint}" FontSize="11"/>
+                                            <TextBox x:Name="AdvJvmArgs" Height="60" Margin="0,6,0,12"
+                                                     AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
+
+                                            <TextBlock Text="游戏参数（启动器自己会加 --username 那些，这里填额外的）"
+                                                       Foreground="{DynamicResource InkFaint}" FontSize="11"/>
+                                            <TextBox x:Name="AdvGameArgs" Margin="0,6,0,12"/>
+
+                                            <TextBlock Text="启动前执行命令（可选，cmd 语法，在游戏目录下执行）"
+                                                       Foreground="{DynamicResource InkFaint}" FontSize="11"/>
+                                            <TextBox x:Name="AdvPreLaunch" Margin="0,6,0,12"/>
+
+                                            <TextBlock Text="内存调优" Foreground="{DynamicResource InkFaint}" FontSize="11"/>
+                                            <ComboBox x:Name="AdvMemoryPreset" Margin="0,6,0,12">
+                                                <ComboBoxItem Content="默认（不额外加参数）" Tag="default"/>
+                                                <ComboBoxItem Content="调优 G1GC（推荐 4G 以上）" Tag="g1"/>
+                                                <ComboBoxItem Content="ZGC（Java 17+，超大内存）" Tag="zgc"/>
+                                            </ComboBox>
+
+                                            <CheckBox x:Name="AdvJavaWrapper" Content="启用 Java Launch Wrapper（修 Windows 下 Java 参数编码/类路径被搞坏的问题）"
+                                                      Foreground="{DynamicResource InkDim}" FontSize="11.5" Margin="0,0,0,10"/>
+                                            <CheckBox x:Name="AdvLwjglUnsafe" Content="启用 LWJGL Unsafe Agent（部分显卡/驱动下修 LWJGL 崩溃）"
+                                                      Foreground="{DynamicResource InkDim}" FontSize="11.5" Margin="0,0,0,10"/>
+                                            <CheckBox x:Name="AdvSoundEnabled" Content="界面音效（按钮、启动成功/失败提示音）"
+                                                      Foreground="{DynamicResource InkDim}" FontSize="11.5" Margin="0,0,0,10"/>
+
+                                            <Button Content="保存高级选项" Style="{StaticResource HeroButton}" Width="150" Height="38"
+                                                    HorizontalAlignment="Left" Click="OnSaveAdvanced"/>
+                                        </StackPanel>
+                                    </Border>
+
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+
                     <!-- ========== 更新日志 ========== -->
                     <Grid x:Name="UpdatesPage" Visibility="Collapsed">
                         <Grid.RowDefinitions>

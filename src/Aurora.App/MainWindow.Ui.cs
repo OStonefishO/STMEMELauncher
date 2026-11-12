@@ -989,6 +989,7 @@ public partial class MainWindow
         yield return NavFun;
         yield return NavAccount;
         yield return NavSettings;
+        yield return NavOther;
     }
 
     // ---------------- 主题色相 ----------------

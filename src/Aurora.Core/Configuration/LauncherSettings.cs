@@ -35,6 +35,9 @@ public sealed class LauncherSettings
     /// <summary>下载源：auto = 镜像优先+官方兜底；official = 只用官方；mirror = 只用镜像。</summary>
     public string DownloadSource { get; set; } = "auto";
 
+    /// <summary>模组/内容接口来源：auto（MCIM 优先）/ official（Modrinth、CurseForge 直连）/ mcim（只用镜像）。</summary>
+    public string ContentSource { get; set; } = "auto";
+
     /// <summary>启动前要执行的命令（可选）。</summary>
     public string PreLaunchCommand { get; set; } = string.Empty;
 

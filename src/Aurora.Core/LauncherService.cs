@@ -346,7 +346,7 @@ public sealed partial class LauncherService
     }
 
     public DownloadClient SharedDownloader =>
-        _shared ??= new DownloadClient(Settings.UseMirror) { MirrorBaseUrl = Settings.MirrorBaseUrl, SourceMode = Settings.DownloadSource ?? "auto" };
+        _shared ??= new DownloadClient(Settings.UseMirror) { MirrorBaseUrl = Settings.MirrorBaseUrl, SourceMode = Settings.DownloadSource ?? "auto", ContentSourceMode = Settings.ContentSource ?? "auto" };
 
     public MicrosoftAuth CreateAuth() => new(Settings.MicrosoftClientId);
 
@@ -663,14 +663,14 @@ public sealed partial class LauncherService
     public Installer CreateInstaller(string? gameDirectory)
     {
         var dir = string.IsNullOrWhiteSpace(gameDirectory) ? Settings.GameDirectory : gameDirectory!;
-        return new Installer(new DownloadClient(Settings.UseMirror) { MirrorBaseUrl = Settings.MirrorBaseUrl, SourceMode = Settings.DownloadSource ?? "auto" }, dir);
+        return new Installer(new DownloadClient(Settings.UseMirror) { MirrorBaseUrl = Settings.MirrorBaseUrl, SourceMode = Settings.DownloadSource ?? "auto", ContentSourceMode = Settings.ContentSource ?? "auto" }, dir);
     }
 
     public Installer CreateInstaller(bool? useMirror = null)
     {
         if (useMirror.HasValue && useMirror.Value != Settings.UseMirror)
         {
-            return new Installer(new DownloadClient(useMirror.Value) { MirrorBaseUrl = Settings.MirrorBaseUrl, SourceMode = Settings.DownloadSource ?? "auto" },
+            return new Installer(new DownloadClient(useMirror.Value) { MirrorBaseUrl = Settings.MirrorBaseUrl, SourceMode = Settings.DownloadSource ?? "auto", ContentSourceMode = Settings.ContentSource ?? "auto" },
                 Settings.GameDirectory);
         }
 

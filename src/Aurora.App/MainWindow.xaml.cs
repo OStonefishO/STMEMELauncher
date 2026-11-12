@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.19.5";
+    private const string AppVersion = "0.20.0";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -106,7 +106,7 @@ public partial class MainWindow : Window
         var flag = Array.IndexOf(argv, "--page");
         if (flag >= 0 && flag + 1 < argv.Length && int.TryParse(argv[flag + 1], out var pageIndex))
         {
-            SetPage(Math.Clamp(pageIndex, 0, 9));
+            SetPage(Math.Clamp(pageIndex, 0, 10));
         }
         Loaded += (_, __) =>
         {
@@ -424,6 +424,7 @@ public partial class MainWindow : Window
         AccountPage.Visibility = index == 3 ? Visibility.Visible : Visibility.Collapsed;
         SettingsPage.Visibility = index == 4 ? Visibility.Visible : Visibility.Collapsed;
         UpdatesPage.Visibility = index == 5 ? Visibility.Visible : Visibility.Collapsed;
+        OtherPage.Visibility = index == 10 ? Visibility.Visible : Visibility.Collapsed;
         FunPage.Visibility = index == 8 ? Visibility.Visible : Visibility.Collapsed;
         var active = (Brush)FindResource("TextMain");
         var inactive = (Brush)FindResource("TextDim");
@@ -440,6 +441,7 @@ public partial class MainWindow : Window
 
 
         MarkNav(NavSettings, index is 4 or 5, active, inactive);
+        MarkNav(NavOther, index == 10, active, inactive);
 
         // 换页动画（仅新版布局）：淡入 + 轻微左滑
         FrameworkElement? target = index switch
@@ -4653,6 +4655,18 @@ ToastIcon.Text = icon;
         _ => "自动：镜像优先，失败自动回落官方。大多数情况用这个。",
     };
 
+    private void OnContentSourceChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (SettingsContentSourceCombo?.SelectedItem is not ComboBoxItem item || item.Tag is not string tag)
+        {
+            return;
+        }
+
+        _settings.ContentSource = tag;
+        Aurora.Core.Configuration.ConfigStore.Save(_settings);
+        ShowToast("模组来源已切换", tag switch { "official" => "官方 Modrinth / CurseForge", "mcim" => "MCIM 镜像", _ => "自动" }, "✓", 2600);
+    }
+
     private void OnDownloadSourceChanged(object sender, SelectionChangedEventArgs e)
     {
         if (SettingsSourceCombo?.SelectedItem is not ComboBoxItem item || item.Tag is not string tag)
@@ -6702,6 +6716,11 @@ ToastIcon.Text = icon;
         {
             var mode = (_settings.DownloadSource ?? "auto").ToLowerInvariant();
             SettingsSourceCombo.SelectedIndex = mode switch { "official" => 1, "mirror" => 2, _ => 0 };
+            var contentMode = (_settings.ContentSource ?? "auto").ToLowerInvariant();
+            if (SettingsContentSourceCombo != null)
+            {
+                SettingsContentSourceCombo.SelectedIndex = contentMode switch { "official" => 1, "mcim" => 2, _ => 0 };
+            }
             SourceHint.Text = DescribeSource(mode);
         }
 

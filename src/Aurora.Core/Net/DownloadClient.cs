@@ -36,6 +36,9 @@ public sealed class DownloadClient : IDisposable
     /// <summary>下载源：auto / official / mirror。</summary>
     public string SourceMode { get; set; } = "auto";
 
+    /// <summary>模组内容来源：auto / official / mcim。</summary>
+    public string ContentSourceMode { get; set; } = "auto";
+
     public bool UseMirror { get; set; }
 
     /// <summary>自建镜像站（http://127.0.0.1:8123 这种），有值时优先走它 —— 但连不上会自动跳过。</summary>
@@ -150,7 +153,7 @@ public sealed class DownloadClient : IDisposable
             return url;
         }
 
-        return url
+        var mapped = url
             .Replace("https://piston-meta.mojang.com", Bmclapi, StringComparison.Ordinal)
             .Replace("https://piston-data.mojang.com", Bmclapi, StringComparison.Ordinal)
             .Replace("https://launchermeta.mojang.com", Bmclapi, StringComparison.Ordinal)
@@ -160,13 +163,20 @@ public sealed class DownloadClient : IDisposable
             .Replace("https://meta.fabricmc.net", Bmclapi + "/fabric-meta", StringComparison.Ordinal)
             .Replace("https://maven.neoforged.net/releases", Bmclapi + "/maven", StringComparison.Ordinal)
             .Replace("https://maven.neoforged.net", Bmclapi + "/maven", StringComparison.Ordinal)
-            .Replace("https://files.minecraftforge.net/maven", "https://maven.aliyun.com/repository/public", StringComparison.Ordinal)
-            // MCIM（mcmod-info-mirror）：Modrinth / CurseForge 的接口和文件镜像，国内拉模组信息快很多
-            .Replace("https://api.modrinth.com", Mcim + "/modrinth", StringComparison.Ordinal)
-            .Replace("https://cdn.modrinth.com", Mcim, StringComparison.Ordinal)
-            .Replace("https://api.curseforge.com", Mcim + "/curseforge", StringComparison.Ordinal)
-            .Replace("https://edge.forgecdn.net", Mcim, StringComparison.Ordinal)
-            .Replace("https://mediafilez.forgecdn.net", Mcim, StringComparison.Ordinal);
+            .Replace("https://files.minecraftforge.net/maven", "https://maven.aliyun.com/repository/public", StringComparison.Ordinal);
+
+        // MCIM（mcmod-info-mirror）：Modrinth / CurseForge 的接口与文件镜像
+        if (!string.Equals(ContentSourceMode, "official", StringComparison.OrdinalIgnoreCase))
+        {
+            mapped = mapped
+                .Replace("https://api.modrinth.com", Mcim + "/modrinth", StringComparison.Ordinal)
+                .Replace("https://cdn.modrinth.com", Mcim, StringComparison.Ordinal)
+                .Replace("https://api.curseforge.com", Mcim + "/curseforge", StringComparison.Ordinal)
+                .Replace("https://edge.forgecdn.net", Mcim, StringComparison.Ordinal)
+                .Replace("https://mediafilez.forgecdn.net", Mcim, StringComparison.Ordinal);
+        }
+
+        return mapped;
     }
 
     public async Task<string> GetStringAsync(string url, CancellationToken ct = default)
