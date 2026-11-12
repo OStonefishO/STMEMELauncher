@@ -216,6 +216,65 @@ public sealed class Installer
     /// 按解析好的版本（已合并继承链）修资源：assets 对象 + 依赖库。
     /// 直接读版本自己的 json 是不行的 —— Forge/NeoForge 的版本只写 inheritsFrom，assetIndex 和库都在父版本里。
     /// </summary>
+    /// <summary>
+    /// NeoForge / Forge 在新版本上除了 -srg.jar 还要 -extra.jar（资源）和 -slim.jar（类）。
+    /// 官方安装器靠 processors（jarsplitter）生成，离线跑不出来，这里按原版 jar 自己拆一份。
+    /// </summary>
+    internal static void BuildSplitJars(string vanillaJar, string targetDir, string id)
+    {
+        var extra = Path.Combine(targetDir, "client-" + id + "-extra.jar");
+        var slim = Path.Combine(targetDir, "client-" + id + "-slim.jar");
+        if (File.Exists(extra) && File.Exists(slim))
+        {
+            return;
+        }
+
+        try
+        {
+            using var source = System.IO.Compression.ZipFile.OpenRead(vanillaJar);
+            if (!File.Exists(extra))
+            {
+                using var outStream = File.Create(extra);
+                using var zip = new System.IO.Compression.ZipArchive(outStream, System.IO.Compression.ZipArchiveMode.Create);
+                foreach (var entry in source.Entries)
+                {
+                    if (entry.FullName.EndsWith("/", StringComparison.Ordinal) ||
+                        entry.FullName.EndsWith(".class", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    var copy = zip.CreateEntry(entry.FullName, System.IO.Compression.CompressionLevel.Fastest);
+                    using var input = entry.Open();
+                    using var output = copy.Open();
+                    input.CopyTo(output);
+                }
+            }
+
+            if (!File.Exists(slim))
+            {
+                using var outStream = File.Create(slim);
+                using var zip = new System.IO.Compression.ZipArchive(outStream, System.IO.Compression.ZipArchiveMode.Create);
+                foreach (var entry in source.Entries)
+                {
+                    if (!entry.FullName.EndsWith(".class", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    var copy = zip.CreateEntry(entry.FullName, System.IO.Compression.CompressionLevel.Fastest);
+                    using var input = entry.Open();
+                    using var output = copy.Open();
+                    input.CopyTo(output);
+                }
+            }
+        }
+        catch
+        {
+            // 拆不出来就算了
+        }
+    }
+
     public async Task<int> RepairAsync(ResolvedVersion resolved, IProgress<InstallProgress>? progress = null,
         CancellationToken ct = default)
     {
@@ -407,6 +466,7 @@ public sealed class Installer
                         {
                             Directory.CreateDirectory(srgDir);
                             File.Copy(vanilla, srgJar, overwrite: true);
+                            BuildSplitJars(vanilla, srgDir, srgId!);
                             repaired++;
                             progress?.Report(new InstallProgress
                             {
@@ -426,100 +486,23 @@ public sealed class Installer
         return repaired;
     }
 
-    public async Task<int> RepairAsync(string versionId, IProgress<InstallProgress>? progress = null,
+public Task<int> RepairAsync(string versionId, IProgress<InstallProgress>? progress = null,
         CancellationToken ct = default)
     {
-        var repaired = 0;
-        try
+        // 统一走「按解析后的版本修复」那条路：jar / 依赖库 / natives / assets / srg 都会处理
+        var repository = new Versions.VersionRepository(GameDirectory);
+        var resolved = repository.Resolve(versionId);
+        if (resolved == null)
         {
-            var versionJsonPath = Path.Combine(GameDirectory, "versions", versionId, versionId + ".json");
-            if (!File.Exists(versionJsonPath))
+            progress?.Report(new InstallProgress
             {
-                progress?.Report(new InstallProgress
-                {
-                    Stage = "版本",
-                    Message = $"版本文件丢了：versions\\{versionId}\\{versionId}.json 不存在，需要重装这个版本",
-                });
-                return 0;
-            }
-
-            using var versionDoc = JsonDocument.Parse(await File.ReadAllTextAsync(versionJsonPath, ct).ConfigureAwait(false));
-            var root = versionDoc.RootElement;
-
-            // ---- assets ----
-            if (root.TryGetProperty("assetIndex", out var assetIndex) &&
-                assetIndex.TryGetProperty("id", out var indexIdProp))
-            {
-                var indexId = indexIdProp.GetString();
-                if (!string.IsNullOrEmpty(indexId))
-                {
-                    var indexPath = Path.Combine(AssetsDirectory, "indexes", indexId + ".json");
-                    if (!File.Exists(indexPath))
-                    {
-                        var indexUrl = assetIndex.TryGetProperty("url", out var u) ? u.GetString() : null;
-                        if (!string.IsNullOrEmpty(indexUrl))
-                        {
-                            progress?.Report(new InstallProgress { Stage = "资源索引", Message = "补下 assets index" });
-                            await _client.DownloadFileAsync(indexUrl!, indexPath, ct: ct).ConfigureAwait(false);
-                        }
-                    }
-
-                    if (File.Exists(indexPath))
-                    {
-                        var before = CountAssetObjectsOnDisk(indexPath);
-                        await DownloadAssetObjectsAsync(indexPath, progress, ct).ConfigureAwait(false);
-                        repaired += Math.Max(0, CountAssetObjectsOnDisk(indexPath) - before);
-                    }
-                }
-            }
-
-            // ---- libraries ----
-            if (root.TryGetProperty("libraries", out var libraries))
-            {
-                foreach (var lib in libraries.EnumerateArray())
-                {
-                    ct.ThrowIfCancellationRequested();
-                    if (!lib.TryGetProperty("downloads", out var downloads) ||
-                        !downloads.TryGetProperty("artifact", out var artifact) ||
-                        !artifact.TryGetProperty("path", out var pathProp) ||
-                        !artifact.TryGetProperty("url", out var urlProp))
-                    {
-                        continue;
-                    }
-
-                    var rel = pathProp.GetString();
-                    var url = urlProp.GetString();
-                    if (string.IsNullOrEmpty(rel) || string.IsNullOrEmpty(url))
-                    {
-                        continue;
-                    }
-
-                    var target = Path.Combine(GameDirectory, "libraries", rel.Replace('/', Path.DirectorySeparatorChar));
-                    var expected = artifact.TryGetProperty("size", out var sizeProp) && sizeProp.TryGetInt64(out var parsed)
-                        ? parsed
-                        : -1;
-                    if (File.Exists(target) && (expected <= 0 || new FileInfo(target).Length == expected))
-                    {
-                        continue;
-                    }
-
-                    progress?.Report(new InstallProgress { Stage = "依赖库", Message = "补下 " + Path.GetFileName(rel) });
-                    await _client.DownloadFileAsync(url!, target, artifact.TryGetProperty("sha1", out var sha1Prop) ? sha1Prop.GetString() : null,
-                        expected > 0 ? expected : null, ct).ConfigureAwait(false);
-                    repaired++;
-                }
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch
-        {
-            // 体检失败不影响启动，游戏自己会报
+                Stage = "版本",
+                Message = "找不到版本 " + versionId,
+            });
+            return Task.FromResult(0);
         }
 
-        return repaired;
+        return RepairAsync(resolved, progress, ct);
     }
 
     private int CountAssetObjectsOnDisk(string indexPath)

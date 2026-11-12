@@ -1,4 +1,4 @@
-using Aurora.Core.Models;
+﻿using Aurora.Core.Models;
 
 namespace Aurora.Core.Versions;
 
@@ -69,6 +69,8 @@ public static class MavenHelper
             return library.Name;
         }
 
-        return $"{coord.Group}:{coord.Artifact}:{coord.Classifier}";
+        // 一定要带版本：1.18.2 里同一个 artifact 会同时有 3.2.1（macos 专用）和 3.2.2（windows/linux），
+        // 只按 group:artifact 去重会把 windows 要的那份（3.2.2 的 natives）丢掉 —— 表现就是 RenderSystem 起不来
+        return $"{coord.Group}:{coord.Artifact}:{coord.Version}:{coord.Classifier}";
     }
 }

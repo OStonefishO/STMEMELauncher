@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.16.1";
+    private const string AppVersion = "0.16.2";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -2209,6 +2209,8 @@ public partial class MainWindow : Window
                 lines.Add($"id={resolved.Id} client={resolved.ClientVersion} loader={resolved.Loader} java={resolved.JavaMajor}");
                 lines.Add($"jar={resolved.JarPath ?? "(null)"} jarExists={(resolved.JarPath != null && File.Exists(resolved.JarPath))}");
                 lines.Add($"libs={resolved.Libraries.Count} main={resolved.MainClass}");
+                lines.Add($"libsWithNatives={resolved.Libraries.Count(l => l.Natives != null && l.Downloads?.Classifiers != null)}");
+                lines.Add($"lwjgl={string.Join(",", resolved.Libraries.Where(l => l.Name.StartsWith("org.lwjgl:lwjgl:")).Select(l => l.Name))}");
 
                 var libDir = Path.Combine(gameDir, "libraries");
                 var missing = new List<string>();

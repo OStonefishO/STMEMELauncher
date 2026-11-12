@@ -342,7 +342,17 @@ public sealed class LoaderInstaller
         psi.ArgumentList.Add(installerJar);
         psi.ArgumentList.Add("--installClient");
         psi.ArgumentList.Add(_gameDirectory);
-        psi.ArgumentList.Add("--offline");
+        if (option.Loader.Equals("forge", StringComparison.OrdinalIgnoreCase))
+        {
+            // Forge 的 maven 国内能直连：联网跑安装器，processors 才会生成
+            // client-<ver>-srg.jar / -extra.jar / -slim.jar 和 forge-<ver>-client.jar
+            psi.ArgumentList.Add("--offline");
+            psi.ArgumentList.Remove("--offline");
+        }
+        else
+        {
+            psi.ArgumentList.Add("--offline");
+        }
 
         using var process = System.Diagnostics.Process.Start(psi);
         if (process == null)
@@ -362,8 +372,40 @@ public sealed class LoaderInstaller
             progress?.Report(new InstallProgress
             {
                 Stage = "加载器",
-                Message = "安装器返回 " + process.ExitCode + "（补丁可能没生成）",
+                Message = "联网安装器返回 " + process.ExitCode + "，改用离线模式再试一次",
             });
+
+            try
+            {
+                var fallback = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = java,
+                    WorkingDirectory = _gameDirectory,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true,
+                };
+                fallback.ArgumentList.Add("-jar");
+                fallback.ArgumentList.Add(installerJar);
+                fallback.ArgumentList.Add("--installClient");
+                fallback.ArgumentList.Add(_gameDirectory);
+                fallback.ArgumentList.Add("--offline");
+                using var retry = System.Diagnostics.Process.Start(fallback);
+                if (retry != null)
+                {
+                    await retry.WaitForExitAsync(ct).ConfigureAwait(false);
+                    progress?.Report(new InstallProgress
+                    {
+                        Stage = "加载器",
+                        Message = retry.ExitCode == 0 ? "离线安装器补完" : "离线安装器也返回 " + retry.ExitCode,
+                    });
+                }
+            }
+            catch
+            {
+                // 忽略
+            }
         }
         else
         {
@@ -412,7 +454,8 @@ public sealed class LoaderInstaller
 
             Directory.CreateDirectory(srgDir);
             File.Copy(vanillaJar, srgJar, overwrite: true);
-            progress?.Report(new InstallProgress { Stage = "加载器", Message = $"已补 client-{id}-srg.jar" });
+            Installer.BuildSplitJars(vanillaJar, srgDir, id!);
+            progress?.Report(new InstallProgress { Stage = "加载器", Message = $"已补 client-{id}-srg.jar / -extra.jar / -slim.jar" });
             await Task.CompletedTask.ConfigureAwait(false);
         }
         catch
