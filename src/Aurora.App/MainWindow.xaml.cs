@@ -32,7 +32,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.20.13";
+    private const string AppVersion = "0.20.14";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -5249,6 +5249,12 @@ ToastIcon.Text = icon;
                 ? !File.Exists(alias) && !File.Exists(patched)
                 : !File.Exists(patched);
 
+            // -p 模块路径里有文件缺失（BootstrapLauncher / securejarhandler 崩）也要重装
+            if (!needInstall && MissingModulePathEntry(root, version))
+            {
+                needInstall = true;
+            }
+
             if (!needInstall)
             {
                 return 0;
@@ -5269,6 +5275,65 @@ ToastIcon.Text = icon;
             ShowToast("加载器补齐失败", ex.Message, "⚠", 6000);
             return 0;
         }
+    }
+
+    /// <summary>
+    /// 检查 -p（module path）里引用的库文件是否都在；缺一个就会崩在 BootstrapLauncher。
+    /// 用于判断 Forge / NeoForge 需不需要重跑安装器。
+    /// </summary>
+    private static bool MissingModulePathEntry(string root, Aurora.Core.Models.ResolvedVersion version)
+    {
+        try
+        {
+            var flat = new List<string>();
+            foreach (var entry in version.JvmArguments)
+            {
+                foreach (var value in entry.Values)
+                {
+                    if (!string.IsNullOrWhiteSpace(value))
+                    {
+                        flat.Add(value);
+                    }
+                }
+            }
+
+            for (var index = 0; index < flat.Count; index++)
+            {
+                var token = flat[index].Trim();
+                if (token != "-p" && token != "--module-path")
+                {
+                    continue;
+                }
+
+                if (index + 1 >= flat.Count)
+                {
+                    break;
+                }
+
+                var joined = flat[index + 1]
+                    .Replace("${library_directory}", Path.Combine(root, "libraries"))
+                    .Replace("${classpath_separator}", Path.PathSeparator.ToString());
+                foreach (var raw2 in joined.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var path = raw2.Trim().Trim('"');
+                    if (path.Length == 0 || path.Contains("${", StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    if (!File.Exists(path))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // 出问题就当没缺
+        }
+
+        return false;
     }
 
     private async Task EnsureJavaWrapperAsync()
