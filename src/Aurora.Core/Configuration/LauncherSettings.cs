@@ -42,6 +42,13 @@ public sealed class LauncherSettings
     public string MemoryPreset { get; set; } = "default";
 
     /// <summary>启用 Java Launch Wrapper（修 Windows 下 Java 参数编码问题，可选）。</summary>
+    /// <summary>启用 LWJGL Unsafe Agent（部分显卡/驱动下修 LWJGL 报错）。</summary>
+    public bool UseLwjglUnsafeAgent { get; set; }
+
+    /// <summary>LWJGL Unsafe Agent 下载地址。</summary>
+    public string LwjglUnsafeAgentUrl { get; set; } =
+        "https://github.com/HMCL-dev/lwjgl-unsafe-agent/releases/download/2.0/lwjgl-unsafe-agent-2.0.jar";
+
     public bool UseJavaWrapper { get; set; }
 
     /// <summary>Java Launch Wrapper 的下载地址（默认 GitHub 最新 release 的 jar）。</summary>
@@ -109,6 +116,9 @@ public sealed class LauncherSettings
 
     /// <summary>界面音效音量（0..100），0 表示静音。</summary>
     public int UiVolume { get; set; } = 55;
+
+    /// <summary>界面音效开关。</summary>
+    public bool SoundEnabled { get; set; } = true;
 
     /// <summary>翻译用的大模型 Key（OpenAI 兼容，例如 DeepSeek）；留空就用免费接口</summary>
     public string TranslateApiKey { get; set; } = string.Empty;

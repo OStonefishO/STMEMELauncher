@@ -478,6 +478,15 @@ public sealed partial class LauncherService
                 break;
         }
 
+        if (Settings.UseLwjglUnsafeAgent)
+        {
+            var agent = Path.Combine(Aurora.Core.Configuration.ConfigStore.RootDirectory, "lwjgl-unsafe-agent.jar");
+            if (File.Exists(agent))
+            {
+                parts.Add("-javaagent:\"" + agent + "\"");
+            }
+        }
+
         if (Settings.UseJavaWrapper)
         {
             var jar = Path.Combine(Aurora.Core.Configuration.ConfigStore.RootDirectory, "JavaLaunchWrapper.jar");

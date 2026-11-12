@@ -14,7 +14,7 @@ internal static class IconCache
 
     // 同时最多下 4 个图标，避免一次性几十个请求把界面拖卡
     private static readonly SemaphoreSlim Gate = new(4, 4);
-    private static readonly Dictionary<string, BitmapImage?> Memory = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Dictionary<string, BitmapSource?> Memory = new(StringComparer.OrdinalIgnoreCase);
     private static readonly string Directory = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MEMELauncher", "icons");
 
@@ -25,7 +25,7 @@ internal static class IconCache
         return client;
     }
 
-    public static async Task<BitmapImage?> GetAsync(string url)
+    public static async Task<BitmapSource?> GetAsync(string url)
     {
         if (string.IsNullOrEmpty(url))
         {
@@ -68,7 +68,7 @@ internal static class IconCache
         }
     }
 
-    private static BitmapImage? Load(string path)
+    private static BitmapSource? Load(string path)
     {
         try
         {
@@ -79,6 +79,30 @@ internal static class IconCache
             bitmap.EndInit();
             bitmap.Freeze();
             return bitmap;
+        }
+        catch
+        {
+            // WPF 自带的解码器不认 webp，走一次系统 WIC（Win10 1903+ / Win11 自带 WebP 解码器）
+            return LoadViaWic(path);
+        }
+    }
+
+    /// <summary>用系统 WIC 解码（主要为了 .webp 图标）。</summary>
+    private static BitmapSource? LoadViaWic(string path)
+    {
+        try
+        {
+            using var stream = File.OpenRead(path);
+            var decoder = BitmapDecoder.Create(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
+            if (decoder.Frames.Count == 0)
+            {
+                return null;
+            }
+
+            var frame = decoder.Frames[0];
+            var converted = new FormatConvertedBitmap(frame, System.Windows.Media.PixelFormats.Bgra32, null, 0);
+            converted.Freeze();
+            return converted;
         }
         catch
         {

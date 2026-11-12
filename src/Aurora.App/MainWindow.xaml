@@ -2262,6 +2262,10 @@
 
                                         <CheckBox x:Name="AdvJavaWrapper" Content="启用 Java Launch Wrapper（修 Windows 下 Java 参数编码/类路径被搞坏的问题）"
                                                   Foreground="{DynamicResource InkDim}" FontSize="11.5" Margin="0,0,0,10"/>
+                                        <CheckBox x:Name="AdvLwjglUnsafe" Content="启用 LWJGL Unsafe Agent（部分显卡/驱动下修 LWJGL 崩溃）"
+                                                  Foreground="{DynamicResource InkDim}" FontSize="11.5" Margin="0,0,0,10"/>
+                                        <CheckBox x:Name="AdvSoundEnabled" Content="界面音效（按钮、启动成功/失败提示音）"
+                                                  Foreground="{DynamicResource InkDim}" FontSize="11.5" Margin="0,0,0,10"/>
 
                                         <Button Content="保存高级选项" Style="{StaticResource HeroButton}" Width="150" Height="38"
                                                 HorizontalAlignment="Left" Click="OnSaveAdvanced"/>

@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.17.1";
+    private const string AppVersion = "0.18.0";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -110,6 +110,10 @@ public partial class MainWindow : Window
         }
         Loaded += (_, __) =>
         {
+            SoundService.Enabled = _settings.SoundEnabled;
+            SoundService.Volume = _settings.UiVolume;
+            EventManager.RegisterClassHandler(typeof(ButtonBase), ButtonBase.ClickEvent,
+                new RoutedEventHandler((_, __) => SoundService.Play("click")));
             ApplyDarkTitleBar();
             _ = SplashFadeOutAsync();
             _ = InitSkinWebAsync();
@@ -3238,6 +3242,15 @@ public partial class MainWindow : Window
 
     private async void ShowToast(string title, string detail, string icon = "⇩", int milliseconds = 3200)
     {
+        if (icon == "✓")
+        {
+            SoundService.Play("ok");
+        }
+        else if (icon == "⚠")
+        {
+            SoundService.Play("warn");
+        }
+
         try
         {
             if (ToastHost == null)
@@ -4461,6 +4474,27 @@ ToastIcon.Text = icon;
     }
 
     /// <summary>启用 JLW 时把 JavaLaunchWrapper.jar 下下来（缺了就不加 -javaagent）。</summary>
+    /// <summary>启用 LWJGL Unsafe Agent 时下载 jar（缺了就不加 -javaagent）。</summary>
+    private async Task EnsureLwjglAgentAsync()
+    {
+        var jar = Path.Combine(Aurora.Core.Configuration.ConfigStore.RootDirectory, "lwjgl-unsafe-agent.jar");
+        if (File.Exists(jar) && new FileInfo(jar).Length > 1024)
+        {
+            return;
+        }
+
+        try
+        {
+            SetStatus("下载 LWJGL Unsafe Agent…");
+            await _service.SharedDownloader.DownloadFileAsync(_settings.LwjglUnsafeAgentUrl, jar);
+            ShowToast("LWJGL Unsafe Agent 就绪", "下次启动自动挂上", "✓", 3600);
+        }
+        catch (Exception ex)
+        {
+            ShowToast("Agent 下载失败", "先不用它也行：" + ex.Message, "⚠", 5200);
+        }
+    }
+
     private async Task EnsureJavaWrapperAsync()
     {
         var jar = Path.Combine(Aurora.Core.Configuration.ConfigStore.RootDirectory, "JavaLaunchWrapper.jar");
@@ -4488,9 +4522,18 @@ ToastIcon.Text = icon;
         _settings.PreLaunchCommand = AdvPreLaunch?.Text?.Trim() ?? string.Empty;
         _settings.MemoryPreset = (AdvMemoryPreset?.SelectedItem as ComboBoxItem)?.Tag as string ?? "default";
         _settings.UseJavaWrapper = AdvJavaWrapper?.IsChecked == true;
+        _settings.UseLwjglUnsafeAgent = AdvLwjglUnsafe?.IsChecked == true;
+        _settings.SoundEnabled = AdvSoundEnabled?.IsChecked == true;
+        SoundService.Enabled = _settings.SoundEnabled;
+        SoundService.Volume = _settings.UiVolume;
         if (_settings.UseJavaWrapper)
         {
             _ = EnsureJavaWrapperAsync();
+        }
+
+        if (_settings.UseLwjglUnsafeAgent)
+        {
+            _ = EnsureLwjglAgentAsync();
         }
 
         Aurora.Core.Configuration.ConfigStore.Save(_settings);
@@ -6346,6 +6389,8 @@ ToastIcon.Text = icon;
                 _ => 0,
             };
             AdvJavaWrapper.IsChecked = _settings.UseJavaWrapper;
+            AdvLwjglUnsafe.IsChecked = _settings.UseLwjglUnsafeAgent;
+            AdvSoundEnabled.IsChecked = _settings.SoundEnabled;
         }
 
         if (AboutVersionText != null)
