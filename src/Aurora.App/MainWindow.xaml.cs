@@ -32,7 +32,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.20.15";
+    private const string AppVersion = "0.20.16";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -4648,8 +4648,34 @@ ToastIcon.Text = icon;
             install.IsEnabled = false;
             await InstallVersionAsync(item, version, install);
         };
-        Grid.SetColumn(install, 1);
-        grid.Children.Add(install);
+
+        var save = new Button
+        {
+            Content = "保存",
+            Style = (Style)FindResource("GlassButton"),
+            Padding = new Thickness(10, 5, 10, 5),
+            FontSize = 11.5,
+            Margin = new Thickness(0, 0, 6, 0),
+            ToolTip = "只下载文件到指定文件夹，不安装；之后可以手动导入",
+        };
+        save.Click += async (_, __) =>
+        {
+            save.IsEnabled = false;
+            try
+            {
+                await SaveVersionToFolderAsync(item, version);
+            }
+            finally
+            {
+                save.IsEnabled = true;
+            }
+        };
+
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal };
+        buttons.Children.Add(save);
+        buttons.Children.Add(install);
+        Grid.SetColumn(buttons, 1);
+        grid.Children.Add(buttons);
 
         return new Border
         {
@@ -4718,6 +4744,45 @@ ToastIcon.Text = icon;
         _settings.LastInstallFolder = dialog.SelectedPath;
         ConfigStore.Save(_settings);
         return dialog.SelectedPath;
+    }
+
+    /// <summary>
+    /// 「保存」：只把文件下载到玩家选的文件夹，不安装（方便手动导入到别的启动器/版本）。
+    /// </summary>
+    private async Task SaveVersionToFolderAsync(ContentItem item, ContentVersion version)
+    {
+        var dialog = new System.Windows.Forms.FolderBrowserDialog
+        {
+            Description = "把 " + (string.IsNullOrEmpty(version.Number) ? version.Name : version.Number) + " 保存到哪个文件夹",
+            UseDescriptionForTitle = true,
+            SelectedPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) is { Length: > 0 } home
+                ? Path.Combine(home, "Downloads")
+                : _settings.GameDirectory,
+        };
+
+        if (dialog.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+        {
+            return;
+        }
+
+        var fileName = string.IsNullOrWhiteSpace(version.FileName)
+            ? SanitizeName(item.Title) + "-" + SanitizeName(version.Number) + ".jar"
+            : version.FileName;
+        var target = Path.Combine(dialog.SelectedPath, fileName);
+
+        try
+        {
+            DetailStatus.Text = "下载 " + fileName + " …";
+            await _service.SharedDownloader.DownloadFileAsync(version.Url, target,
+                size: version.Size > 0 ? version.Size : null);
+            DetailStatus.Text = "已保存到 " + target;
+            ShowToast("已保存文件", fileName + " · 可手动导入", "✓", 5200);
+        }
+        catch (Exception ex)
+        {
+            DetailStatus.Text = "保存失败: " + ex.Message;
+            ShowToast("保存失败", ex.Message, "⚠", 6000);
+        }
     }
 
     private async Task InstallVersionAsync(ContentItem item, ContentVersion version, Button? button)
