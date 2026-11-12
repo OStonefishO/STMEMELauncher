@@ -214,13 +214,22 @@ public sealed class VersionRepository
         // 加载器版本（Fabric/Quilt）自己没 jar，Minecraft 的类在被继承的原版版本里 —— 不加进 classpath，
         // Fabric 会直接报 "Minecraft game provider couldn't locate the game"。
         // Forge/NeoForge 有自己的 srg/patched jar，这里就不重复加了。
-        if (jar == null && !string.IsNullOrEmpty(merged.InheritsFrom) &&
-            !id.Contains("forge", StringComparison.OrdinalIgnoreCase))
+        if (jar == null && !id.Contains("forge", StringComparison.OrdinalIgnoreCase))
         {
-            var inheritedJar = Path.Combine(VersionsDirectory, merged.InheritsFrom!, merged.InheritsFrom + ".jar");
-            if (File.Exists(inheritedJar))
+            // merged.InheritsFrom 在合并时被清成 null 了，这里从原始 json 取（取不到就按版本号猜）
+            var inheritedId = LoadRaw(id)?.InheritsFrom;
+            if (string.IsNullOrEmpty(inheritedId))
             {
-                jar = inheritedJar;
+                inheritedId = GuessClientVersion(id);
+            }
+
+            if (!string.IsNullOrEmpty(inheritedId))
+            {
+                var inheritedJar = Path.Combine(VersionsDirectory, inheritedId!, inheritedId + ".jar");
+                if (File.Exists(inheritedJar))
+                {
+                    jar = inheritedJar;
+                }
             }
         }
 

@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.64";
+    private const string AppVersion = "0.15.65";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -202,6 +202,13 @@ public partial class MainWindow : Window
                 }), System.Windows.Threading.DispatcherPriority.Background);
             }
 
+
+            // 调试用：--plan-test <游戏目录> <版本id>，把启动计划/缺什么写日志后退出
+            var planTest = Array.IndexOf(argv, "--plan-test");
+            if (planTest >= 0 && planTest + 2 < argv.Length)
+            {
+                _ = PlanTestAndExitAsync(argv[planTest + 1], argv[planTest + 2]);
+            }
 
             // 调试用：--loader-test <游戏目录> <mc版本> <loader> <loader版本>，跑一遍加载器安装后退出
             var loaderTest = Array.IndexOf(argv, "--loader-test");
@@ -2168,6 +2175,66 @@ public partial class MainWindow : Window
         {
             VmDeleteButton.IsEnabled = true;
         }
+    }
+
+    /// <summary>调试：不出界面，只把启动计划算一遍，把问题写进日志。</summary>
+    private async Task PlanTestAndExitAsync(string gameDir, string versionId)
+    {
+        var log = @"D:\综合创作\_plantest.log";
+        try
+        {
+            var settings = ConfigStore.Load();
+            settings.GameDirectory = gameDir;
+            var service = new LauncherService(settings);
+            var resolved = service.Resolve(versionId);
+            var lines = new List<string>();
+            if (resolved == null)
+            {
+                lines.Add("RESOLVE=null");
+            }
+            else
+            {
+                lines.Add($"id={resolved.Id} client={resolved.ClientVersion} loader={resolved.Loader} java={resolved.JavaMajor}");
+                lines.Add($"jar={resolved.JarPath ?? "(null)"} jarExists={(resolved.JarPath != null && File.Exists(resolved.JarPath))}");
+                lines.Add($"libs={resolved.Libraries.Count} main={resolved.MainClass}");
+
+                var libDir = Path.Combine(gameDir, "libraries");
+                var missing = new List<string>();
+                foreach (var lib in resolved.Libraries)
+                {
+                    var path = Aurora.Core.Versions.MavenHelper.ResolveArtifactPath(lib, libDir);
+                    if (path != null && !File.Exists(path)) missing.Add(Path.GetFileName(path));
+                }
+                lines.Add($"missingLibs={missing.Count} {string.Join(",", missing.Take(8))}");
+
+                if (resolved.AssetIndex is { Id.Length: > 0 } idx)
+                {
+                    var indexPath = Path.Combine(gameDir, "assets", "indexes", idx.Id + ".json");
+                    lines.Add($"assetIndex={idx.Id} exists={File.Exists(indexPath)}");
+                }
+
+                var java = service.ScanJava().FirstOrDefault(j => j.Major == resolved.JavaMajor);
+                lines.Add("javaPath=" + (java?.JavaPath ?? "(none)"));
+
+                var plan = service.BuildPlan(versionId, out var resolved2, out var problems, javaPath: java?.JavaPath);
+                lines.Add("plan=" + (plan == null ? "null" : "ok"));
+                lines.Add("problems=" + string.Join(" | ", problems));
+                if (plan != null)
+                {
+                    lines.Add("cp=" + plan.ClassPath.Count);
+                    lines.Add("mcInCp=" + plan.ClassPath.Any(c => c.EndsWith("1.18.2.jar", StringComparison.OrdinalIgnoreCase) || c.Contains("-srg.jar", StringComparison.OrdinalIgnoreCase)));
+                }
+            }
+
+            File.WriteAllLines(log, lines);
+        }
+        catch (Exception ex)
+        {
+            File.WriteAllText(log, ex.ToString());
+        }
+
+        Application.Current.Shutdown();
+        await Task.CompletedTask;
     }
 
     /// <summary>调试：无界面跑一遍加载器安装，结果写日志后退出。</summary>

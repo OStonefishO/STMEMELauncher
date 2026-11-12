@@ -271,6 +271,63 @@ public sealed class Installer
             // 体检失败不影响启动
         }
 
+        // 客户端 jar 本身（自己或继承来的）—— 之前只补库不补 jar，jar 缺了游戏根本起不来
+        try
+        {
+            var clientJar = resolved.JarPath;
+            if (string.IsNullOrEmpty(clientJar) || !File.Exists(clientJar))
+            {
+                clientJar = Path.Combine(VersionsDirectory, resolved.ClientVersion, resolved.ClientVersion + ".jar");
+            }
+
+            if (!File.Exists(clientJar) || new FileInfo(clientJar).Length < 1024 * 1024)
+            {
+                var clientJsonPath = Path.Combine(VersionsDirectory, resolved.ClientVersion, resolved.ClientVersion + ".json");
+                if (File.Exists(clientJsonPath))
+                {
+                    using var clientDoc = JsonDocument.Parse(File.ReadAllText(clientJsonPath));
+                    if (clientDoc.RootElement.TryGetProperty("downloads", out var downloads) &&
+                        downloads.TryGetProperty("client", out var client))
+                    {
+                        var url = client.TryGetProperty("url", out var u) ? u.GetString() : null;
+                        var sha1 = client.TryGetProperty("sha1", out var h) ? h.GetString() : null;
+                        var size = client.TryGetProperty("size", out var s) && s.TryGetInt64(out var parsed) ? parsed : (long?)null;
+                        if (!string.IsNullOrEmpty(url))
+                        {
+                            progress?.Report(new InstallProgress { Stage = "客户端", Message = "补下 " + resolved.ClientVersion + ".jar" });
+                            try
+                            {
+                                if (File.Exists(clientJar + ".tmp"))
+                                {
+                                    File.Delete(clientJar + ".tmp");
+                                }
+                            }
+                            catch
+                            {
+                                // 忽略
+                            }
+
+                            await _client.DownloadFileAsync(url!, clientJar, sha1, size, ct).ConfigureAwait(false);
+                            repaired++;
+                            progress?.Report(new InstallProgress
+                            {
+                                Stage = "客户端",
+                                Message = $"已补 {resolved.ClientVersion}.jar",
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            // 忽略
+        }
+
         // NeoForge / Forge 要的 client-<MCP_VERSION>-srg.jar（安装器 processors 的产物，离线时常常缺）
         try
         {
