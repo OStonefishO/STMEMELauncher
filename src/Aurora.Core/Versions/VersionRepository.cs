@@ -334,25 +334,94 @@ public sealed class VersionRepository
     }
 
     /// <summary>child 覆盖 parent；libraries / arguments 做拼接并去重。</summary>
+    /// <summary>按 maven 坐标比较版本号，数字段按数值比，其余按字符串。</summary>
+    private static int CompareVersions(string leftName, string rightName)
+    {
+        var a = MavenHelper.Parse(leftName)?.Version ?? leftName;
+        var b = MavenHelper.Parse(rightName)?.Version ?? rightName;
+        var pa = a.Split('.', '-', '+');
+        var pb = b.Split('.', '-', '+');
+        for (var i = 0; i < Math.Max(pa.Length, pb.Length); i++)
+        {
+            var sa = i < pa.Length ? pa[i] : "0";
+            var sb = i < pb.Length ? pb[i] : "0";
+            if (long.TryParse(sa, out var na) && long.TryParse(sb, out var nb))
+            {
+                if (na != nb)
+                {
+                    return na.CompareTo(nb);
+                }
+            }
+            else
+            {
+                var cmp = string.CompareOrdinal(sa, sb);
+                if (cmp != 0)
+                {
+                    return cmp;
+                }
+            }
+        }
+
+        return 0;
+    }
+
     private static VersionJson Merge(VersionJson parent, VersionJson child)
     {
+        // 同一个 group:artifact:classifier 只留一份，取版本更高的那个；
+        // natives / classifiers 字典合并（1.18.2 的 lwjgl 3.2.1 只有 macos natives，3.2.2 才有 windows 的）
         var libraries = new List<Library>();
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var byKey = new Dictionary<string, Library>(StringComparer.OrdinalIgnoreCase);
+        var order = new List<string>();
+
+        void AddLibrary(Library lib)
+        {
+            var key = MavenHelper.DedupKey(lib);
+            if (!byKey.TryGetValue(key, out var existing))
+            {
+                byKey[key] = lib;
+                order.Add(key);
+                return;
+            }
+
+            var keepNew = CompareVersions(lib.Name, existing.Name) > 0;
+            var winner = keepNew ? lib : existing;
+            var loser = keepNew ? existing : lib;
+
+            if (loser.Natives is { Count: > 0 })
+            {
+                winner.Natives ??= new Dictionary<string, string>();
+                foreach (var pair in loser.Natives)
+                {
+                    winner.Natives.TryAdd(pair.Key, pair.Value);
+                }
+            }
+
+            if (loser.Downloads?.Classifiers is { Count: > 0 })
+            {
+                winner.Downloads ??= new LibraryDownloads();
+                winner.Downloads.Classifiers ??= new Dictionary<string, ArtifactInfo>();
+                foreach (var pair in loser.Downloads.Classifiers)
+                {
+                    winner.Downloads.Classifiers.TryAdd(pair.Key, pair.Value);
+                }
+            }
+
+            byKey[key] = winner;
+        }
 
         foreach (var lib in child.Libraries ?? new List<Library>())
         {
-            if (seen.Add(MavenHelper.DedupKey(lib)))
-            {
-                libraries.Add(lib);
-            }
+            AddLibrary(lib);
         }
 
         foreach (var lib in parent.Libraries ?? new List<Library>())
         {
-            if (seen.Add(MavenHelper.DedupKey(lib)))
-            {
-                libraries.Add(lib);
-            }
+            AddLibrary(lib);
+        }
+
+        foreach (var key in order)
+        {
+            libraries.Add(byKey[key]);
         }
 
         var game = new List<ArgumentEntry>();
