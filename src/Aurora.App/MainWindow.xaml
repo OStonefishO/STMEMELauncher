@@ -1118,7 +1118,7 @@
                                     <WrapPanel Margin="0,10,0,0">
                                         <Button Content="账户" Style="{StaticResource GlassButton}" Margin="0,0,8,8" Tag="3" Click="OnNavClick"/>
                                         <Button Content="联机" Style="{StaticResource GlassButton}" Margin="0,0,8,8" Tag="6" Click="OnNavClick"/>
-                                        <Button Content="创作" Style="{StaticResource GlassButton}" Margin="0,0,8,8" Tag="9" Click="OnNavClick"/>
+                                        <Button Content="其他" Style="{StaticResource GlassButton}" Margin="0,0,8,8" Tag="10" Click="OnNavClick"/>
                                         <Button Content="设置" Style="{StaticResource GlassButton}" Margin="0,0,8,8" Tag="4" Click="OnNavClick"/>
                                     </WrapPanel>
                                 </StackPanel>
