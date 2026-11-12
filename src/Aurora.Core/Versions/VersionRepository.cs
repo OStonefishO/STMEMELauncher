@@ -142,7 +142,7 @@ public sealed class VersionRepository
                 Directory = dir,
                 JsonPath = jsonPath,
                 JarPath = jarPath,
-                ClientVersion = NormalizeClientVersion(json.ClientVersion, id),
+                ClientVersion = NormalizeClientVersion(json.ClientVersion ?? json.InheritsFrom, id),
                 Loader = loader,
                 LoaderVersion = loaderVersion,
                 // 加载器版本的 json 里没有 javaVersion，要顺继承链找，否则首页会显示「Java 8」
@@ -675,7 +675,7 @@ public sealed class VersionRepository
                 continue;
             }
 
-            fallback ??= match.Groups[1].Value;
+            var raw2 = match.Groups[1].Value;
 
             // 1.x 习惯写三段（1.21.11），年份版本写两段（26.3）
             var take = parts[0] == "1" ? Math.Min(3, parts.Length) : Math.Min(2, parts.Length);
@@ -686,6 +686,8 @@ public sealed class VersionRepository
             {
                 return candidate;
             }
+
+            fallback ??= raw2;
         }
 
         return fallback;

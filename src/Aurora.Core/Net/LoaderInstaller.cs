@@ -120,6 +120,11 @@ public sealed class LoaderInstaller
     public async Task<string> InstallAsync(LoaderOption option, IProgress<InstallProgress>? progress = null,
         CancellationToken ct = default)
     {
+        if (option == null)
+        {
+            throw new ArgumentNullException(nameof(option), "加载器选项为空");
+        }
+
         progress?.Report(new InstallProgress { Stage = "加载器", Message = $"准备 {option.Loader} {option.Version}" });
 
         var installedId = option.Loader.ToLowerInvariant() switch

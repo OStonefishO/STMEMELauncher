@@ -447,6 +447,39 @@ public sealed class Installer
             // 忽略
         }
 
+        // NeoForge 还要求 <libraries>/net/neoforged/neoforge/<ver>/neoforge-<ver>-client.jar；
+        // 安装器把补丁后的客户端写到 minecraft-client-patched，这里负责复制成那个名字
+        try
+        {
+            if (resolved.Loader is "neoforge" or "forge" && !string.IsNullOrWhiteSpace(resolved.LoaderVersion))
+            {
+                var ver = resolved.LoaderVersion!;
+                var root = Path.Combine(GameDirectory, "libraries", "net");
+                var patched = Path.Combine(root, "neoforged", "minecraft-client-patched", ver,
+                    $"minecraft-client-patched-{ver}.jar");
+                if (File.Exists(patched) && resolved.Loader == "neoforge")
+                {
+                    var aliasDir = Path.Combine(root, "neoforged", "neoforge", ver);
+                    var alias = Path.Combine(aliasDir, $"neoforge-{ver}-client.jar");
+                    if (!File.Exists(alias))
+                    {
+                        Directory.CreateDirectory(aliasDir);
+                        File.Copy(patched, alias);
+                        repaired++;
+                        progress?.Report(new InstallProgress
+                        {
+                            Stage = "加载器",
+                            Message = $"已补 neoforge-{ver}-client.jar",
+                        });
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // 忽略
+        }
+
         // NeoForge / Forge 要的 client-<MCP_VERSION>-srg.jar（安装器 processors 的产物，离线时常常缺）
         try
         {
