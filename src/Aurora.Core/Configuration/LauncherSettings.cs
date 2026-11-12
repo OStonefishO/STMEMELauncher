@@ -32,6 +32,22 @@ public sealed class LauncherSettings
     /// <summary>下载时走国内镜像（BMCLAPI）。</summary>
     public bool UseMirror { get; set; } = true;
 
+    /// <summary>下载源：auto = 镜像优先+官方兜底；official = 只用官方；mirror = 只用镜像。</summary>
+    public string DownloadSource { get; set; } = "auto";
+
+    /// <summary>启动前要执行的命令（可选）。</summary>
+    public string PreLaunchCommand { get; set; } = string.Empty;
+
+    /// <summary>内存调优方案：default / g1 / zgc。</summary>
+    public string MemoryPreset { get; set; } = "default";
+
+    /// <summary>启用 Java Launch Wrapper（修 Windows 下 Java 参数编码问题，可选）。</summary>
+    public bool UseJavaWrapper { get; set; }
+
+    /// <summary>Java Launch Wrapper 的下载地址（默认 GitHub 最新 release 的 jar）。</summary>
+    public string JavaWrapperUrl { get; set; } =
+        "https://github.com/00ll00/java_launch_wrapper/releases/latest/download/JavaLaunchWrapper.jar";
+
     /// <summary>保存的账号列表。</summary>
     public List<Accounts.SavedAccount> Accounts { get; set; } = new();
 
@@ -143,6 +159,20 @@ public static class ConfigStore
     }
 
     public static string ConfigPath => Path.Combine(RootDirectory, "config.json");
+
+    /// <summary>从指定文件读一份设置（导入用）。</summary>
+    public static LauncherSettings LoadFrom(string path)
+    {
+        if (!File.Exists(path))
+        {
+            throw new FileNotFoundException("找不到配置文件", path);
+        }
+
+        var text = File.ReadAllText(path);
+        var loaded = System.Text.Json.JsonSerializer.Deserialize<LauncherSettings>(text,
+            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        return loaded ?? throw new InvalidDataException("配置文件格式不对");
+    }
 
     public static LauncherSettings Load()
     {

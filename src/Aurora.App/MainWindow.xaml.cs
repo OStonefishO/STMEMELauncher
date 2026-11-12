@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.16.2";
+    private const string AppVersion = "0.17.0";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -607,6 +607,33 @@ public partial class MainWindow : Window
         UpdateHomeJavaUi();
     }
 
+    /// <summary>跑「启动前执行命令」，失败只提示不拦。</summary>
+    private void RunPreLaunchCommand()
+    {
+        var command = _settings.PreLaunchCommand;
+        if (string.IsNullOrWhiteSpace(command))
+        {
+            return;
+        }
+
+        try
+        {
+            var psi = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "cmd.exe",
+                Arguments = "/c " + command,
+                WorkingDirectory = _settings.GameDirectory,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+            System.Diagnostics.Process.Start(psi);
+        }
+        catch (Exception ex)
+        {
+            ShowToast("启动前命令失败", ex.Message, "⚠", 5000);
+        }
+    }
+
     private async void OnLaunch(object sender, RoutedEventArgs e)
     {
         if (_busy || VersionList.SelectedItem is not VersionCard card)
@@ -684,6 +711,9 @@ public partial class MainWindow : Window
             }
 
             // 先把配置垫上：缺 mods/config 文件夹、options.txt 时不少模组会直接报错
+            // 启动前命令（高级选项里填的）
+            RunPreLaunchCommand();
+
             var createdConfig = _service.EnsureConfigFiles(versionInfo);
             if (createdConfig.Count > 0)
             {
@@ -4275,6 +4305,182 @@ ToastIcon.Text = icon;
         }
     }
 
+    private static string DescribeSource(string mode) => mode switch
+    {
+        "official" => "只用官方源：Mojang / Modrinth / CurseForge 直连。慢但不会碰到镜像抽风。",
+        "mirror" => "只用镜像：BMCLAPI（版本/核心/资源）+ MCIM（模组信息与文件）。国内快，镜像挂了会直接报错。",
+        _ => "自动：镜像优先，失败自动回落官方。大多数情况用这个。",
+    };
+
+    private void OnDownloadSourceChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (SettingsSourceCombo?.SelectedItem is not ComboBoxItem item || item.Tag is not string tag)
+        {
+            return;
+        }
+
+        _settings.DownloadSource = tag;
+        _settings.UseMirror = tag != "official";
+        Aurora.Core.Configuration.ConfigStore.Save(_settings);
+        if (SourceHint != null)
+        {
+            SourceHint.Text = DescribeSource(tag) + "（已保存）";
+        }
+
+        ShowToast("下载来源已切换", tag switch { "official" => "官方源", "mirror" => "镜像源", _ => "自动" }, "✓", 2600);
+    }
+
+    private async void OnSettingsCheckUpdate(object sender, RoutedEventArgs e) => await CheckUpdatesAsync(silent: false);
+
+    private void OnSettingsExport(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "导出设置",
+            FileName = "meme-launcher-settings.json",
+            Filter = "JSON|*.json",
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        try
+        {
+            File.Copy(Aurora.Core.Configuration.ConfigStore.ConfigPath, dialog.FileName, overwrite: true);
+            ShowToast("已导出设置", dialog.FileName, "✓", 4000);
+        }
+        catch (Exception ex)
+        {
+            ShowToast("导出失败", ex.Message, "⚠", 5000);
+        }
+    }
+
+    private void OnSettingsImport(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "导入设置（会覆盖当前配置）",
+            Filter = "JSON|*.json",
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        try
+        {
+            var incoming = Aurora.Core.Configuration.ConfigStore.LoadFrom(dialog.FileName);
+            Aurora.Core.Configuration.ConfigStore.Save(incoming);
+            ShowToast("已导入设置", "重启启动器后生效", "✓", 5000);
+        }
+        catch (Exception ex)
+        {
+            ShowToast("导入失败", ex.Message, "⚠", 5000);
+        }
+    }
+
+    private void OnSettingsOpenConfig(object sender, RoutedEventArgs e) => OpenFolder(Aurora.Core.Configuration.ConfigStore.RootDirectory);
+
+    private void OnSettingsOpenLogs(object sender, RoutedEventArgs e)
+    {
+        var dir = Path.Combine(_settings.GameDirectory, "logs");
+        Directory.CreateDirectory(dir);
+        OpenFolder(dir);
+    }
+
+    private void OnSettingsOpenGameDir(object sender, RoutedEventArgs e) => OpenFolder(_settings.GameDirectory);
+
+    private async void OnSettingsClearCache(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var cache = Path.Combine(Aurora.Core.Configuration.ConfigStore.RootDirectory, "cache");
+            long freed = 0;
+            if (Directory.Exists(cache))
+            {
+                foreach (var file in Directory.GetFiles(cache, "*", SearchOption.AllDirectories))
+                {
+                    try
+                    {
+                        freed += new FileInfo(file).Length;
+                    }
+                    catch
+                    {
+                        // 忽略
+                    }
+                }
+
+                Directory.Delete(cache, recursive: true);
+            }
+
+            // 顺手清掉下载到一半的 .tmp
+            var libs = Path.Combine(_settings.GameDirectory, "libraries");
+            if (Directory.Exists(libs))
+            {
+                foreach (var tmp in Directory.GetFiles(libs, "*.tmp", SearchOption.AllDirectories))
+                {
+                    try
+                    {
+                        freed += new FileInfo(tmp).Length;
+                        File.Delete(tmp);
+                    }
+                    catch
+                    {
+                        // 忽略
+                    }
+                }
+            }
+
+            ShowToast("缓存已清理", $"{freed / 1024.0 / 1024.0:0.0} MB", "✓", 4000);
+            await Task.CompletedTask;
+        }
+        catch (Exception ex)
+        {
+            ShowToast("清理失败", ex.Message, "⚠", 5000);
+        }
+    }
+
+    /// <summary>启用 JLW 时把 JavaLaunchWrapper.jar 下下来（缺了就不加 -javaagent）。</summary>
+    private async Task EnsureJavaWrapperAsync()
+    {
+        var jar = Path.Combine(Aurora.Core.Configuration.ConfigStore.RootDirectory, "JavaLaunchWrapper.jar");
+        if (File.Exists(jar) && new FileInfo(jar).Length > 1024)
+        {
+            return;
+        }
+
+        try
+        {
+            SetStatus("下载 Java Launch Wrapper…");
+            await _service.SharedDownloader.DownloadFileAsync(_settings.JavaWrapperUrl, jar);
+            ShowToast("Java Launch Wrapper 就绪", "下次启动自动挂上", "✓", 3600);
+        }
+        catch (Exception ex)
+        {
+            ShowToast("JLW 下载失败", "先不用它也行：" + ex.Message, "⚠", 5200);
+        }
+    }
+
+    private void OnSaveAdvanced(object sender, RoutedEventArgs e)
+    {
+        _settings.ExtraJvmArgs = AdvJvmArgs?.Text?.Trim() ?? string.Empty;
+        _settings.ExtraGameArgs = AdvGameArgs?.Text?.Trim() ?? string.Empty;
+        _settings.PreLaunchCommand = AdvPreLaunch?.Text?.Trim() ?? string.Empty;
+        _settings.MemoryPreset = (AdvMemoryPreset?.SelectedItem as ComboBoxItem)?.Tag as string ?? "default";
+        _settings.UseJavaWrapper = AdvJavaWrapper?.IsChecked == true;
+        if (_settings.UseJavaWrapper)
+        {
+            _ = EnsureJavaWrapperAsync();
+        }
+
+        Aurora.Core.Configuration.ConfigStore.Save(_settings);
+        ShowToast("高级选项已保存", "下次启动生效", "✓", 3200);
+    }
+
+
     private async void OnCheckUpdates(object sender, RoutedEventArgs e) => await CheckUpdatesAsync(silent: false);
 
     private void OnOpenUpdatesPage(object sender, RoutedEventArgs e) => SetPage(5);
@@ -6104,6 +6310,31 @@ ToastIcon.Text = icon;
         SettingsGameDir.Text = _settings.GameDirectory;
         // 离线玩家名统一在「账号」页管理，这里不再单独设置
         SettingsMemory.Text = _settings.MaxMemoryMb.ToString();
+        if (SettingsSourceCombo != null)
+        {
+            var mode = (_settings.DownloadSource ?? "auto").ToLowerInvariant();
+            SettingsSourceCombo.SelectedIndex = mode switch { "official" => 1, "mirror" => 2, _ => 0 };
+            SourceHint.Text = DescribeSource(mode);
+        }
+
+        if (AdvJvmArgs != null)
+        {
+            AdvJvmArgs.Text = _settings.ExtraJvmArgs ?? string.Empty;
+            AdvGameArgs.Text = _settings.ExtraGameArgs ?? string.Empty;
+            AdvPreLaunch.Text = _settings.PreLaunchCommand ?? string.Empty;
+            AdvMemoryPreset.SelectedIndex = (_settings.MemoryPreset ?? "default").ToLowerInvariant() switch
+            {
+                "g1" => 1,
+                "zgc" => 2,
+                _ => 0,
+            };
+            AdvJavaWrapper.IsChecked = _settings.UseJavaWrapper;
+        }
+
+        if (AboutVersionText != null)
+        {
+            AboutVersionText.Text = $"MEME Launcher v{AppVersion} · 配置：{Aurora.Core.Configuration.ConfigStore.RootDirectory}";
+        }
         _ = RefreshJavaOptionsAsync(_settings.JavaPath);
         SettingsMirror.IsChecked = _settings.UseMirror;
         if (SettingsAskInstall != null)

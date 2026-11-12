@@ -346,7 +346,7 @@ public sealed partial class LauncherService
     }
 
     public DownloadClient SharedDownloader =>
-        _shared ??= new DownloadClient(Settings.UseMirror) { MirrorBaseUrl = Settings.MirrorBaseUrl };
+        _shared ??= new DownloadClient(Settings.UseMirror) { MirrorBaseUrl = Settings.MirrorBaseUrl, SourceMode = Settings.DownloadSource ?? "auto" };
 
     public MicrosoftAuth CreateAuth() => new(Settings.MicrosoftClientId);
 
@@ -457,6 +457,44 @@ public sealed partial class LauncherService
 
     public ResolvedVersion? Resolve(string id) => Versions.Resolve(id);
 
+    /// <summary>额外 JVM 参数 = 内存调优预设 + Java Launch Wrapper（可选）+ 玩家自己写的。</summary>
+    private string ComposeJvmArgs()
+    {
+        var parts = new List<string>();
+
+        switch ((Settings.MemoryPreset ?? "default").ToLowerInvariant())
+        {
+            case "g1":
+                parts.Add("-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 " +
+                          "-XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC " +
+                          "-XX:G1NewSizePercent=20 -XX:G1MaxNewSizePercent=40 -XX:G1HeapRegionSize=8M " +
+                          "-XX:G1ReservePercent=20 -XX:G1HeapWastePercent=5 -XX:G1MixedGCCountTarget=4 " +
+                          "-XX:InitiatingHeapOccupancyPercent=15 -XX:G1MixedGCLiveThresholdPercent=90 " +
+                          "-XX:G1RSetUpdatingPauseTimePercent=5 -XX:SurvivorRatio=32 -XX:+PerfDisableSharedMem " +
+                          "-XX:MaxTenuringThreshold=1");
+                break;
+            case "zgc":
+                parts.Add("-XX:+UseZGC");
+                break;
+        }
+
+        if (Settings.UseJavaWrapper)
+        {
+            var jar = Path.Combine(Aurora.Core.Configuration.ConfigStore.RootDirectory, "JavaLaunchWrapper.jar");
+            if (File.Exists(jar))
+            {
+                parts.Add("-javaagent:\"" + jar + "\"");
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(Settings.ExtraJvmArgs))
+        {
+            parts.Add(Settings.ExtraJvmArgs!);
+        }
+
+        return string.Join(" ", parts);
+    }
+
     public LaunchPlan? BuildPlan(string versionId, out ResolvedVersion? resolved, out List<string> problems,
         string? playerName = null, string? javaPath = null)
     {
@@ -533,7 +571,7 @@ public sealed partial class LauncherService
             JavaPath = java.JavaPath,
             MinMemoryMb = Settings.MinMemoryMb,
             MaxMemoryMb = Settings.MaxMemoryMb,
-            ExtraJvmArgs = Settings.ExtraJvmArgs,
+            ExtraJvmArgs = ComposeJvmArgs(),
             ExtraGameArgs = Settings.ExtraGameArgs,
             LaunchMode = Settings.LaunchMode,
             WindowWidth = Settings.WindowWidth,
@@ -616,14 +654,14 @@ public sealed partial class LauncherService
     public Installer CreateInstaller(string? gameDirectory)
     {
         var dir = string.IsNullOrWhiteSpace(gameDirectory) ? Settings.GameDirectory : gameDirectory!;
-        return new Installer(new DownloadClient(Settings.UseMirror) { MirrorBaseUrl = Settings.MirrorBaseUrl }, dir);
+        return new Installer(new DownloadClient(Settings.UseMirror) { MirrorBaseUrl = Settings.MirrorBaseUrl, SourceMode = Settings.DownloadSource ?? "auto" }, dir);
     }
 
     public Installer CreateInstaller(bool? useMirror = null)
     {
         if (useMirror.HasValue && useMirror.Value != Settings.UseMirror)
         {
-            return new Installer(new DownloadClient(useMirror.Value) { MirrorBaseUrl = Settings.MirrorBaseUrl },
+            return new Installer(new DownloadClient(useMirror.Value) { MirrorBaseUrl = Settings.MirrorBaseUrl, SourceMode = Settings.DownloadSource ?? "auto" },
                 Settings.GameDirectory);
         }
 

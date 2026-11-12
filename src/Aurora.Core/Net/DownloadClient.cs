@@ -9,6 +9,9 @@ public sealed class DownloadClient : IDisposable
     private readonly HttpClient _http;
     public const string Bmclapi = "https://bmclapi2.bangbang93.com";
 
+    /// <summary>MCIM（mcmod-info-mirror）：Modrinth / CurseForge 的接口与文件镜像。</summary>
+    public const string Mcim = "https://mod.mcimirror.top";
+
     /// <summary>单个地址一次尝试最多等多久，卡住就换下一个通道。</summary>
     private static readonly TimeSpan PerAttemptTimeout = TimeSpan.FromSeconds(90);
 
@@ -27,8 +30,11 @@ public sealed class DownloadClient : IDisposable
         {
             Timeout = TimeSpan.FromMinutes(5),
         };
-        _http.DefaultRequestHeaders.UserAgent.ParseAdd("Memelauncher/0.2 (+https://localhost)");
+        _http.DefaultRequestHeaders.UserAgent.ParseAdd("MEMELauncher/0.17 (+https://github.com/OStonefishO/STMEMELauncher)");
     }
+
+    /// <summary>下载源：auto / official / mirror。</summary>
+    public string SourceMode { get; set; } = "auto";
 
     public bool UseMirror { get; set; }
 
@@ -117,6 +123,11 @@ public sealed class DownloadClient : IDisposable
             return url;
         }
 
+        if (string.Equals(SourceMode, "official", StringComparison.OrdinalIgnoreCase))
+        {
+            return url;
+        }
+
         var custom = MirrorBaseUrl?.Trim();
         if (!string.IsNullOrEmpty(custom) && MirrorReachable(custom))
         {
@@ -149,7 +160,13 @@ public sealed class DownloadClient : IDisposable
             .Replace("https://meta.fabricmc.net", Bmclapi + "/fabric-meta", StringComparison.Ordinal)
             .Replace("https://maven.neoforged.net/releases", Bmclapi + "/maven", StringComparison.Ordinal)
             .Replace("https://maven.neoforged.net", Bmclapi + "/maven", StringComparison.Ordinal)
-            .Replace("https://files.minecraftforge.net/maven", "https://maven.aliyun.com/repository/public", StringComparison.Ordinal);
+            .Replace("https://files.minecraftforge.net/maven", "https://maven.aliyun.com/repository/public", StringComparison.Ordinal)
+            // MCIM（mcmod-info-mirror）：Modrinth / CurseForge 的接口和文件镜像，国内拉模组信息快很多
+            .Replace("https://api.modrinth.com", Mcim + "/modrinth", StringComparison.Ordinal)
+            .Replace("https://cdn.modrinth.com", Mcim, StringComparison.Ordinal)
+            .Replace("https://api.curseforge.com", Mcim + "/curseforge", StringComparison.Ordinal)
+            .Replace("https://edge.forgecdn.net", Mcim, StringComparison.Ordinal)
+            .Replace("https://mediafilez.forgecdn.net", Mcim, StringComparison.Ordinal);
     }
 
     public async Task<string> GetStringAsync(string url, CancellationToken ct = default)
@@ -274,10 +291,19 @@ public sealed class DownloadClient : IDisposable
 
     private IEnumerable<string> Candidates(string url)
     {
-        yield return MapUrl(url);
-        if (UseMirror)
+        if (string.Equals(SourceMode, "official", StringComparison.OrdinalIgnoreCase))
         {
-            yield return url; // 镜像失败时回退官方源
+            yield return url;
+            yield break;
+        }
+
+        var mapped = MapUrl(url);
+        yield return mapped;
+
+        // 只用镜像时不回退官方（玩家明确要求）；自动模式镜像失败再试官方
+        if (!string.Equals(SourceMode, "mirror", StringComparison.OrdinalIgnoreCase) && mapped != url)
+        {
+            yield return url;
         }
     }
 
