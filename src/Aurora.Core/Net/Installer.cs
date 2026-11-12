@@ -458,6 +458,26 @@ public sealed class Installer
                 {
                     var srgDir = Path.Combine(GameDirectory, "libraries", "net", "minecraft", "client", srgId!);
                     var srgJar = Path.Combine(srgDir, $"client-{srgId}-srg.jar");
+
+                    // 不管 srg 在不在，extra/slim 都可能缺（NeoForge 12 会直接要 -extra.jar）
+                    var vanillaJar = Path.Combine(GameDirectory, "versions", resolved.ClientVersion,
+                        resolved.ClientVersion + ".jar");
+                    if (File.Exists(vanillaJar))
+                    {
+                        var before = Path.Combine(srgDir, $"client-{srgId}-extra.jar");
+                        var hadExtra = File.Exists(before);
+                        BuildSplitJars(vanillaJar, srgDir, srgId!);
+                        if (!hadExtra && File.Exists(before))
+                        {
+                            repaired++;
+                            progress?.Report(new InstallProgress
+                            {
+                                Stage = "加载器",
+                                Message = $"已补 client-{srgId}-extra.jar / -slim.jar",
+                            });
+                        }
+                    }
+
                     if (!File.Exists(srgJar))
                     {
                         var vanilla = Path.Combine(GameDirectory, "versions", resolved.ClientVersion,

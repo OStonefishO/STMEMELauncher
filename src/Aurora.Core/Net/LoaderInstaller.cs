@@ -436,8 +436,15 @@ public sealed class LoaderInstaller
 
             var srgDir = Path.Combine(_gameDirectory, "libraries", "net", "minecraft", "client", id);
             var srgJar = Path.Combine(srgDir, $"client-{id}-srg.jar");
+            var vanillaForSplit = Path.Combine(VersionsDirectory, option.McVersion, option.McVersion + ".jar");
             if (File.Exists(srgJar) && new FileInfo(srgJar).Length > 1024 * 1024)
             {
+                // srg 在，但 NeoForge 12 还要 -extra.jar / -slim.jar
+                if (File.Exists(vanillaForSplit))
+                {
+                    Installer.BuildSplitJars(vanillaForSplit, srgDir, id!);
+                }
+
                 return;
             }
 
