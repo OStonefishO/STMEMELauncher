@@ -342,17 +342,10 @@ public sealed class LoaderInstaller
         psi.ArgumentList.Add(installerJar);
         psi.ArgumentList.Add("--installClient");
         psi.ArgumentList.Add(_gameDirectory);
-        if (option.Loader.Equals("forge", StringComparison.OrdinalIgnoreCase))
-        {
-            // Forge 的 maven 国内能直连：联网跑安装器，processors 才会生成
-            // client-<ver>-srg.jar / -extra.jar / -slim.jar 和 forge-<ver>-client.jar
-            psi.ArgumentList.Add("--offline");
-            psi.ArgumentList.Remove("--offline");
-        }
-        else
-        {
-            psi.ArgumentList.Add("--offline");
-        }
+        // NeoForge 的 maven 国内被墙，但安装器支持 --mirror：指到 BMCLAPI 的 maven 镜像，
+        // processors 就能跑起来，生成 client-<id>-srg/extra/slim 和 <loader>-<ver>-client.jar
+        psi.ArgumentList.Add("--mirror");
+        psi.ArgumentList.Add("https://bmclapi2.bangbang93.com/maven/");
 
         using var process = System.Diagnostics.Process.Start(psi);
         if (process == null)
@@ -366,6 +359,8 @@ public sealed class LoaderInstaller
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
         await process.WaitForExitAsync(ct).ConfigureAwait(false);
+
+        PatchClientJarAlias(option);
 
         if (process.ExitCode != 0)
         {
@@ -513,6 +508,43 @@ public sealed class LoaderInstaller
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// 安装器把打好补丁的客户端写到了 minecraft-client-patched，但 FML 12 找的是
+    /// net/neoforged/neoforge/&lt;ver&gt;/neoforge-&lt;ver&gt;-client.jar —— 复制一份过去。
+    /// </summary>
+    private void PatchClientJarAlias(LoaderOption option)
+    {
+        try
+        {
+            var dir = Path.Combine(_gameDirectory, "libraries", "net", "neoforged");
+            var patched = Path.Combine(dir, "minecraft-client-patched", option.Version,
+                $"minecraft-client-patched-{option.Version}.jar");
+            if (!File.Exists(patched))
+            {
+                return;
+            }
+
+            var group = option.Loader.Equals("forge", StringComparison.OrdinalIgnoreCase) ? "minecraftforge" : "neoforged";
+            var targetDir = Path.Combine(dir, option.Loader.Equals("forge", StringComparison.OrdinalIgnoreCase)
+                ? Path.Combine("..", "minecraftforge", "forge", option.Version)
+                : Path.Combine("neoforge", option.Version));
+            // 简单起见：NeoForge 复制到 neoforge/<ver>/neoforge-<ver>-client.jar
+            if (!option.Loader.Equals("forge", StringComparison.OrdinalIgnoreCase))
+            {
+                var alias = Path.Combine(dir, "neoforge", option.Version, $"neoforge-{option.Version}-client.jar");
+                Directory.CreateDirectory(Path.GetDirectoryName(alias)!);
+                if (!File.Exists(alias))
+                {
+                    File.Copy(patched, alias);
+                }
+            }
+        }
+        catch
+        {
+            // 忽略
+        }
     }
 
     private string? ResolveJava(LoaderOption option)
