@@ -1800,6 +1800,13 @@
                                                 <Button x:Name="IsolationButton" Content="版本隔离：跟随全局"
                                                         Style="{StaticResource GlassButton}" Click="OnToggleIsolation"
                                                         ToolTip="开启后这个版本用自己目录里的 mods / config / saves，不跟全局共用"/>
+
+                                                        <TextBlock Text="Fabric 生态" FontSize="11" Margin="0,14,0,0" Foreground="{DynamicResource InkFaint}"/>
+                                                        <WrapPanel Margin="0,6,0,0">
+                                                            <Button Content="补装 Fabric API / Mod Menu" Style="{StaticResource GlassButton}"
+                                                                    Click="OnInstallFabricEssentials"
+                                                                    ToolTip="Fabric 本身不会改界面；补上这两个基础模组，模组菜单和大部分 mod 才能用"/>
+                                                        </WrapPanel>
                                             </WrapPanel>
                                         </StackPanel>
                                     </Border>

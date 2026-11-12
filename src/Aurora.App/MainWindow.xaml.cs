@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.20.6";
+    private const string AppVersion = "0.20.7";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -3283,6 +3283,101 @@ public partial class MainWindow : Window
 
     /// <summary>按勾选项把版本打包成整合包 zip。</summary>
     /// <summary>清掉加载器的核心库后重装（NeoForge / Forge 报 corrupted 时的最后一招）。</summary>
+    /// <summary>
+    /// Fabric 本身不会给界面加东西（所以看着像原版），但大量 mod 需要 Fabric API；
+    /// 这里一键把 Fabric API + Mod Menu 装进当前版本。
+    /// </summary>
+    private async void OnInstallFabricEssentials(object sender, RoutedEventArgs e)
+    {
+        if (_vmCurrent == null)
+        {
+            ShowToast("先选一个版本", "左边列表点一下", "⚠", 3200);
+            return;
+        }
+
+        if (!string.Equals(_vmCurrent.Loader, "fabric", StringComparison.OrdinalIgnoreCase))
+        {
+            ShowToast("这个版本不是 Fabric", "只有 Fabric 版本需要这几个基础模组", "⚠", 3600);
+            return;
+        }
+
+        var gameDir = CurrentVmGameDir();
+        if (gameDir == null)
+        {
+            ShowToast("找不到版本目录", _vmCurrent.Id, "⚠", 3600);
+            return;
+        }
+
+        var mods = Path.Combine(gameDir, "mods");
+        Directory.CreateDirectory(mods);
+
+        var mc = _vmCurrent.ClientVersion;
+        var added = new List<string>();
+        var failed = new List<string>();
+
+        foreach (var slug in new[] { "fabric-api", "modmenu" })
+        {
+            try
+            {
+                VmStatus.Text = "查询 " + slug + " …";
+                var url = "https://api.modrinth.com/v2/project/" + slug + "/version?loaders=%5B%22fabric%22%5D&game_versions=%5B%22" +
+                          Uri.EscapeDataString(mc) + "%22%5D";
+                var json = await _service.SharedDownloader.GetStringAsync(url);
+                using var doc = System.Text.Json.JsonDocument.Parse(json);
+                if (doc.RootElement.ValueKind != System.Text.Json.JsonValueKind.Array || doc.RootElement.GetArrayLength() == 0)
+                {
+                    failed.Add(slug + "（没有适配 " + mc + " 的版本）");
+                    continue;
+                }
+
+                var first = doc.RootElement[0];
+                var files = first.GetProperty("files");
+                string? fileUrl = null;
+                string? fileName = null;
+                long size = 0;
+                foreach (var file in files.EnumerateArray())
+                {
+                    if (file.TryGetProperty("primary", out var primary) && primary.ValueKind == System.Text.Json.JsonValueKind.True)
+                    {
+                        fileUrl = file.GetProperty("url").GetString();
+                        fileName = file.GetProperty("filename").GetString();
+                        if (file.TryGetProperty("size", out var sz) && sz.TryGetInt64(out var s))
+                        {
+                            size = s;
+                        }
+
+                        break;
+                    }
+                }
+
+                if (string.IsNullOrEmpty(fileUrl) || string.IsNullOrEmpty(fileName))
+                {
+                    failed.Add(slug + "（版本信息里没有主文件）");
+                    continue;
+                }
+
+                var target = Path.Combine(mods, fileName!);
+                VmStatus.Text = "下载 " + fileName + " …";
+                await _service.SharedDownloader.DownloadFileAsync(fileUrl!, target, size: size > 0 ? size : null);
+                added.Add(fileName!);
+            }
+            catch (Exception ex)
+            {
+                failed.Add(slug + "：" + ex.Message);
+            }
+        }
+
+        VmStatus.Text = added.Count > 0 ? "已装：" + string.Join("、", added) : "一个都没装上";
+        ShowToast(added.Count > 0 ? "Fabric 基础模组已装" : "安装失败",
+            added.Count > 0 ? string.Join("、", added) : string.Join("；", failed),
+            added.Count > 0 ? "✓" : "⚠", 5200);
+
+        if (failed.Count > 0 && added.Count > 0)
+        {
+            ShowToast("有模组没装上", string.Join("；", failed), "⚠", 6000);
+        }
+    }
+
     private async void OnVmReinstallLoader(object sender, RoutedEventArgs e)
     {
         if (_vmCurrent == null || _vmCurrent.Loader is not ("neoforge" or "forge"))
