@@ -32,7 +32,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.20.9";
+    private const string AppVersion = "0.20.11";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -884,6 +884,15 @@ public partial class MainWindow : Window
         finally
         {
             _busy = false;
+            if (InstallButton != null)
+            {
+                InstallButton.IsEnabled = true;
+            }
+
+            if (LaunchButton != null)
+            {
+                LaunchButton.IsEnabled = true;
+            }
             LaunchButton.IsEnabled = true;
         }
     }
@@ -1031,7 +1040,7 @@ public partial class MainWindow : Window
         }
 
         InstallMcText.Text = "Minecraft " + v.Id;
-        InstallButton.IsEnabled = !_busy;
+        InstallButton.IsEnabled = true;
         InstallText.Text = "可以选加载器了";
 
         // 切版本必须重拉加载器版本，否则右边还停在上一个 MC 的列表

@@ -315,6 +315,8 @@ public sealed class DownloadManager
     {
         if (!item.CanPause)
         {
+            // 安装类任务没法暂停，至少给个明确的反馈
+            Ui(() => item.Error = item.State == DownloadState.Paused ? item.Error : "这个任务不支持暂停（安装类任务请用取消）");
             return;
         }
 
