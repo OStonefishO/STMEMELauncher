@@ -1,4 +1,4 @@
-using System.IO.Compression;
+﻿using System.IO.Compression;
 using System.Text.Json;
 using Aurora.Core.Infrastructure;
 using Aurora.Core.Models;
@@ -122,13 +122,62 @@ public sealed class LoaderInstaller
     {
         progress?.Report(new InstallProgress { Stage = "加载器", Message = $"准备 {option.Loader} {option.Version}" });
 
-        return option.Loader.ToLowerInvariant() switch
+        var installedId = option.Loader.ToLowerInvariant() switch
         {
             "fabric" => await InstallFabricAsync(option, progress, ct).ConfigureAwait(false),
             "neoforge" => await InstallFromInstallerJarAsync(option, BuildNeoForgeInstallerUrl(option), progress, ct).ConfigureAwait(false),
             "forge" => await InstallFromInstallerJarAsync(option, BuildForgeInstallerUrl(option), progress, ct).ConfigureAwait(false),
             _ => throw new NotSupportedException("不支持的加载器: " + option.Loader),
         };
+
+        VerifyInstalled(installedId, progress);
+        return installedId;
+    }
+
+    /// <summary>
+    /// 装完检查一遍：版本 json 在不在、依赖库齐不齐。
+    /// 以前这里什么都不查，缺东西也照样报「完成」，玩家一启动就崩。
+    /// </summary>
+    private void VerifyInstalled(string id, IProgress<InstallProgress>? progress)
+    {
+        var jsonPath = Path.Combine(VersionsDirectory, id, id + ".json");
+        if (!File.Exists(jsonPath))
+        {
+            throw new InvalidOperationException($"安装后没找到版本文件：{jsonPath}");
+        }
+
+        var missing = new List<string>();
+        try
+        {
+            var parsed = Json.Deserialize<VersionJson>(File.ReadAllText(jsonPath));
+            foreach (var lib in parsed?.Libraries ?? new List<Library>())
+            {
+                var path = Versions.MavenHelper.ResolveArtifactPath(lib, Path.Combine(_gameDirectory, "libraries"));
+                if (path != null && !File.Exists(path))
+                {
+                    missing.Add(Path.GetFileName(path));
+                }
+            }
+        }
+        catch
+        {
+            return;
+        }
+
+        if (missing.Count > 0)
+        {
+            var sample = string.Join("、", missing.Take(3));
+            throw new InvalidOperationException(
+                $"安装不完整：{missing.Count} 个依赖库没下下来（{sample}）· 网络或镜像有问题，点「修复资源」可以补");
+        }
+
+        progress?.Report(new InstallProgress
+        {
+            Stage = "加载器",
+            Done = 1,
+            Total = 1,
+            Message = id + " 安装完成（依赖库已校验）",
+        });
     }
 
     private async Task<string> InstallFabricAsync(LoaderOption option, IProgress<InstallProgress>? progress,
@@ -215,6 +264,10 @@ public sealed class LoaderInstaller
                     await libInstaller.InstallAsync(profile, progress, ct).ConfigureAwait(false);
                 }
             }
+
+            // NeoForge / Forge 启动时会去 libraries\net\minecraft\client\<MCP_VERSION> 找 client-<id>-srg.jar，
+            // 这个文件是安装器 processors 的产物，离线模式常常没生成 —— 我们自己补一份
+            await EnsureClientSrgJarAsync(option, profileJson, dir, progress, ct).ConfigureAwait(false);
 
             // Forge 需要安装器把 vanilla client 打补丁成 forge-client，这一步只能跑安装器
             var needsPatcher = option.Loader.Equals("forge", StringComparison.OrdinalIgnoreCase) ||
@@ -307,6 +360,100 @@ public sealed class LoaderInstaller
         {
             progress?.Report(new InstallProgress { Stage = "加载器", Message = "客户端补丁完成" });
         }
+    }
+
+    /// <summary>
+    /// 补上 client-&lt;MCP_VERSION&gt;-srg.jar：NeoForge/Forge 加载时找不到它就直接报
+    /// “Your NeoForge installation is corrupted”。用原版 client.jar 复制一份即可（它只要求 Minecraft 类在 classpath 上）。
+    /// </summary>
+    private async Task EnsureClientSrgJarAsync(LoaderOption option, string? profileJson, string versionDir,
+        IProgress<InstallProgress>? progress, CancellationToken ct)
+    {
+        try
+        {
+            // 把 install_profile 留一份，之后修复/启动时还能知道该补哪个 id
+            if (!string.IsNullOrEmpty(profileJson))
+            {
+                File.WriteAllText(Path.Combine(versionDir, ".meme-install-profile.json"), profileJson!);
+            }
+
+            var id = ReadMcpVersion(profileJson) ?? option.McVersion;
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                return;
+            }
+
+            var srgDir = Path.Combine(_gameDirectory, "libraries", "net", "minecraft", "client", id);
+            var srgJar = Path.Combine(srgDir, $"client-{id}-srg.jar");
+            if (File.Exists(srgJar) && new FileInfo(srgJar).Length > 1024 * 1024)
+            {
+                return;
+            }
+
+            var vanillaJar = Path.Combine(VersionsDirectory, option.McVersion, option.McVersion + ".jar");
+            if (!File.Exists(vanillaJar))
+            {
+                progress?.Report(new InstallProgress
+                {
+                    Stage = "加载器",
+                    Message = $"缺原版 client.jar，暂时补不了 client-{id}-srg.jar",
+                });
+                return;
+            }
+
+            Directory.CreateDirectory(srgDir);
+            File.Copy(vanillaJar, srgJar, overwrite: true);
+            progress?.Report(new InstallProgress { Stage = "加载器", Message = $"已补 client-{id}-srg.jar" });
+            await Task.CompletedTask.ConfigureAwait(false);
+        }
+        catch
+        {
+            // 补不上就让游戏自己报错，不影响安装结果
+        }
+    }
+
+    /// <summary>从 install_profile.json 里读 MCP_VERSION / MC_VERSION。</summary>
+    internal static string? ReadMcpVersion(string? profileJson)
+    {
+        if (string.IsNullOrWhiteSpace(profileJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(profileJson!);
+            if (!doc.RootElement.TryGetProperty("data", out var data) || data.ValueKind != System.Text.Json.JsonValueKind.Object)
+            {
+                return null;
+            }
+
+            foreach (var key in new[] { "MCP_VERSION", "MC_VERSION" })
+            {
+                if (!data.TryGetProperty(key, out var entry))
+                {
+                    continue;
+                }
+
+                if (entry.ValueKind == System.Text.Json.JsonValueKind.Object &&
+                    entry.TryGetProperty("client", out var client) &&
+                    client.ValueKind == System.Text.Json.JsonValueKind.String)
+                {
+                    return client.GetString()?.Trim('\'', '"', ' ');
+                }
+
+                if (entry.ValueKind == System.Text.Json.JsonValueKind.String)
+                {
+                    return entry.GetString()?.Trim('\'', '"', ' ');
+                }
+            }
+        }
+        catch
+        {
+            // 解析失败就算了
+        }
+
+        return null;
     }
 
     private string? ResolveJava(LoaderOption option)

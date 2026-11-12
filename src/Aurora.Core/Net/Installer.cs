@@ -238,6 +238,19 @@ public sealed class Installer
                     continue;
                 }
 
+                // 以前下到一半留下的 .tmp 会挡住重下（DownloadClient 会直接覆盖，但先清掉更稳）
+                try
+                {
+                    if (File.Exists(target + ".tmp"))
+                    {
+                        File.Delete(target + ".tmp");
+                    }
+                }
+                catch
+                {
+                    // 忽略
+                }
+
                 progress?.Report(new InstallProgress
                 {
                     Stage = "依赖库",
@@ -256,6 +269,41 @@ public sealed class Installer
         catch
         {
             // 体检失败不影响启动
+        }
+
+        // NeoForge / Forge 要的 client-<MCP_VERSION>-srg.jar（安装器 processors 的产物，离线时常常缺）
+        try
+        {
+            var profilePath = Path.Combine(GameDirectory, "versions", resolved.Id, ".meme-install-profile.json");
+            if (File.Exists(profilePath))
+            {
+                var srgId = LoaderInstaller.ReadMcpVersion(File.ReadAllText(profilePath));
+                if (!string.IsNullOrWhiteSpace(srgId))
+                {
+                    var srgDir = Path.Combine(GameDirectory, "libraries", "net", "minecraft", "client", srgId!);
+                    var srgJar = Path.Combine(srgDir, $"client-{srgId}-srg.jar");
+                    if (!File.Exists(srgJar))
+                    {
+                        var vanilla = Path.Combine(GameDirectory, "versions", resolved.ClientVersion,
+                            resolved.ClientVersion + ".jar");
+                        if (File.Exists(vanilla))
+                        {
+                            Directory.CreateDirectory(srgDir);
+                            File.Copy(vanilla, srgJar, overwrite: true);
+                            repaired++;
+                            progress?.Report(new InstallProgress
+                            {
+                                Stage = "加载器",
+                                Message = $"已补 client-{srgId}-srg.jar",
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // 忽略
         }
 
         return repaired;

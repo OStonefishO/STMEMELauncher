@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.62";
+    private const string AppVersion = "0.15.64";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -202,6 +202,13 @@ public partial class MainWindow : Window
                 }), System.Windows.Threading.DispatcherPriority.Background);
             }
 
+
+            // 调试用：--loader-test <游戏目录> <mc版本> <loader> <loader版本>，跑一遍加载器安装后退出
+            var loaderTest = Array.IndexOf(argv, "--loader-test");
+            if (loaderTest >= 0 && loaderTest + 4 < argv.Length)
+            {
+                _ = LoaderTestAndExitAsync(argv[loaderTest + 1], argv[loaderTest + 2], argv[loaderTest + 3], argv[loaderTest + 4]);
+            }
 
             // 调试用：--repair <游戏目录> <版本id>，直接补齐 assets / 依赖库后退出
             var repairFlag = Array.IndexOf(argv, "--repair");
@@ -633,8 +640,28 @@ public partial class MainWindow : Window
                 new Progress<string>(t => SetStatus(t)));
             if (missingLibs.Count > 0)
             {
-                SetStatus($"缺 {missingLibs.Count} 个库文件，启动多半会失败");
-                ShowToast("库文件不全", "建议在「内容 → 安装版本」里重装这个版本", "⚠", 5200);
+                // 缺库就直接补，别让玩家自己去重装版本
+                SetStatus($"缺 {missingLibs.Count} 个库文件，正在自动补齐…");
+                try
+                {
+                    var root = GameRootFor(card.Summary.Directory) ?? _settings.GameDirectory;
+                    var fixedLibs = await _service.CreateInstaller(root).RepairAsync(versionInfo,
+                        new Progress<InstallProgress>(p => SetStatus($"[{p.Stage}] {p.Message} · {p.Percent:0}%")));
+                    if (fixedLibs > 0)
+                    {
+                        SetStatus($"已补齐 {fixedLibs} 个文件");
+                        ShowToast("已补齐依赖", $"{fixedLibs} 个文件 · 继续启动", "✓", 4000);
+                    }
+                    else
+                    {
+                        SetStatus($"还有 {missingLibs.Count} 个库补不上，启动可能失败");
+                        ShowToast("库文件不全", "自动补齐没成功，去「版本」页点一次「修复资源」", "⚠", 6000);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    SetStatus("补库失败（继续尝试启动）: " + ex.Message);
+                }
             }
 
             // 先把配置垫上：缺 mods/config 文件夹、options.txt 时不少模组会直接报错
@@ -2141,6 +2168,34 @@ public partial class MainWindow : Window
         {
             VmDeleteButton.IsEnabled = true;
         }
+    }
+
+    /// <summary>调试：无界面跑一遍加载器安装，结果写日志后退出。</summary>
+    private async Task LoaderTestAndExitAsync(string gameDir, string mcVersion, string loader, string loaderVersion)
+    {
+        var log = @"D:\综合创作\_loadertest.log";
+        try
+        {
+            var lines = new List<string>();
+            var settings = ConfigStore.Load();
+            settings.GameDirectory = gameDir;
+            var service = new LauncherService(settings);
+            var options = await service.CreateLoaderInstaller().ListAsync(loader, mcVersion);
+            lines.Add($"options={options.Count}");
+            var option = options.FirstOrDefault(o => o.Version.Contains(loaderVersion)) ?? options.FirstOrDefault();
+            lines.Add($"picked={(option == null ? "null" : option.Version)}");
+
+            var progress = new Progress<InstallProgress>(p => lines.Add($"[{p.Stage}] {p.Message}"));
+            var id = await service.CreateLoaderInstaller().InstallAsync(option!, progress);
+            lines.Add("RESULT id=" + id);
+            File.WriteAllLines(log, lines);
+        }
+        catch (Exception ex)
+        {
+            File.WriteAllText(log, ex.ToString());
+        }
+
+        Application.Current.Shutdown();
     }
 
     /// <summary>调试：无界面跑一遍资源修复，结果写日志后退出。</summary>

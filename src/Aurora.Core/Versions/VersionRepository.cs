@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.RegularExpressions;
 using Aurora.Core.Infrastructure;
 using Aurora.Core.Models;
@@ -208,6 +208,19 @@ public sealed class VersionRepository
             if (File.Exists(alt))
             {
                 jar = alt;
+            }
+        }
+
+        // 加载器版本（Fabric/Quilt）自己没 jar，Minecraft 的类在被继承的原版版本里 —— 不加进 classpath，
+        // Fabric 会直接报 "Minecraft game provider couldn't locate the game"。
+        // Forge/NeoForge 有自己的 srg/patched jar，这里就不重复加了。
+        if (jar == null && !string.IsNullOrEmpty(merged.InheritsFrom) &&
+            !id.Contains("forge", StringComparison.OrdinalIgnoreCase))
+        {
+            var inheritedJar = Path.Combine(VersionsDirectory, merged.InheritsFrom!, merged.InheritsFrom + ".jar");
+            if (File.Exists(inheritedJar))
+            {
+                jar = inheritedJar;
             }
         }
 
