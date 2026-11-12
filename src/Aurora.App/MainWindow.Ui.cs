@@ -280,7 +280,7 @@ public partial class MainWindow
         foreach (var page in new FrameworkElement[]
                  {
                      LaunchPage, InstallPage, ContentPage, AccountPage, SettingsPage,
-                     UpdatesPage, OnlinePage, VersionsPage, FunPage, CreationPage,
+                     UpdatesPage, OnlinePage, VersionsPage, FunPage,
                  })
         {
             if (page == null)
@@ -299,7 +299,7 @@ public partial class MainWindow
         foreach (var page in new FrameworkElement[]
                  {
                      LaunchPage, InstallPage, ContentPage, AccountPage, SettingsPage,
-                     UpdatesPage, OnlinePage, VersionsPage, FunPage, CreationPage,
+                     UpdatesPage, OnlinePage, VersionsPage, FunPage,
                  })
         {
             if (page == null)
@@ -318,7 +318,7 @@ public partial class MainWindow
         foreach (var page in new FrameworkElement[]
                  {
                      LaunchPage, InstallPage, ContentPage, AccountPage, SettingsPage,
-                     UpdatesPage, OnlinePage, VersionsPage, FunPage, CreationPage,
+                     UpdatesPage, OnlinePage, VersionsPage, FunPage,
                  })
         {
             if (page == null)
@@ -987,7 +987,6 @@ public partial class MainWindow
         yield return NavVersions;
         yield return NavOnline;
         yield return NavFun;
-        yield return NavCreation;
         yield return NavAccount;
         yield return NavSettings;
     }
@@ -1164,7 +1163,6 @@ public partial class MainWindow
         6 => OnlinePage,
         7 => VersionsPage,
         8 => FunPage,
-        9 => CreationPage,
         _ => null,
     };
 }

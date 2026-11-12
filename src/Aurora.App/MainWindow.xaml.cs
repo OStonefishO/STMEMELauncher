@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.18.0";
+    private const string AppVersion = "0.19.0";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -425,8 +425,6 @@ public partial class MainWindow : Window
         SettingsPage.Visibility = index == 4 ? Visibility.Visible : Visibility.Collapsed;
         UpdatesPage.Visibility = index == 5 ? Visibility.Visible : Visibility.Collapsed;
         FunPage.Visibility = index == 8 ? Visibility.Visible : Visibility.Collapsed;
-        CreationPage.Visibility = index == 9 ? Visibility.Visible : Visibility.Collapsed;
-
         var active = (Brush)FindResource("TextMain");
         var inactive = (Brush)FindResource("TextDim");
         MarkNav(NavLaunch, index == 0, active, inactive);
@@ -435,26 +433,12 @@ public partial class MainWindow : Window
         MarkNav(NavVersions, index == 7, active, inactive);
         MarkNav(NavAccount, index == 3, active, inactive);
         MarkNav(NavFun, index == 8, active, inactive);
-        MarkNav(NavCreation, index == 9, active, inactive);
         if (index == 4)
         {
             InitSettingsScene();
         }
 
-        if (index == 9)
-        {
-            InitCreation();
 
-            // 版本列表可能在窗口 Loaded 之后才扫完，延后补一次
-            Dispatcher.BeginInvoke(new Action(() =>
-            {
-                var list = RefreshCreationVersions();
-                if (list.Count > 0 && PackVersionCombo.SelectedItem == null)
-                {
-                    PackVersionCombo.SelectedIndex = 0;
-                }
-            }), System.Windows.Threading.DispatcherPriority.Background);
-        }
         MarkNav(NavSettings, index is 4 or 5, active, inactive);
 
         // 换页动画（仅新版布局）：淡入 + 轻微左滑
@@ -469,7 +453,6 @@ public partial class MainWindow : Window
             6 => OnlinePage,
             7 => VersionsPage,
             8 => FunPage,
-            9 => CreationPage,
             _ => null,
         };
         AnimatePageIn(target);
@@ -3120,6 +3103,42 @@ public partial class MainWindow : Window
         VmStatus.Text = $"已添加 {copied} 个 mod";
     }
 
+    /// <summary>版本详情里的三个页签：概览 / Mod 管理 / 导出整合包。</summary>
+    private void OnVmTab(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button || button.Tag is not string tag)
+        {
+            return;
+        }
+
+        if (VmPaneOverview == null || VmPaneMods == null || VmPaneExport == null)
+        {
+            return;
+        }
+
+        VmPaneOverview.Visibility = tag == "overview" ? Visibility.Visible : Visibility.Collapsed;
+        VmPaneMods.Visibility = tag == "mods" ? Visibility.Visible : Visibility.Collapsed;
+        VmPaneExport.Visibility = tag == "export" ? Visibility.Visible : Visibility.Collapsed;
+
+        if (VmTabOverview != null)
+        {
+            VmTabOverview.Style = (Style)FindResource(tag == "overview" ? "HeroButton" : "GlassButton");
+            VmTabOverview.Padding = new Thickness(16, 6, 16, 6);
+        }
+
+        if (VmTabMods != null)
+        {
+            VmTabMods.Style = (Style)FindResource(tag == "mods" ? "HeroButton" : "GlassButton");
+            VmTabMods.Padding = new Thickness(16, 6, 16, 6);
+        }
+
+        if (VmTabExport != null)
+        {
+            VmTabExport.Style = (Style)FindResource(tag == "export" ? "HeroButton" : "GlassButton");
+            VmTabExport.Padding = new Thickness(16, 6, 16, 6);
+        }
+    }
+
     private void OnVmExportPack(object sender, RoutedEventArgs e)
     {
         var dir = CurrentVmGameDir();
@@ -5410,7 +5429,7 @@ ToastIcon.Text = icon;
         var clientId = ClientIdBox.Text?.Trim() ?? string.Empty;
         if (string.IsNullOrEmpty(clientId))
         {
-            AccountStatus.Text = "还没配置 ClientId：展开下面的「高级」，填一次就好";
+                // 账号卡片已移除，状态只在账号页显示
             return;
         }
 
@@ -5425,7 +5444,7 @@ ToastIcon.Text = icon;
         }
         catch (Exception ex)
         {
-            AccountStatus.Text = "获取设备码失败: " + ex.Message;
+                // 账号卡片已移除，状态只在账号页显示
             return;
         }
 
@@ -5460,7 +5479,7 @@ ToastIcon.Text = icon;
         catch (Exception ex)
         {
             dialog.Close();
-            AccountStatus.Text = "登录失败: " + ex.Message;
+                // 账号卡片已移除，状态只在账号页显示
         }
     }
 
@@ -5491,19 +5510,19 @@ ToastIcon.Text = icon;
 
         if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password))
         {
-            AccountStatus.Text = "邮箱和密码都要填";
+                // 账号卡片已移除，状态只在账号页显示
             return;
         }
 
         try
         {
-            AccountStatus.Text = "正在登录外置账号…";
+                // 账号卡片已移除，状态只在账号页显示
             var auth = _service.CreateYggdrasil(apiRoot);
             var session = await auth.AuthenticateAsync(email, password);
 
-            AccountStatus.Text = "下载 authlib-injector…";
+                // 账号卡片已移除，状态只在账号页显示
             var installer = _service.CreateInjectorInstaller();
-            await installer.EnsureAsync(_settings.GameDirectory, new Progress<string>(t => AccountStatus.Text = t));
+            await installer.EnsureAsync(_settings.GameDirectory, new Progress<string>(t => SetStatus(t)));
 
             var account = new SavedAccount
             {
@@ -5524,7 +5543,7 @@ ToastIcon.Text = icon;
         }
         catch (Exception ex)
         {
-            AccountStatus.Text = "外置登录失败: " + ex.Message;
+                // 账号卡片已移除，状态只在账号页显示
         }
     }
 
@@ -5699,12 +5718,12 @@ ToastIcon.Text = icon;
         if (account == null)
         {
             AccountChip.Text = "离线：" + _settings.PlayerName;
-            AccountStatus.Text = "还没有账号，去「账号」页建一个";
+                // 账号卡片已移除，状态只在账号页显示
             return;
         }
 
         AccountChip.Text = account.TypeLabel + "：" + account.Name;
-        AccountStatus.Text = $"当前账号：{account.Name}（{account.TypeLabel}）";
+                // 账号卡片已移除，状态只在账号页显示
         if (AccountPageStatus != null)
         {
             AccountPageStatus.Text = $"共 {_service.Settings.Accounts.Count} 个账号，点卡片切换";

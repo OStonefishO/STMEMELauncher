@@ -1,4 +1,4 @@
-﻿<Window x:Class="Aurora.App.MainWindow"
+<Window x:Class="Aurora.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
@@ -625,12 +625,6 @@
                         <StackPanel>
                             <TextBlock Text="♫" FontSize="17" HorizontalAlignment="Center"/>
                             <TextBlock Text="娱乐" FontSize="10.5" HorizontalAlignment="Center" Margin="0,4,0,0"/>
-                        </StackPanel>
-                    </Button>
-                    <Button x:Name="NavCreation" Style="{StaticResource RailButton}" Tag="9" Click="OnNavClick" Margin="0,6,0,0">
-                        <StackPanel>
-                            <TextBlock Text="✎" FontSize="16" HorizontalAlignment="Center"/>
-                            <TextBlock Text="创作" FontSize="10.5" HorizontalAlignment="Center" Margin="0,4,0,0"/>
                         </StackPanel>
                     </Button>
                     <Button x:Name="NavAccount" Style="{StaticResource RailButton}" Tag="3" Click="OnNavClick" Margin="0,6,0,0">
@@ -1710,7 +1704,16 @@
                             <ScrollViewer Grid.Column="1" Margin="16,0,0,0" VerticalScrollBarVisibility="Auto">
                                 <StackPanel HorizontalAlignment="Stretch" Margin="0,0,16,0">
 
-                                    <Border CornerRadius="16" Background="{DynamicResource Glass}"
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                        <Button x:Name="VmTabOverview" Content="概览" Tag="overview" Click="OnVmTab"
+                                                Style="{StaticResource GlassButton}" Padding="16,6" FontSize="11.5" Margin="0,0,8,0"/>
+                                        <Button x:Name="VmTabMods" Content="Mod 管理" Tag="mods" Click="OnVmTab"
+                                                Style="{StaticResource GlassButton}" Padding="16,6" FontSize="11.5" Margin="0,0,8,0"/>
+                                        <Button x:Name="VmTabExport" Content="导出整合包" Tag="export" Click="OnVmTab"
+                                                Style="{StaticResource GlassButton}" Padding="16,6" FontSize="11.5"/>
+                                    </StackPanel>
+
+                                    <Border x:Name="VmPaneOverview" CornerRadius="16" Background="{DynamicResource Glass}"
                                             BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="20,16">
                                         <StackPanel>
                                             <StackPanel Orientation="Horizontal">
@@ -1793,9 +1796,9 @@
                                         </StackPanel>
                                     </Border>
 
-                                    <Border CornerRadius="16" Background="{DynamicResource Glass}"
+                                    <Border x:Name="VmPaneMods" CornerRadius="16" Background="{DynamicResource Glass}"
                                             BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="20,16"
-                                            Margin="0,14,0,0">
+                                            Margin="0,14,0,0" Visibility="Collapsed">
                                         <StackPanel>
                                             <Grid>
                                                 <TextBlock Text="模组" FontSize="14" FontWeight="SemiBold"
@@ -1827,9 +1830,9 @@
                                         </StackPanel>
                                     </Border>
 
-                                    <Border CornerRadius="16" Background="{DynamicResource Glass}"
+                                    <Border x:Name="VmPaneExport" CornerRadius="16" Background="{DynamicResource Glass}"
                                             BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="20,16"
-                                            Margin="0,14,0,0">
+                                            Margin="0,14,0,0" Visibility="Collapsed">
                                         <StackPanel>
                                             <TextBlock Text="整合包" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
                                             <TextBlock Text="把这个版本的 mods / config / options.txt 打成一个 zip，别人导入就能玩"
@@ -2273,16 +2276,6 @@
                                 </Border>
 
 
-                                <Border CornerRadius="16" Background="{DynamicResource Glass}"
-                                        BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="20,16">
-                                    <StackPanel>
-                                        <TextBlock Text="账号" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
-                                        <TextBlock x:Name="AccountStatus" Text="当前：离线账号" FontSize="11.5"
-                                                   Foreground="{DynamicResource InkDim}" Margin="0,6,0,12" TextWrapping="Wrap"/>
-                                        <Button Content="打开账号管理" Style="{StaticResource HeroButton}" Width="150" Height="38"
-                                                Click="OnOpenAccounts"/>
-                                    </StackPanel>
-                                </Border>
 
                                 <Border CornerRadius="16" Background="{DynamicResource Glass}"
                                         BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="20,16" Margin="0,12,0,0">
@@ -2501,135 +2494,6 @@
                     </Grid>
 
                     <!-- ========== 创作页 ========== -->
-                    <Grid x:Name="CreationPage" Visibility="Collapsed">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
-
-                        <StackPanel Grid.Row="0" Margin="26,6,0,14">
-                            <TextBlock Text="创作" FontSize="32" FontFamily="{DynamicResource FontHead}"
-                                       Foreground="{DynamicResource TitleGrad}"/>
-                            <Grid Margin="0,10,0,0">
-                                <TextBlock Text="把某个版本打包成整合包：自选要带上的内容，元数据会写进 README 和 meme-modpack.json"
-                                       FontSize="11.5" Foreground="{DynamicResource InkFaint}"
-                                       VerticalAlignment="Center"/>
-                                <TextBlock x:Name="CreationStatus" HorizontalAlignment="Right" VerticalAlignment="Center"
-                                           FontSize="11.5" Foreground="{DynamicResource InkFaint}"
-                                           TextTrimming="CharacterEllipsis" MaxWidth="520"/>
-                            </Grid>
-                        </StackPanel>
-
-                        <Grid Grid.Row="1" Margin="26,0,0,0">
-                            <!-- ===== 整合包 ===== -->
-                            <ScrollViewer x:Name="CreatePackPanel" VerticalScrollBarVisibility="Auto"
-                                          HorizontalScrollBarVisibility="Disabled">
-                                <StackPanel Margin="0,0,20,26">
-                                    <Border CornerRadius="16" Background="{DynamicResource Glass}"
-                                            BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="20,16">
-                                        <StackPanel>
-                                            <TextBlock Text="基本信息" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
-                                            <TextBlock Text="装在哪个版本上（决定从哪个目录打包）" FontSize="11"
-                                                       Foreground="{DynamicResource InkFaint}" Margin="0,10,0,0"/>
-                                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                                <ComboBox x:Name="PackVersionCombo" Width="330"
-                                                          SelectionChanged="OnPackVersionChanged">
-                                                    <ComboBox.ItemTemplate>
-                                                        <DataTemplate>
-                                                            <TextBlock Text="{Binding Id}" Padding="2,3"/>
-                                                        </DataTemplate>
-                                                    </ComboBox.ItemTemplate>
-                                                </ComboBox>
-                                                <Button Content="重新扫描" Style="{StaticResource GlassButton}" Margin="8,0,0,0"
-                                                        Padding="12,6" Click="OnPackRefresh"/>
-                                            </StackPanel>
-
-                                            <Grid Margin="0,14,0,0">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="2*"/>
-                                                    <ColumnDefinition Width="10"/>
-                                                    <ColumnDefinition Width="1*"/>
-                                                </Grid.ColumnDefinitions>
-                                                <StackPanel Grid.Column="0">
-                                                    <TextBlock Text="整合包名字" FontSize="11" Foreground="{DynamicResource InkFaint}"/>
-                                                    <TextBox x:Name="PackNameBox" Margin="0,6,0,0"/>
-                                                </StackPanel>
-                                                <StackPanel Grid.Column="2">
-                                                    <TextBlock Text="版本号" FontSize="11" Foreground="{DynamicResource InkFaint}"/>
-                                                    <TextBox x:Name="PackVersionBox" Margin="0,6,0,0" Text="1.0.0"/>
-                                                </StackPanel>
-                                            </Grid>
-
-                                            <TextBlock Text="简介（会写进 README 和 meme-modpack.json）" FontSize="11"
-                                                       Foreground="{DynamicResource InkFaint}" Margin="0,12,0,0"/>
-                                            <TextBox x:Name="PackDescBox" Margin="0,6,0,0" Height="70"
-                                                     AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
-                                        </StackPanel>
-                                    </Border>
-
-                                    <Border CornerRadius="16" Background="{DynamicResource Glass}"
-                                            BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="20,16" Margin="0,12,0,0">
-                                        <StackPanel>
-                                            <Grid>
-                                                <TextBlock Text="打包哪些内容" FontSize="14" FontWeight="SemiBold"
-                                                           Foreground="{DynamicResource Ink}" VerticalAlignment="Center"/>
-                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                                    <Button Content="全选" Style="{StaticResource GlassButton}" Padding="12,4"
-                                                            FontSize="10.5" Click="OnPackSelectAll"/>
-                                                    <Button Content="全不选" Style="{StaticResource GlassButton}" Padding="12,4"
-                                                            FontSize="10.5" Margin="8,0,0,0" Click="OnPackSelectNone"/>
-                                                    <Button Content="只选推荐" Style="{StaticResource GlassButton}" Padding="12,4"
-                                                            FontSize="10.5" Margin="8,0,0,0" Click="OnPackSelectSuggested"/>
-                                                </StackPanel>
-                                            </Grid>
-                                            <TextBlock x:Name="PackHint" Text="加载版本中…" FontSize="11"
-                                                       Foreground="{DynamicResource InkFaint}" Margin="0,8,0,4"/>
-                                            <ListBox x:Name="PackCandidateList" Background="Transparent" BorderThickness="0"
-                                                     HorizontalContentAlignment="Stretch"
-                                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled" MaxHeight="360">
-                                                <ListBox.ItemContainerStyle>
-                                                    <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
-                                                        <Setter Property="Padding" Value="0"/>
-                                                    </Style>
-                                                </ListBox.ItemContainerStyle>
-                                                <ListBox.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <Border Margin="0,3" Padding="12,9" CornerRadius="10" Background="{DynamicResource FieldBg}">
-                                                            <Grid>
-                                                                <Grid.ColumnDefinitions>
-                                                                    <ColumnDefinition Width="Auto"/>
-                                                                    <ColumnDefinition Width="*"/>
-                                                                    <ColumnDefinition Width="Auto"/>
-                                                                </Grid.ColumnDefinitions>
-                                                                <CheckBox Grid.Column="0" IsChecked="{Binding IsChecked, Mode=TwoWay}"
-                                                                          VerticalAlignment="Center"/>
-                                                                <StackPanel Grid.Column="1" Margin="12,0,0,0">
-                                                                    <TextBlock Text="{Binding Name}" FontSize="12.5" Foreground="{DynamicResource Ink}"/>
-                                                                    <TextBlock Text="{Binding Hint}" FontSize="10.5"
-                                                                               Foreground="{DynamicResource InkFaint}" Margin="0,2,0,0"/>
-                                                                </StackPanel>
-                                                                <TextBlock Grid.Column="2" Text="{Binding Detail}" FontSize="10.5"
-                                                                           Foreground="{DynamicResource InkDim}" VerticalAlignment="Center"/>
-                                                            </Grid>
-                                                        </Border>
-                                                    </DataTemplate>
-                                                </ListBox.ItemTemplate>
-                                            </ListBox>
-                                        </StackPanel>
-                                    </Border>
-
-                                    <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
-                                        <Button Content="导出整合包 zip" Style="{StaticResource HeroButton}" Height="40"
-                                                Padding="24,0" Click="OnPackExport"/>
-                                        <TextBlock x:Name="PackResult" Margin="14,0,0,0" VerticalAlignment="Center"
-                                                   FontSize="11.5" Foreground="{DynamicResource InkDim}"/>
-                                    </StackPanel>
-                                </StackPanel>
-                            </ScrollViewer>
-
-                            
-                        </Grid>
-                    </Grid>
                     <!-- ========== 娱乐页 ========== -->
                     <Grid x:Name="FunPage" Visibility="Collapsed">
                         <Grid.RowDefinitions>
