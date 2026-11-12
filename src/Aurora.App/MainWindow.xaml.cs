@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.20.1";
+    private const string AppVersion = "0.20.2";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -206,6 +206,12 @@ public partial class MainWindow : Window
                 }), System.Windows.Threading.DispatcherPriority.Background);
             }
 
+
+            // 调试用：--vm-tab-test 检查版本页页签切换
+            if (argv.Contains("--vm-tab-test"))
+            {
+                _ = VmTabTestAsync();
+            }
 
             // 调试用：--plan-test <游戏目录> <版本id>，把启动计划/缺什么写日志后退出
             var planTest = Array.IndexOf(argv, "--plan-test");
@@ -421,6 +427,10 @@ public partial class MainWindow : Window
         ContentPage.Visibility = index == 2 ? Visibility.Visible : Visibility.Collapsed;
         OnlinePage.Visibility = index == 6 ? Visibility.Visible : Visibility.Collapsed;
         VersionsPage.Visibility = index == 7 ? Visibility.Visible : Visibility.Collapsed;
+        if (index == 7)
+        {
+            EnsureVmPaneVisible();
+        }
         AccountPage.Visibility = index == 3 ? Visibility.Visible : Visibility.Collapsed;
         SettingsPage.Visibility = index == 4 ? Visibility.Visible : Visibility.Collapsed;
         UpdatesPage.Visibility = index == 5 ? Visibility.Visible : Visibility.Collapsed;
@@ -2209,6 +2219,30 @@ public partial class MainWindow : Window
     }
 
     /// <summary>调试：不出界面，只把启动计划算一遍，把问题写进日志。</summary>
+    private async Task VmTabTestAsync()
+    {
+        await Task.Delay(1500);
+        var log = @"D:\综合创作\_vmtab.log";
+        try
+        {
+            SetPage(7);
+            var lines = new List<string>();
+            void Dump(string stage) => lines.Add($"{stage}: overview={VmPaneOverview?.Visibility} settings={VmPaneSettings?.Visibility} modify={VmPaneModify?.Visibility} mods={VmPaneMods?.Visibility} export={VmPaneExport?.Visibility}");
+            Dump("init");
+            OnVmTab(new Button { Tag = "modify" }, new RoutedEventArgs());
+            Dump("after modify");
+            OnVmTab(new Button { Tag = "overview" }, new RoutedEventArgs());
+            Dump("after overview");
+            File.WriteAllLines(log, lines);
+        }
+        catch (Exception ex)
+        {
+            File.WriteAllText(log, ex.ToString());
+        }
+
+        Application.Current.Shutdown();
+    }
+
     private async Task PlanTestAndExitAsync(string gameDir, string versionId)
     {
         var log = @"D:\综合创作\_plantest.log";
@@ -3106,6 +3140,39 @@ public partial class MainWindow : Window
     }
 
     /// <summary>版本详情里的三个页签：概览 / Mod 管理 / 导出整合包。</summary>
+    /// <summary>兜底：如果所有页签都被折叠了（比如删完版本之后），把概览放回来。</summary>
+    private void EnsureVmPaneVisible()
+    {
+        if (VmPaneOverview == null)
+        {
+            return;
+        }
+
+        var anyVisible = VmPaneOverview.Visibility == Visibility.Visible
+                         || VmPaneSettings?.Visibility == Visibility.Visible
+                         || VmPaneModify?.Visibility == Visibility.Visible
+                         || VmPaneMods?.Visibility == Visibility.Visible
+                         || VmPaneExport?.Visibility == Visibility.Visible;
+        if (anyVisible)
+        {
+            return;
+        }
+
+        VmPaneOverview.Visibility = Visibility.Visible;
+        if (VmTabOverview != null)
+        {
+            try
+            {
+                VmTabOverview.Style = (Style)FindResource("HeroButton");
+                VmTabOverview.Padding = new Thickness(16, 6, 16, 6);
+            }
+            catch
+            {
+                // 主题里没有这个样式就保持原样
+            }
+        }
+    }
+
     private void OnVmTab(object sender, RoutedEventArgs e)
     {
         if (sender is not Button button || button.Tag is not string tag)
