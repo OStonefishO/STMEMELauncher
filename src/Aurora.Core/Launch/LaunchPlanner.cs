@@ -244,7 +244,20 @@ public sealed class LaunchPlanner
                 continue;
             }
 
-            Add(MavenHelper.ResolveArtifactPath(lib, _librariesDirectory));
+            // net.minecraft:client:*（srg / extra / slim）属于 Forge/NeoForge 的 -p 模块路径，
+            // 再塞进 classpath 会出现两个 minecraft 模块 → module.ResolutionException
+            if (lib.Name.StartsWith("net.minecraft:client", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var libPath = MavenHelper.ResolveArtifactPath(lib, _librariesDirectory);
+            if (libPath != null && libPath.Replace('\\', '/').Contains("net/minecraft/client/", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            Add(libPath);
         }
 
         // 客户端 jar 放最后，和官方启动器一致
