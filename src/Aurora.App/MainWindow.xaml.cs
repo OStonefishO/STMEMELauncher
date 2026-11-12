@@ -32,7 +32,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.20.8";
+    private const string AppVersion = "0.20.9";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -679,8 +679,15 @@ public partial class MainWindow : Window
             {
                 var root = GameRootFor(card.Summary.Directory) ?? _settings.GameDirectory;
                 var installer = _service.CreateInstaller(root);
-                var fixedFiles = await installer.RepairAsync(versionInfo,
-                    new Progress<InstallProgress>(p => SetStatus($"[{p.Stage}] {p.Message} · {p.Percent:0}%")));
+                var progressAdapter = new Progress<InstallProgress>(p => SetStatus($"[{p.Stage}] {p.Message} · {p.Percent:0}%"));
+                var fixedFiles = await installer.RepairAsync(versionInfo, progressAdapter);
+
+                // 加载器核心（srg/extra/slim、<loader>-<ver>-client.jar）缺就当场补；
+                // NeoForge 还需要跑一次安装器生成打补丁的客户端（首次启动会慢一点）
+                if (versionInfo.Loader is "forge" or "neoforge")
+                {
+                    fixedFiles += await EnsureLoaderCoreAsync(root, versionInfo, progressAdapter);
+                }
                 if (fixedFiles > 0)
                 {
                     SetStatus($"启动前补齐了 {fixedFiles} 个文件");
@@ -5181,6 +5188,52 @@ ToastIcon.Text = icon;
         catch (Exception ex)
         {
             ShowToast("Agent 下载失败", "先不用它也行：" + ex.Message, "⚠", 5200);
+        }
+    }
+
+    /// <summary>
+    /// 启动前补齐加载器核心：Fabric 只补依赖库；Forge / NeoForge 还要保证
+    /// srg/extra/slim 和打补丁后的 client jar 在位，缺就自动跑一次安装器（走 BMCLAPI 镜像）。
+    /// </summary>
+    private async Task<int> EnsureLoaderCoreAsync(string root, Aurora.Core.Models.ResolvedVersion version,
+        IProgress<InstallProgress> progress)
+    {
+        try
+        {
+            var ver = version.LoaderVersion ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(ver))
+            {
+                return 0;
+            }
+
+            var libs = Path.Combine(root, "libraries", "net");
+            var patched = Path.Combine(libs, "neoforged", "minecraft-client-patched", ver,
+                "minecraft-client-patched-" + ver + ".jar");
+            var alias = Path.Combine(libs, "neoforged", "neoforge", ver, "neoforge-" + ver + "-client.jar");
+
+            var needInstall = version.Loader == "neoforge"
+                ? !File.Exists(alias) && !File.Exists(patched)
+                : !File.Exists(patched);
+
+            if (!needInstall)
+            {
+                return 0;
+            }
+
+            SetStatus("补齐加载器核心（下载补丁客户端，首次可能要几分钟）…");
+            ShowToast("正在补齐加载器", "第一次启动 " + version.Loader + " 会久一点", "⏳", 5000);
+            await _service.CreateLoaderInstaller().InstallAsync(new Aurora.Core.Net.LoaderOption
+            {
+                Loader = version.Loader == "neoforge" ? "neoforge" : "forge",
+                Version = ver,
+                McVersion = version.ClientVersion,
+            }, progress);
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            ShowToast("加载器补齐失败", ex.Message, "⚠", 6000);
+            return 0;
         }
     }
 
