@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.20.2";
+    private const string AppVersion = "0.20.3";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -3175,60 +3175,82 @@ public partial class MainWindow : Window
 
     private void OnVmTab(object sender, RoutedEventArgs e)
     {
-        if (sender is not Button button || button.Tag is not string tag)
+        try
         {
-            return;
+            var tag = (sender as System.Windows.FrameworkElement)?.Tag as string ?? "overview";
+            LogTab("tab=" + tag);
+
+            if (VmPaneOverview != null)
+            {
+                VmPaneOverview.Visibility = tag == "overview" ? Visibility.Visible : Visibility.Collapsed;
+            }
+
+            if (VmPaneSettings != null)
+            {
+                VmPaneSettings.Visibility = tag == "settings" ? Visibility.Visible : Visibility.Collapsed;
+            }
+
+            if (VmPaneModify != null)
+            {
+                VmPaneModify.Visibility = tag == "modify" ? Visibility.Visible : Visibility.Collapsed;
+            }
+
+            if (VmPaneMods != null)
+            {
+                VmPaneMods.Visibility = tag == "mods" ? Visibility.Visible : Visibility.Collapsed;
+            }
+
+            if (VmPaneExport != null)
+            {
+                VmPaneExport.Visibility = tag == "export" ? Visibility.Visible : Visibility.Collapsed;
+            }
+
+            LogTab($"after: overview={VmPaneOverview?.Visibility} mods={VmPaneMods?.Visibility} export={VmPaneExport?.Visibility} settings={VmPaneSettings?.Visibility} modify={VmPaneModify?.Visibility}");
+
+            // 高亮：样式换失败也不能影响切换
+            try
+            {
+                void Mark(Button? b, bool active)
+                {
+                    if (b == null)
+                    {
+                        return;
+                    }
+
+                    b.Style = (Style)FindResource(active ? "HeroButton" : "GlassButton");
+                    b.Padding = new Thickness(16, 6, 16, 6);
+                }
+
+                Mark(VmTabOverview, tag == "overview");
+                Mark(VmTabSettings, tag == "settings");
+                Mark(VmTabModify, tag == "modify");
+                Mark(VmTabMods, tag == "mods");
+                Mark(VmTabExport, tag == "export");
+            }
+            catch
+            {
+                // 主题里缺样式就只切页面，不换高亮
+            }
         }
-
-        if (VmPaneOverview == null || VmPaneMods == null || VmPaneExport == null)
+        catch (Exception ex)
         {
-            return;
-        }
-
-        VmPaneOverview.Visibility = tag == "overview" ? Visibility.Visible : Visibility.Collapsed;
-        if (VmPaneSettings != null)
-        {
-            VmPaneSettings.Visibility = tag == "settings" ? Visibility.Visible : Visibility.Collapsed;
-        }
-
-        if (VmPaneModify != null)
-        {
-            VmPaneModify.Visibility = tag == "modify" ? Visibility.Visible : Visibility.Collapsed;
-        }
-
-        VmPaneMods.Visibility = tag == "mods" ? Visibility.Visible : Visibility.Collapsed;
-        VmPaneExport.Visibility = tag == "export" ? Visibility.Visible : Visibility.Collapsed;
-
-        if (VmTabOverview != null)
-        {
-            VmTabOverview.Style = (Style)FindResource(tag == "overview" ? "HeroButton" : "GlassButton");
-            VmTabOverview.Padding = new Thickness(16, 6, 16, 6);
-        }
-
-        if (VmTabSettings != null)
-        {
-            VmTabSettings.Style = (Style)FindResource(tag == "settings" ? "HeroButton" : "GlassButton");
-            VmTabSettings.Padding = new Thickness(16, 6, 16, 6);
-        }
-
-        if (VmTabModify != null)
-        {
-            VmTabModify.Style = (Style)FindResource(tag == "modify" ? "HeroButton" : "GlassButton");
-            VmTabModify.Padding = new Thickness(16, 6, 16, 6);
-        }
-
-        if (VmTabMods != null)
-        {
-            VmTabMods.Style = (Style)FindResource(tag == "mods" ? "HeroButton" : "GlassButton");
-            VmTabMods.Padding = new Thickness(16, 6, 16, 6);
-        }
-
-        if (VmTabExport != null)
-        {
-            VmTabExport.Style = (Style)FindResource(tag == "export" ? "HeroButton" : "GlassButton");
-            VmTabExport.Padding = new Thickness(16, 6, 16, 6);
+            LogTab("error=" + ex);
         }
     }
+
+    private static void LogTab(string text)
+    {
+        try
+        {
+            File.AppendAllText(Path.Combine(Path.GetTempPath(), "meme-vm-tab.log"),
+                DateTime.Now.ToString("HH:mm:ss.fff") + " " + text + Environment.NewLine);
+        }
+        catch
+        {
+            // 忽略
+        }
+    }
+
 
     /// <summary>概览页的「导出整合包」按钮：切到导出页签，顺带把名字填好。</summary>
     private void OnVmGoExport(object sender, RoutedEventArgs e)
@@ -4350,6 +4372,18 @@ ToastIcon.Text = icon;
     }
 
     /// <summary>按设置询问安装目录；返回 null 表示用户取消。</summary>
+    /// <summary>当前选中的版本（首页选择器里那个），内容安装要用它来决定目录。</summary>
+    private Aurora.Core.Models.ResolvedVersion? CurrentSelectedVersion()
+    {
+        var id = _settings.SelectedVersionId;
+        if (string.IsNullOrWhiteSpace(id) && VersionList?.SelectedItem is VersionCard card)
+        {
+            id = card.Summary.Id;
+        }
+
+        return string.IsNullOrWhiteSpace(id) ? null : _service.Resolve(id);
+    }
+
     private string? AskInstallTarget(string fallback, ContentKind kind)
     {
         if (!_settings.AskInstallFolder)
@@ -4363,10 +4397,10 @@ ToastIcon.Text = icon;
         var preferred = fallback;
         try
         {
-            if (VersionList?.SelectedItem is VersionCard card)
+            var resolved = CurrentSelectedVersion();
+            if (resolved != null)
             {
-                var resolved = _service.Resolve(card.Summary.Id);
-                var gameDir = resolved == null ? _settings.GameDirectory : _service.GameDirectoryFor(resolved);
+                var gameDir = _service.GameDirectoryFor(resolved);
                 var target = Path.Combine(gameDir, folderName);
                 Directory.CreateDirectory(target);
                 preferred = target;

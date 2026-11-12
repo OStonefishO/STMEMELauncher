@@ -12,6 +12,10 @@ public sealed class DownloadClient : IDisposable
     /// <summary>MCIM（mcmod-info-mirror）：Modrinth / CurseForge 的接口与文件镜像。</summary>
     public const string Mcim = "https://mod.mcimirror.top";
 
+    // 同一个目标文件同时只允许一个下载任务写，避免并发抢锁
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, SemaphoreSlim> TargetLocks =
+        new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>单个地址一次尝试最多等多久，卡住就换下一个通道。</summary>
     private static readonly TimeSpan PerAttemptTimeout = TimeSpan.FromSeconds(90);
 
@@ -217,6 +221,21 @@ public sealed class DownloadClient : IDisposable
     public async Task DownloadFileAsync(string url, string targetPath, string? sha1 = null, long? size = null,
         CancellationToken ct = default)
     {
+        var gate = TargetLocks.GetOrAdd(Path.GetFullPath(targetPath), _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            await DownloadFileCoreAsync(url, targetPath, sha1, size, ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    private async Task DownloadFileCoreAsync(string url, string targetPath, string? sha1, long? size,
+        CancellationToken ct)
+    {
         var directory = Path.GetDirectoryName(targetPath);
         if (!string.IsNullOrEmpty(directory))
         {
@@ -241,27 +260,73 @@ public sealed class DownloadClient : IDisposable
         }
 
         Exception? last = null;
+
+        // 先下到唯一的临时文件，再原子替换目标文件：
+        // 同一个文件被多个任务/多个启动器实例同时下载时不会互相锁住（之前报
+        // "The process cannot access the file" 就是这个原因）
+        var tempPath = targetPath + ".meme-" + Guid.NewGuid().ToString("N") + ".tmp";
         foreach (var candidate in Candidates(url))
         {
             try
             {
-                await DownloadOnceAsync(candidate, targetPath, ct).ConfigureAwait(false);
-                if (sha1 != null && !await Sha1MatchesAsync(targetPath, sha1, ct).ConfigureAwait(false))
+                await DownloadOnceAsync(candidate, tempPath, ct).ConfigureAwait(false);
+                if (sha1 != null && !await Sha1MatchesAsync(tempPath, sha1, ct).ConfigureAwait(false))
                 {
                     last = new IOException("SHA1 校验失败: " + url);
-                    File.Delete(targetPath);
+                    TryDelete(tempPath);
                     continue;
                 }
 
+                MoveWithRetry(tempPath, targetPath);
                 return;
             }
             catch (Exception ex)
             {
                 last = ex;
+                TryDelete(tempPath);
             }
         }
 
+        TryDelete(tempPath);
         throw new IOException($"下载失败: {url} ({last?.Message})", last);
+    }
+
+    private static void TryDelete(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+        catch
+        {
+            // 忽略
+        }
+    }
+
+    /// <summary>把临时文件换成正式文件，被杀毒/占用时重试几次。</summary>
+    private static void MoveWithRetry(string source, string target)
+    {
+        for (var attempt = 0; attempt < 6; attempt++)
+        {
+            try
+            {
+                File.Move(source, target, overwrite: true);
+                return;
+            }
+            catch (IOException) when (attempt < 5)
+            {
+                Thread.Sleep(150 * (attempt + 1));
+            }
+            catch (UnauthorizedAccessException) when (attempt < 5)
+            {
+                Thread.Sleep(150 * (attempt + 1));
+            }
+        }
+
+        File.Move(source, target, overwrite: true);
     }
 
     private async Task DownloadOnceAsync(string url, string targetPath, CancellationToken ct)
