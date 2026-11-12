@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.67";
+    private const string AppVersion = "0.16.0";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -3908,18 +3908,40 @@ ToastIcon.Text = icon;
     }
 
     /// <summary>按设置询问安装目录；返回 null 表示用户取消。</summary>
-    private string? AskInstallTarget(string fallback)
+    private string? AskInstallTarget(string fallback, ContentKind kind)
     {
         if (!_settings.AskInstallFolder)
         {
             return fallback;
         }
 
+        // 默认就停在该版本对应的文件夹（mods / saves / resourcepacks / shaderpacks），
+        // 玩家不用每次从 versions 一层层点进去
+        var folderName = Aurora.Core.Net.ContentKindInfo.Folder(kind);
+        var preferred = fallback;
+        try
+        {
+            if (VersionList?.SelectedItem is VersionCard card)
+            {
+                var resolved = _service.Resolve(card.Summary.Id);
+                var gameDir = resolved == null ? _settings.GameDirectory : _service.GameDirectoryFor(resolved);
+                var target = Path.Combine(gameDir, folderName);
+                Directory.CreateDirectory(target);
+                preferred = target;
+            }
+        }
+        catch
+        {
+            // 取不到就用回退目录
+        }
+
         var dialog = new System.Windows.Forms.FolderBrowserDialog
         {
-            Description = "选择要装进哪个游戏目录（会写入它的 mods / resourcepacks 等文件夹）",
+            Description = $"选择要装进哪个游戏目录（会写入它的 {folderName} 文件夹）",
             UseDescriptionForTitle = true,
-            SelectedPath = Directory.Exists(_settings.LastInstallFolder) ? _settings.LastInstallFolder : fallback,
+            SelectedPath = Directory.Exists(preferred)
+                ? preferred
+                : Directory.Exists(_settings.LastInstallFolder) ? _settings.LastInstallFolder : fallback,
         };
 
         if (dialog.ShowDialog() != System.Windows.Forms.DialogResult.OK)
@@ -3972,7 +3994,7 @@ ToastIcon.Text = icon;
             var resolved = target == null ? null : _service.Resolve(target.Summary.Id);
             var gameDir = resolved == null ? _settings.GameDirectory : _service.GameDirectoryFor(resolved);
 
-            var chosen = AskInstallTarget(gameDir);
+            var chosen = AskInstallTarget(gameDir, item.Kind);
             if (string.IsNullOrEmpty(chosen))
             {
                 DetailStatus.Text = "已取消安装";
