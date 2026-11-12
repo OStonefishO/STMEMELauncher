@@ -32,7 +32,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.20.11";
+    private const string AppVersion = "0.20.12";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -112,6 +112,7 @@ public partial class MainWindow : Window
         Loaded += (_, __) =>
         {
             BuildVersionTabsInCode();
+            NeutralizeNavFocus();
             SoundService.Enabled = _settings.SoundEnabled;
             SoundService.Volume = _settings.UiVolume;
             EventManager.RegisterClassHandler(typeof(ButtonBase), ButtonBase.ClickEvent,
@@ -586,6 +587,14 @@ public partial class MainWindow : Window
 
         var summary = card.Summary;
         BigVersion.Text = summary.ClientVersion;
+        // 长版本号（1.20.1-forge-47.4.29 这种）会撑破卡片：按长度缩字号
+        BigVersion.FontSize = summary.ClientVersion.Length switch
+        {
+            > 14 => 40,
+            > 10 => 52,
+            > 7 => 64,
+            _ => 76,
+        };
         DetName.Text = summary.Id;
         DetMeta.Text = $"MC {summary.ClientVersion} · {summary.Loader}" +
                        (string.IsNullOrEmpty(summary.LoaderVersion) ? string.Empty : " " + summary.LoaderVersion);
@@ -693,6 +702,9 @@ public partial class MainWindow : Window
                     SetStatus($"启动前补齐了 {fixedFiles} 个文件");
                     ShowToast("已补齐版本文件", $"{fixedFiles} 个文件 · 继续启动", "✓", 4000);
                 }
+
+                // 刚补的 client.jar 要重新解析一次才进 JarPath（否则还以为缺）
+                versionInfo = _service.Resolve(card.Summary.Id) ?? versionInfo;
 
                 // 补完再核一遍，还缺就直接拦下，别让玩家看到一个必崩的游戏
                 var stillMissing = await _service.EnsureLibrariesAsync(versionInfo,

@@ -113,8 +113,22 @@ public partial class MainWindow
             button.MouseLeave += (_, _) => Animate(hover, ScaleTransform.ScaleXProperty, 1.0, 140);
             button.MouseLeave += (_, _) => Animate(hover, ScaleTransform.ScaleYProperty, 1.0, 140);
 
+            button.Focusable = false;
+            button.FocusVisualStyle = null;
+            button.IsTabStop = false;
             _dockButtons[page] = button;
             DockPanel.Children.Add(button);
+        }
+    }
+
+    /// <summary>导航按钮不参与键盘焦点：点了不会留下白色焦点框，也不会有焦点抖动。</summary>
+    private void NeutralizeNavFocus()
+    {
+        foreach (var button in NavButtons())
+        {
+            button.Focusable = false;
+            button.FocusVisualStyle = null;
+            button.IsTabStop = false;
         }
     }
 
