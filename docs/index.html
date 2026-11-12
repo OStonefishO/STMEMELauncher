@@ -273,8 +273,28 @@ html.js .rv.in{opacity:1;transform:none}
         <p>启动即退出、模组冲突、内存不足、Forge 核心库缺失都会给出结论和可导出的报告，并保留完整启动日志。</p>
       </div>
       <div class="card rv"><span class="tag">新</span><span class="em"><img src="assets/icons/chest.png" alt=""></span>
-        <h3>创作：一键导出整合包</h3>
-        <p>选一个版本，勾上想带走的内容（模组 / 配置 / 存档 / 资源包 / 光影…），改好名字、简介和版本号，直接导出 zip，附 README 与元数据。</p>
+        <h3>版本页：导出整合包</h3>
+        <p>版本详情五页签（概览 / Mod 管理 / 导出整合包 / 设置 / 修改）。导出可按内容勾选（游戏设置 / Mod / Mod 设置 / 存档 / 资源包 / 光影），高级选项能连 assets、原版 jar 一起打包，配置可存可读。</p>
+      </div>
+      <div class="card rv"><span class="tag">新</span><span class="em"><img src="assets/icons/torch.png" alt=""></span>
+        <h3>启动前自检 + 自动补齐</h3>
+        <p>每次点开始游戏先查配置、jar、依赖库、natives、assets；Forge / NeoForge 还会检查 <code>-p</code> 模块路径，缺东西当场补（必要时自动跑安装器），补不上才拦下并告诉你缺哪个文件。</p>
+      </div>
+      <div class="card rv"><span class="tag">新</span><span class="em"><img src="assets/icons/grass.png" alt=""></span>
+        <h3>下载来源随便切</h3>
+        <p>版本 / 核心 与 模组内容 分开设置：自动（镜像优先、官方兜底）、官方直连、纯镜像（BMCLAPI + MCIM）。镜像抽风就切官方，官方慢就切镜像。</p>
+      </div>
+      <div class="card rv"><span class="tag">新</span><span class="em"><img src="assets/icons/book.png" alt=""></span>
+        <h3>MCIM 模组信息镜像</h3>
+        <p>Modrinth / CurseForge 的接口与文件走 <code>mod.mcimirror.top</code>，国内搜模组明显更快；接口带 20 分钟磁盘缓存，翻页不重复请求。</p>
+      </div>
+      <div class="card rv"><span class="tag">新</span><span class="em"><img src="assets/icons/enderchest.png" alt=""></span>
+        <h3>保存到文件夹</h3>
+        <p>内容页每个版本除了「安装」，还有「保存」——只把文件下到你选的目录，方便手动导入到别的启动器或版本。</p>
+      </div>
+      <div class="card rv"><span class="tag">新</span><span class="em"><img src="assets/icons/anvil.png" alt=""></span>
+        <h3>其他页与高级选项</h3>
+        <p>下载来源、导入导出设置、打开配置 / 日志 / 游戏目录、清空缓存、免责声明；高级选项含 JVM / 游戏参数、启动前命令、内存调优（G1GC / ZGC）、Java Launch Wrapper、LWJGL Unsafe Agent。</p>
       </div>
     </div>  </section>
 
