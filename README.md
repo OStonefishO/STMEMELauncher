@@ -54,6 +54,12 @@
 - **启动方式**：窗口 / 窗口化全屏 / 独占全屏
 - **崩溃诊断**：启动即退出或崩溃都给「人话」结论，可导出报告；每次启动的完整日志落在 `%APPDATA%\MEMELauncher\logs`
 - **站外搜**：MC 百科 / Planet Minecraft / Minecraft Maps / Nexus Mods / ShadersMods；模组详情可一键跳 MC 百科
+- **启动前自检 + 自动补齐**：每次点开始游戏先检查配置 / jar / 依赖库 / natives / assets，Forge & NeoForge 还会检查 `-p` 模块路径，缺什么当场补（含自动跑安装器），补不上才拦下并说明缺哪个文件
+- **下载来源可切换**：版本/核心（自动 / 官方 / BMCLAPI 镜像）与模组内容（自动 / 官方 / MCIM 镜像）分开设置，镜像抽风就切官方，嫌慢就切镜像
+- **内容「保存」按钮**：每个版本都能只下载到指定文件夹，方便手动导入到别的启动器
+- **Fabric 一键补基础模组**：版本页「设置 → 补装 Fabric API / Mod Menu」，自动按 MC 版本找适配版
+- **界面音效**：按钮、启动成功/失败提示音，音量可调、可整体关闭（代码合成，不带音频文件）
+- **「其他」页**：下载来源、导入导出设置、打开配置/日志/游戏目录、清空缓存、免责声明、高级选项（JVM/游戏参数、启动前命令、内存调优 G1GC/ZGC、Java Launch Wrapper、LWJGL Unsafe Agent）
 
 | 主世界 | 下界 | 末地 |
 |---|---|---|
@@ -115,7 +121,9 @@ Windows 11 的 **Smart App Control** 会拦掉所有没有数字签名的 exe，
 | Java 探测与匹配 | 读 `release` 文件，找不到再跑 `java -version`，按主版本择优 |
 | 版本隔离 | auto：版本目录里有 mods/config/saves 就单独用该目录做游戏目录 |
 | 版本搜索 | 启动页「版本 ▾」可直接输 `1.21.11` / `forge` 过滤，可折叠分组；内容页也能输任意版本号（如 `1.20.1`）按版本找整合包 |
-| 崩溃定位 | 读 `crash-reports` 最新报告，提取 Description / 异常行 |
+| 崩溃定位 | 读 `crash-reports` 最新报告，提取 Description / 异常行；启动器也会给出「人话」结论 |
+| 版本详情页签 | 概览 / Mod 管理 / 导出整合包 / 设置 / 修改，五个页签各司其职 |
+| 整合包导出 | 按内容勾选（游戏设置 / Mod / Mod 设置 / 存档 / 资源包 / 光影）+ 高级选项（打包 assets、只记录 Modrinth 地址、连 client.jar），可保存/读取导出配置 |
 
 ### 安装
 
@@ -123,8 +131,9 @@ Windows 11 的 **Smart App Control** 会拦掉所有没有数字签名的 exe，
 |---|---|
 | 原版安装 | 版本 json / client jar / 依赖库 / 资源对象，默认走 BMCLAPI 镜像 |
 | Fabric / Quilt | 走 Fabric Meta，自动挑适配的 loader |
-| Forge / NeoForge | 下载官方安装器 → 提取版本信息 → 依赖走镜像 → `--offline` 生成客户端 jar |
-| 内容下载 | Modrinth（模组 / 整合包 / 光影 / 资源包）+ CurseForge（API Key 可选） |
+| Forge / NeoForge | 下载官方安装器 → **`--mirror` 指向 BMCLAPI maven** 跑 processors → 生成 `client-<id>-srg/extra/slim.jar` 与打补丁的 `<loader>-<ver>-client.jar`（国区可用的关键） |
+| 内容下载 | Modrinth（模组 / 整合包 / 光影 / 资源包）+ CurseForge（API Key 可选），可走 **MCIM 镜像**（`mod.mcimirror.top`），接口带 20 分钟磁盘缓存 |
+| 下载到文件夹 | 每个版本的「保存」按钮：只下载文件，不进安装流程，便于手动导入 |
 | 分页与筛选 | 每页 20 个，按版本、加载器、分类过滤，带图标缓存 |
 
 ### 账号
