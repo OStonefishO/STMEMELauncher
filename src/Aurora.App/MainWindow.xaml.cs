@@ -28,10 +28,11 @@ public partial class MainWindow : Window
     private LauncherService _service;
     private readonly LauncherSettings _settings;
     private bool _busy;
+    private TabControl? _vmTabs;
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.20.7";
+    private const string AppVersion = "0.20.8";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -110,6 +111,7 @@ public partial class MainWindow : Window
         }
         Loaded += (_, __) =>
         {
+            BuildVersionTabsInCode();
             SoundService.Enabled = _settings.SoundEnabled;
             SoundService.Volume = _settings.UiVolume;
             EventManager.RegisterClassHandler(typeof(ButtonBase), ButtonBase.ClickEvent,
@@ -3192,12 +3194,142 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// 运行时把五个版本面板塞进一个真正的 TabControl：
+    /// 用 WPF 自己的页签机制切换，避免手写 Visibility 在某些主题/时机下留空白。
+    /// </summary>
+    /// <summary>页签外观：透明底 + 选中下划线，跟主题走。</summary>
+    /// <summary>TabControl 外观：去掉默认白底，头部透明。</summary>
+    private static ControlTemplate BuildTabControlTemplate()
+    {
+        const string xaml = @"<ControlTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation'
+            TargetType='TabControl'>
+          <Grid>
+            <Grid.RowDefinitions>
+              <RowDefinition Height='Auto'/>
+              <RowDefinition Height='*'/>
+            </Grid.RowDefinitions>
+            <TabPanel Grid.Row='0' IsItemsHost='True' Background='Transparent'/>
+            <ContentPresenter Grid.Row='1' ContentSource='SelectedContent'/>
+          </Grid>
+        </ControlTemplate>";
+        return (ControlTemplate)System.Windows.Markup.XamlReader.Parse(xaml);
+    }
+
+    private static ControlTemplate BuildTabItemTemplate()
+    {
+        const string xaml = @"<ControlTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation'
+            xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml' TargetType='TabItem'>
+          <Border x:Name='Bd' Background='Transparent' Padding='14,5' Margin='0,0,6,0' CornerRadius='8'>
+            <ContentPresenter ContentSource='Header' HorizontalAlignment='Center'/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property='IsMouseOver' Value='True'>
+              <Setter TargetName='Bd' Property='Background' Value='#22FFFFFF'/>
+            </Trigger>
+            <Trigger Property='IsSelected' Value='True'>
+              <Setter TargetName='Bd' Property='Background' Value='#33FFFFFF'/>
+              <Setter Property='FontWeight' Value='SemiBold'/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>";
+        return (ControlTemplate)System.Windows.Markup.XamlReader.Parse(xaml);
+    }
+
+    private void BuildVersionTabsInCode()
+    {
+        if (_vmTabs != null || VmPaneOverview?.Parent is not Panel host)
+        {
+            return;
+        }
+
+        var panes = new (string Header, Border? Pane)[]
+        {
+            ("概览", VmPaneOverview),
+            ("Mod 管理", VmPaneMods),
+            ("导出整合包", VmPaneExport),
+            ("设置", VmPaneSettings),
+            ("修改", VmPaneModify),
+        };
+
+        var insertAt = host.Children.IndexOf(VmPaneOverview);
+        if (insertAt < 0)
+        {
+            return;
+        }
+
+        foreach (var (_, pane) in panes)
+        {
+            if (pane != null)
+            {
+                host.Children.Remove(pane);
+            }
+        }
+
+        var tabs = new TabControl
+        {
+            Background = Brushes.Transparent,
+            BorderThickness = new Thickness(0),
+            Padding = new Thickness(0),
+            Margin = new Thickness(0),
+            Foreground = (Brush)FindResource("Ink"),
+            Template = BuildTabControlTemplate(),
+        };
+
+        foreach (var (header, pane) in panes)
+        {
+            if (pane == null)
+            {
+                continue;
+            }
+
+            pane.Visibility = Visibility.Visible;
+            pane.Margin = new Thickness(0, 8, 0, 0);
+            tabs.Items.Add(new TabItem
+            {
+                Header = header,
+                Content = pane,
+                FontSize = 12.5,
+                Padding = new Thickness(14, 5, 14, 5),
+                Margin = new Thickness(0, 0, 6, 0),
+                Background = Brushes.Transparent,
+                Foreground = (Brush)FindResource("InkDim"),
+                Template = BuildTabItemTemplate(),
+            });
+        }
+
+        // 原来那排手写按钮留着会重复，直接藏起来（行为已经交给 TabControl）
+        var legacyBar = host.Children.OfType<StackPanel>()
+            .FirstOrDefault(sp => VmTabOverview != null && sp.Children.Contains(VmTabOverview));
+        if (legacyBar != null)
+        {
+            legacyBar.Visibility = Visibility.Collapsed;
+        }
+
+        host.Children.Insert(Math.Min(insertAt, host.Children.Count), tabs);
+        _vmTabs = tabs;
+        tabs.SelectedIndex = 0;
+    }
+
     private void OnVmTab(object sender, RoutedEventArgs e)
     {
         try
         {
             var tag = (sender as System.Windows.FrameworkElement)?.Tag as string ?? "overview";
             LogTab("tab=" + tag);
+
+            if (_vmTabs != null)
+            {
+                _vmTabs.SelectedIndex = tag switch
+                {
+                    "mods" => 1,
+                    "export" => 2,
+                    "settings" => 3,
+                    "modify" => 4,
+                    _ => 0,
+                };
+                return;
+            }
 
             if (VmPaneOverview != null)
             {
