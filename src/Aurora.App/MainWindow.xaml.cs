@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.20.3";
+    private const string AppVersion = "0.20.4";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -1177,6 +1177,19 @@ public partial class MainWindow : Window
                 InstallText.Text = "先选一个加载器版本";
                 return;
             }
+
+            // 加载器版本列表是按某个 MC 版本拉的，切换 MC 之后可能还是旧对象；
+            // 这里强制用当前选中的 MC 版本，避免装成 "26.2" 那种错位
+            if (!string.Equals(option.McVersion, mc.Id, StringComparison.OrdinalIgnoreCase))
+            {
+                option = new LoaderOption
+                {
+                    Loader = option.Loader,
+                    Version = option.Version,
+                    McVersion = mc.Id,
+                    IsStable = option.IsStable,
+                };
+            }
         }
 
         // 不再锁 _busy：一个版本还在装的时候，可以继续排别的版本
@@ -1214,6 +1227,12 @@ public partial class MainWindow : Window
             {
                 InstallText.Text = "先补齐原版 " + mc.Id + " …";
                 await installer.InstallVanillaAsync(mc.Id, progress, downloadAssets: true, cts.Token);
+            }
+            else if (option != null)
+            {
+                // 原版 json 在，但 jar / 库 / natives 可能缺（装加载器前必须先齐）
+                InstallText.Text = "检查原版 " + mc.Id + " 的文件…";
+                await installer.RepairAsync(mc.Id, progress, cts.Token);
             }
 
             if (option != null)
