@@ -1,4 +1,4 @@
-# MEME Launcher
+﻿# MEME Launcher
 
 一个从零写的 Minecraft: Java 版启动器 —— 自绘 3D 主界面、四种加载器一键安装、内置联机开服、内容站下载、多账号管理。
 
@@ -252,3 +252,11 @@ Minecraft 是 Mojang Studios 的商标，本项目与 Mojang / Microsoft 无隶�
 - 许可证：[MIT](LICENSE)
 - 隐私说明：[docs/PRIVACY.md](docs/PRIVACY.md)（本地运行，不收集任何使用数据）
 - 代码签名：由 [SignPath Foundation](https://signpath.org/) 免费提供
+---
+
+## 法律声明
+
+本项目是第三方启动器，**与 Mojang / Microsoft 无关**，未获其批准或授权。
+不提供、不分发、不破解游戏本体；请通过官方渠道购买 Minecraft。
+完整的免责条款、许可范围、账号与数据处理说明见 [LEGAL.md](LEGAL.md)。
+启动器内也可以从「设置 → 其他 → 免责声明 / 许可」打开。

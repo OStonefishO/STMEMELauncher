@@ -2223,6 +2223,8 @@
                                                     Margin="0,0,8,8" Click="OnSettingsClearCache"/>
                                             <Button Content="打开游戏目录" Style="{StaticResource GlassButton}" Padding="14,6" FontSize="11.5"
                                                     Margin="0,0,8,8" Click="OnSettingsOpenGameDir"/>
+                                            <Button Content="免责声明 / 许可" Style="{StaticResource GlassButton}" Padding="14,6" FontSize="11.5"
+                                                    Margin="0,0,8,8" Click="OnOpenLegal"/>
                                         </WrapPanel>
                                         <TextBlock x:Name="AboutVersionText" Text="" FontSize="10.5"
                                                    Foreground="{DynamicResource InkFaint}" Margin="0,6,0,0" TextWrapping="Wrap"/>

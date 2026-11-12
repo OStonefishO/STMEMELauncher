@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.17.0";
+    private const string AppVersion = "0.17.1";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -4379,6 +4379,23 @@ ToastIcon.Text = icon;
         catch (Exception ex)
         {
             ShowToast("导入失败", ex.Message, "⚠", 5000);
+        }
+    }
+
+    /// <summary>打开仓库里的法律声明（浏览器）。</summary>
+    private void OnOpenLegal(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "https://github.com/OStonefishO/STMEMELauncher/blob/main/LEGAL.md",
+                UseShellExecute = true,
+            });
+        }
+        catch (Exception ex)
+        {
+            ShowToast("打开失败", ex.Message, "⚠", 4000);
         }
     }
 

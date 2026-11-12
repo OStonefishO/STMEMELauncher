@@ -165,6 +165,19 @@ public sealed class ModrinthClient : IContentSource
     public ContentKind[] SupportedKinds =>
         new[] { ContentKind.Mod, ContentKind.Modpack, ContentKind.Shader, ContentKind.ResourcePack };
 
+    /// <summary>带磁盘缓存的 GET（Modrinth 侧）。</summary>
+    private async Task<string> CachedStringAsync(string url, CancellationToken ct)
+    {
+        if (JsonCache.TryGet(url, out var cached))
+        {
+            return cached;
+        }
+
+        var json = await _client.GetStringAsync(url, ct).ConfigureAwait(false);
+        JsonCache.Put(url, json);
+        return json;
+    }
+
     public async Task<ContentResult> SearchAsync(ContentQuery query, CancellationToken ct = default)
     {
         var facets = new List<string> { $"[\"project_type:{ContentKindInfo.ModrinthType(query.Kind)}\"]" };
@@ -187,7 +200,7 @@ public sealed class ModrinthClient : IContentSource
                   $"&facets={Uri.EscapeDataString("[" + string.Join(",", facets) + "]")}" +
                   $"&limit={Math.Clamp(query.PageSize, 1, 50)}&offset={Math.Max(0, query.Offset)}&index=relevance";
 
-        var json = await _client.GetStringAsync(url, ct).ConfigureAwait(false);
+        var json = await CachedStringAsync(url, ct).ConfigureAwait(false);
         using var doc = JsonDocument.Parse(json);
 
         var result = new ContentResult
@@ -267,7 +280,7 @@ public sealed class ModrinthClient : IContentSource
             url += "?" + string.Join("&", query);
         }
 
-        var json = await _client.GetStringAsync(url, ct).ConfigureAwait(false);
+        var json = await CachedStringAsync(url, ct).ConfigureAwait(false);
         using var doc = JsonDocument.Parse(json);
         var files = new List<ContentFile>();
 
@@ -757,6 +770,11 @@ public sealed class CurseForgeClient : IContentSource
 
     private async Task<string> GetStringAsync(string url, CancellationToken ct)
     {
+        if (JsonCache.TryGet(url, out var cached))
+        {
+            return cached;
+        }
+
         using var response = await _http.GetAsync(url, ct).ConfigureAwait(false);
         var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
