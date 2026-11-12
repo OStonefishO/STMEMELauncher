@@ -260,8 +260,12 @@ public sealed class LaunchPlanner
             Add(libPath);
         }
 
-        // 客户端 jar 放最后，和官方启动器一致
-        Add(version.JarPath);
+        // 客户端 jar 放最后，和官方启动器一致；
+        // Forge/NeoForge 的客户端已经在 -p 模块路径里，再塞原版 jar 会出现两个 minecraft 模块
+        if (version.Loader is not ("forge" or "neoforge"))
+        {
+            Add(version.JarPath);
+        }
 
         return paths;
     }
