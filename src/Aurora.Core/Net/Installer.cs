@@ -132,7 +132,27 @@ public sealed class Installer
             }
         }
 
-        progress?.Report(new InstallProgress { Stage = "完成", Done = 1, Total = 1, Message = remote.Id + " 安装完成" });
+        // 装完必须验一遍：jar 半截、库缺失都要当场报错，不能"装完了但起不来"
+        var jarPath = Path.Combine(versionDir, remote.Id + ".jar");
+        if (!File.Exists(jarPath) || new FileInfo(jarPath).Length < 1024 * 1024)
+        {
+            throw new InvalidOperationException("客户端 jar 没下完整（" + remote.Id + ".jar），请重试安装");
+        }
+
+        var libDir = Path.Combine(GameDirectory, "libraries");
+        var missingLibs = (versionJson.Libraries ?? new List<Library>())
+            .Select(l => Aurora.Core.Versions.MavenHelper.ResolveArtifactPath(l, libDir))
+            .Where(p2 => p2 != null && !File.Exists(p2))
+            .Take(5)
+            .ToList();
+        if (missingLibs.Count > 0)
+        {
+            throw new InvalidOperationException(
+                "安装不完整：还缺 " + missingLibs.Count + " 个依赖库（" +
+                string.Join("、", missingLibs.Select(Path.GetFileName)) + "）");
+        }
+
+        progress?.Report(new InstallProgress { Stage = "完成", Done = 1, Total = 1, Message = remote.Id + " 安装完成（已校验）" });
         return jsonPath;
     }
 
@@ -222,6 +242,46 @@ public sealed class Installer
             foreach (var lib in resolved.Libraries)
             {
                 ct.ThrowIfCancellationRequested();
+
+                // natives（windows 分类器）也要补，否则启动时解压不出来，游戏照样起不来
+                if (lib.Natives != null && lib.Downloads?.Classifiers != null)
+                {
+                    var nsKey = lib.Natives.FirstOrDefault(n => n.Key.StartsWith("windows", StringComparison.OrdinalIgnoreCase)).Value;
+                    if (!string.IsNullOrEmpty(nsKey))
+                    {
+                        var classifier = nsKey!.Replace("${arch}", Environment.Is64BitProcess ? "64" : "32");
+                        if (lib.Downloads.Classifiers.TryGetValue(classifier, out var nat) &&
+                            !string.IsNullOrEmpty(nat.Path) && !string.IsNullOrEmpty(nat.Url))
+                        {
+                            var natTarget = Path.Combine(GameDirectory, "libraries",
+                                nat.Path!.Replace('/', Path.DirectorySeparatorChar));
+                            var natSize = nat.Size ?? -1;
+                            if (!File.Exists(natTarget) || (natSize > 0 && new FileInfo(natTarget).Length != natSize))
+                            {
+                                try
+                                {
+                                    if (File.Exists(natTarget + ".tmp"))
+                                    {
+                                        File.Delete(natTarget + ".tmp");
+                                    }
+                                }
+                                catch
+                                {
+                                    // 忽略
+                                }
+
+                                progress?.Report(new InstallProgress
+                                {
+                                    Stage = "依赖库",
+                                    Message = "补下 " + Path.GetFileName(nat.Path),
+                                });
+                                await _client.DownloadFileAsync(nat.Url!, natTarget, nat.Sha1,
+                                    natSize > 0 ? natSize : null, ct).ConfigureAwait(false);
+                                repaired++;
+                            }
+                        }
+                    }
+                }
 
                 var artifact = lib.Downloads?.Artifact;
                 if (artifact == null || string.IsNullOrEmpty(artifact.Path) || string.IsNullOrEmpty(artifact.Url))

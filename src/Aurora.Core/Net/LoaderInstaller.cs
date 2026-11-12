@@ -130,7 +130,7 @@ public sealed class LoaderInstaller
             _ => throw new NotSupportedException("不支持的加载器: " + option.Loader),
         };
 
-        VerifyInstalled(installedId, progress);
+        VerifyInstalled(installedId, option.McVersion, progress);
         return installedId;
     }
 
@@ -138,12 +138,21 @@ public sealed class LoaderInstaller
     /// 装完检查一遍：版本 json 在不在、依赖库齐不齐。
     /// 以前这里什么都不查，缺东西也照样报「完成」，玩家一启动就崩。
     /// </summary>
-    private void VerifyInstalled(string id, IProgress<InstallProgress>? progress)
+    private void VerifyInstalled(string id, string mcVersion, IProgress<InstallProgress>? progress)
     {
         var jsonPath = Path.Combine(VersionsDirectory, id, id + ".json");
         if (!File.Exists(jsonPath))
         {
             throw new InvalidOperationException($"安装后没找到版本文件：{jsonPath}");
+        }
+
+        // 加载器是装在原版之上的：原版本身没装全（jar 半截、库里缺），装得再快也起不来
+        var baseJar = Path.Combine(VersionsDirectory, mcVersion ?? string.Empty, (mcVersion ?? string.Empty) + ".jar");
+        if (!string.IsNullOrEmpty(mcVersion) &&
+            (!File.Exists(baseJar) || new FileInfo(baseJar).Length < 1024 * 1024))
+        {
+            throw new InvalidOperationException(
+                $"基础版本 {mcVersion} 还没装好（client.jar 缺失），请先在「安装版本」里装一次原版，或点「修复资源」");
         }
 
         var missing = new List<string>();

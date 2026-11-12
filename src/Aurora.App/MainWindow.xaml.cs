@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.65";
+    private const string AppVersion = "0.15.66";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -645,30 +645,42 @@ public partial class MainWindow : Window
             SetStatus("检查版本文件…");
             var missingLibs = await _service.EnsureLibrariesAsync(versionInfo,
                 new Progress<string>(t => SetStatus(t)));
-            if (missingLibs.Count > 0)
+            // 不管看起来缺不缺，启动前都完整校验一遍：jar / 库 / natives / assets / srg
+            // （半截下载、上次被中断的安装，都靠这一步兜住）
+            try
             {
-                // 缺库就直接补，别让玩家自己去重装版本
-                SetStatus($"缺 {missingLibs.Count} 个库文件，正在自动补齐…");
-                try
+                var root = GameRootFor(card.Summary.Directory) ?? _settings.GameDirectory;
+                var installer = _service.CreateInstaller(root);
+                var fixedFiles = await installer.RepairAsync(versionInfo,
+                    new Progress<InstallProgress>(p => SetStatus($"[{p.Stage}] {p.Message} · {p.Percent:0}%")));
+                if (fixedFiles > 0)
                 {
-                    var root = GameRootFor(card.Summary.Directory) ?? _settings.GameDirectory;
-                    var fixedLibs = await _service.CreateInstaller(root).RepairAsync(versionInfo,
-                        new Progress<InstallProgress>(p => SetStatus($"[{p.Stage}] {p.Message} · {p.Percent:0}%")));
-                    if (fixedLibs > 0)
-                    {
-                        SetStatus($"已补齐 {fixedLibs} 个文件");
-                        ShowToast("已补齐依赖", $"{fixedLibs} 个文件 · 继续启动", "✓", 4000);
-                    }
-                    else
-                    {
-                        SetStatus($"还有 {missingLibs.Count} 个库补不上，启动可能失败");
-                        ShowToast("库文件不全", "自动补齐没成功，去「版本」页点一次「修复资源」", "⚠", 6000);
-                    }
+                    SetStatus($"启动前补齐了 {fixedFiles} 个文件");
+                    ShowToast("已补齐版本文件", $"{fixedFiles} 个文件 · 继续启动", "✓", 4000);
                 }
-                catch (Exception ex)
+
+                // 补完再核一遍，还缺就直接拦下，别让玩家看到一个必崩的游戏
+                var stillMissing = await _service.EnsureLibrariesAsync(versionInfo,
+                    new Progress<string>(t => SetStatus(t)));
+                var jarOk = versionInfo.JarPath != null && File.Exists(versionInfo.JarPath);
+                var forgeLike = versionInfo.Loader is "forge" or "neoforge";
+                if (!forgeLike && !jarOk)
                 {
-                    SetStatus("补库失败（继续尝试启动）: " + ex.Message);
+                    SetStatus("客户端 jar 缺失，启动已中止");
+                    ShowToast("启动失败", "客户端 jar 没下下来，去「版本」页点一次「修复资源」", "⚠", 8000);
+                    return;
                 }
+
+                if (stillMissing.Count > 0)
+                {
+                    SetStatus($"还有 {stillMissing.Count} 个库补不上，启动已中止");
+                    ShowToast("启动失败", $"{stillMissing.Count} 个依赖库补不上，检查网络后点「修复资源」", "⚠", 8000);
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                SetStatus("启动前校验失败: " + ex.Message);
             }
 
             // 先把配置垫上：缺 mods/config 文件夹、options.txt 时不少模组会直接报错
