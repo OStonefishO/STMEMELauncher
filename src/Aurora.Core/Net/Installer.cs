@@ -435,6 +435,11 @@ public sealed class Installer
             var versionJsonPath = Path.Combine(GameDirectory, "versions", versionId, versionId + ".json");
             if (!File.Exists(versionJsonPath))
             {
+                progress?.Report(new InstallProgress
+                {
+                    Stage = "版本",
+                    Message = $"版本文件丢了：versions\\{versionId}\\{versionId}.json 不存在，需要重装这个版本",
+                });
                 return 0;
             }
 
