@@ -32,7 +32,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.20.12";
+    private const string AppVersion = "0.20.13";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -706,10 +706,23 @@ public partial class MainWindow : Window
                 // 刚补的 client.jar 要重新解析一次才进 JarPath（否则还以为缺）
                 versionInfo = _service.Resolve(card.Summary.Id) ?? versionInfo;
 
+                // 整包版本可能继承到加载器版本，链上解析不到 jar 时直接按原版目录兜底
+                if (versionInfo.JarPath == null)
+                {
+                    var vanillaJar = Path.Combine(root, "versions", versionInfo.ClientVersion,
+                        versionInfo.ClientVersion + ".jar");
+                    if (File.Exists(vanillaJar))
+                    {
+                        versionInfo.JarPath = vanillaJar;
+                    }
+                }
+
                 // 补完再核一遍，还缺就直接拦下，别让玩家看到一个必崩的游戏
                 var stillMissing = await _service.EnsureLibrariesAsync(versionInfo,
                     new Progress<string>(t => SetStatus(t)));
-                var jarOk = versionInfo.JarPath != null && File.Exists(versionInfo.JarPath);
+                var jarOk = (versionInfo.JarPath != null && File.Exists(versionInfo.JarPath))
+                            || File.Exists(Path.Combine(root, "versions", versionInfo.ClientVersion,
+                                versionInfo.ClientVersion + ".jar"));
                 var forgeLike = versionInfo.Loader is "forge" or "neoforge";
                 if (!forgeLike && !jarOk)
                 {

@@ -129,7 +129,7 @@ public sealed class VersionRepository
             var id = string.IsNullOrEmpty(json.Id) ? Path.GetFileNameWithoutExtension(jsonPath) : json.Id!;
             _jsonById[id] = jsonPath;
 
-            var jarPath = FindJar(dir, id, json);
+            var jarPath = FindJar(dir, id, json) ?? FindJarInChain(id);
             var (loader, loaderVersion) = DetectLoader(id, json);
             var modsDir = Path.Combine(dir, "mods");
             var modCount = Directory.Exists(modsDir)
@@ -154,6 +154,28 @@ public sealed class VersionRepository
 
             yield break;
         }
+    }
+
+    /// <summary>
+    /// 沿 inheritsFrom 一路找 jar：整包版本常继承到「fabric-loader-x-y」这种加载器版本，
+    /// 加载器目录里没有 jar，真正有 jar 的是更上层原版版本。
+    /// </summary>
+    private string? FindJarInChain(string id, int depth = 0)
+    {
+        if (depth > 8 || string.IsNullOrWhiteSpace(id))
+        {
+            return null;
+        }
+
+        var dir = Path.Combine(VersionsDirectory, id);
+        var json = LoadRaw(id);
+        var own = FindJar(dir, id, json);
+        if (own != null && File.Exists(own))
+        {
+            return own;
+        }
+
+        return string.IsNullOrEmpty(json?.InheritsFrom) ? null : FindJarInChain(json!.InheritsFrom!, depth + 1);
     }
 
     private static string? FindJar(string dir, string id, VersionJson json)
@@ -244,14 +266,7 @@ public sealed class VersionRepository
                 inheritedId = GuessClientVersion(id);
             }
 
-            if (!string.IsNullOrEmpty(inheritedId))
-            {
-                var inheritedJar = Path.Combine(VersionsDirectory, inheritedId!, inheritedId + ".jar");
-                if (File.Exists(inheritedJar))
-                {
-                    jar = inheritedJar;
-                }
-            }
+            jar = FindJarInChain(id);
         }
 
         var (loader, loaderVersion) = DetectLoader(id, merged);

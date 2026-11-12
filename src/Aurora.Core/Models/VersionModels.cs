@@ -126,7 +126,7 @@ public sealed class VersionSummary
     public string Id { get; init; } = string.Empty;
     public string Directory { get; init; } = string.Empty;
     public string? JsonPath { get; init; }
-    public string? JarPath { get; init; }
+    public string? JarPath { get; set; }
     public string ClientVersion { get; init; } = string.Empty;
     public string Loader { get; init; } = "vanilla";
     public string? LoaderVersion { get; init; }
@@ -143,7 +143,7 @@ public sealed class ResolvedVersion
 {
     public string Id { get; init; } = string.Empty;
     public string Directory { get; init; } = string.Empty;
-    public string? JarPath { get; init; }
+    public string? JarPath { get; set; }
     public string MainClass { get; init; } = string.Empty;
     public string ClientVersion { get; init; } = string.Empty;
     public string Loader { get; init; } = "vanilla";
