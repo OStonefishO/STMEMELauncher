@@ -1711,46 +1711,21 @@
                                                 Style="{StaticResource GlassButton}" Padding="16,6" FontSize="11.5" Margin="0,0,8,0"/>
                                         <Button x:Name="VmTabExport" Content="导出整合包" Tag="export" Click="OnVmTab"
                                                 Style="{StaticResource GlassButton}" Padding="16,6" FontSize="11.5"/>
+                                        <Button x:Name="VmTabSettings" Content="设置" Tag="settings" Click="OnVmTab"
+                                                Style="{StaticResource GlassButton}" Padding="16,6" FontSize="11.5" Margin="0,0,8,0"/>
+                                        <Button x:Name="VmTabModify" Content="修改" Tag="modify" Click="OnVmTab"
+                                                Style="{StaticResource GlassButton}" Padding="16,6" FontSize="11.5"/>
                                     </StackPanel>
 
                                     <Border x:Name="VmPaneOverview" CornerRadius="16" Background="{DynamicResource Glass}"
                                             BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="20,16">
                                         <StackPanel>
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock x:Name="VmTitle" Text="先在左边选一个版本" FontSize="18"
-                                                           FontWeight="Bold" Foreground="{DynamicResource Ink}"
-                                                           VerticalAlignment="Center"/>
-                                                <Button x:Name="VmRenameButton" Content="重命名"
-                                                        Style="{StaticResource GlassButton}" Padding="10,4" FontSize="10.5"
-                                                        Margin="12,0,0,0" VerticalAlignment="Center" IsEnabled="False"
-                                                        Click="OnVmRename" ToolTip="改版本名（文件夹、json、id 一起改）"/>
-                                                <Button x:Name="VmDeleteButton" Content="删除版本"
-                                                        Style="{StaticResource DangerButton}" Height="30" Padding="14,0"
-                                                        FontSize="10.5" Margin="8,0,0,0" VerticalAlignment="Center"
-                                                        IsEnabled="False" Click="OnVmDeleteVersion"
-                                                        ToolTip="删掉整个版本文件夹（会问三次，删完进回收站）"/>
-                                            </StackPanel>
+                                            <TextBlock x:Name="VmTitle" Text="先在左边选一个版本" FontSize="18"
+                                                       FontWeight="Bold" Foreground="{DynamicResource Ink}" TextWrapping="Wrap"/>
                                             <TextBlock x:Name="VmPath" Text="" FontSize="11" Margin="0,6,0,0"
                                                        Foreground="{DynamicResource InkFaint}" TextWrapping="Wrap"/>
 
-                                            <Grid Margin="0,10,0,0">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                <TextBox x:Name="VmNoteBox" Height="30" MaxLength="120"
-                                                         ToolTip="这个版本的备注，导出整合包时会写进说明里"/>
-                                                <Button Grid.Column="1" Content="保存备注" Style="{StaticResource GlassButton}" Height="30"
-                                                        Margin="8,0,0,0" FontSize="11" Click="OnVmSaveNote"/>
-                                            </Grid>
-
-                                            <WrapPanel Margin="0,12,0,0">
-                                                <TextBlock Text="运行内存 (MB) · 全局" FontSize="11.5" VerticalAlignment="Center" Margin="0,0,10,8"
-                                                           Foreground="{DynamicResource InkDim}"/>
-                                                <TextBox x:Name="VmMemoryBox" Width="110" Margin="0,0,8,8"
-                                                         HorizontalContentAlignment="Center"/>
-                                                <Button Content="应用" Style="{StaticResource GlassButton}" Margin="0,0,8,8"
-                                                        Click="OnVmSaveMemory"/>
+                                            <WrapPanel Margin="0,14,0,0">
                                                 <Button Content="打开版本目录" Style="{StaticResource GlassButton}" Margin="0,0,8,8"
                                                         Click="OnVmOpenVersionDir"/>
                                                 <Button Content="设为安装目标" Style="{StaticResource GlassButton}" Margin="0,0,8,8"
@@ -1760,28 +1735,21 @@
                                                         ToolTip="补上 mods / config / saves 等文件夹、options.txt 和 launcher_profiles.json"/>
                                                 <Button Content="修复资源" Style="{StaticResource GlassButton}" Margin="0,0,8,8"
                                                         Click="OnVmRepair"
-                                                        ToolTip="补下缺失的 assets / 依赖库（闪退报 NoSuchFileException 时用）"/>
-                                                <Button x:Name="IsolationButton" Content="版本隔离：跟随全局"
-                                                        Style="{StaticResource GlassButton}" Margin="0,0,8,8"
-                                                        Click="OnToggleIsolation"
-                                                        ToolTip="开启后这个版本用自己目录里的 mods / config / saves，不跟全局共用"/>
+                                                        ToolTip="补下缺失的 assets / 依赖库 / natives（闪退报缺文件时用）"/>
+                                        <Button x:Name="VmExportShortcut" Content="导出整合包" Style="{StaticResource GlassButton}" Margin="0,0,8,8"
+                                                Click="OnVmGoExport" Tag="export" ToolTip="打开导出页签，按内容勾选打包"/>
+
                                             </WrapPanel>
 
-                                            <WrapPanel Margin="0,10,0,0">
-                                                <TextBlock Text="Java" FontSize="11.5" VerticalAlignment="Center"
-                                                           Margin="0,0,10,8" Foreground="{DynamicResource InkDim}"/>
-                                                <TextBlock x:Name="VmJavaText" Text="跟随全局" FontSize="11.5"
-                                                           VerticalAlignment="Center" Margin="0,0,10,8"
-                                                           Foreground="{DynamicResource Ink}"/>
-                                                <Button Content="改 Java" Style="{StaticResource GlassButton}"
-                                                        Margin="0,0,8,8" Click="OnChangeVmJava"
-                                                        ToolTip="只给这个版本指定 java.exe；「自动」= 按版本要求挑"/>
-                                            </WrapPanel>
-
-                                            <TextBlock x:Name="IsolationHint" Text="" FontSize="10.5" Margin="0,8,0,0"
+                                            <TextBlock x:Name="IsolationHint" Text="" FontSize="10.5" Margin="0,10,0,0"
                                                        Foreground="{DynamicResource InkFaint}" TextWrapping="Wrap"/>
 
-                                            <WrapPanel Margin="0,12,0,0">
+                                        <TextBlock Text="这个版本的 Mod" FontSize="11" Margin="0,14,0,0" Foreground="{DynamicResource InkFaint}"/>
+                                        <TextBlock x:Name="VmModPreview" Text="" FontSize="11" Margin="0,6,0,0"
+                                                   Foreground="{DynamicResource InkDim}" TextWrapping="Wrap"/>
+
+                                            <TextBlock Text="快捷目录" FontSize="11" Margin="0,14,0,0" Foreground="{DynamicResource InkFaint}"/>
+                                            <WrapPanel Margin="0,8,0,0">
                                                 <Button Content="mods" Style="{StaticResource GlassButton}" Margin="0,0,8,8"
                                                         Tag="mods" Click="OnVmOpenFolder"/>
                                                 <Button Content="saves（地图）" Style="{StaticResource GlassButton}" Margin="0,0,8,8"
@@ -1793,6 +1761,69 @@
                                                 <Button Content="shaderpacks" Style="{StaticResource GlassButton}" Margin="0,0,8,8"
                                                         Tag="shaderpacks" Click="OnVmOpenFolder"/>
                                             </WrapPanel>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border x:Name="VmPaneSettings" CornerRadius="16" Background="{DynamicResource Glass}"
+                                            BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="20,16"
+                                            Margin="0,14,0,0" Visibility="Collapsed">
+                                        <StackPanel>
+                                            <TextBlock Text="启动设置" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
+                                            <TextBlock Text="只对这个版本生效；内存这一项写的是全局值，改完点「应用」。" FontSize="10.5"
+                                                       Foreground="{DynamicResource InkFaint}" Margin="0,6,0,12" TextWrapping="Wrap"/>
+
+                                            <TextBlock Text="运行内存 (MB)" FontSize="11" Foreground="{DynamicResource InkFaint}"/>
+                                            <StackPanel Orientation="Horizontal" Margin="0,6,0,16">
+                                                <TextBox x:Name="VmMemoryBox" Width="140" HorizontalContentAlignment="Center"/>
+                                                <Button Content="应用" Style="{StaticResource GlassButton}" Margin="8,0,0,0" Click="OnVmSaveMemory"/>
+                                            </StackPanel>
+
+                                            <TextBlock Text="Java" FontSize="11" Foreground="{DynamicResource InkFaint}"/>
+                                            <StackPanel Orientation="Horizontal" Margin="0,6,0,16">
+                                                <TextBlock x:Name="VmJavaText" Text="跟随全局" FontSize="11.5" VerticalAlignment="Center"
+                                                           Margin="0,0,12,0" Foreground="{DynamicResource Ink}"/>
+                                                <Button Content="改 Java" Style="{StaticResource GlassButton}" Click="OnChangeVmJava"
+                                                        ToolTip="只给这个版本指定 java.exe；「自动」= 按版本要求挑"/>
+                                            </StackPanel>
+
+                                            <TextBlock Text="版本隔离" FontSize="11" Foreground="{DynamicResource InkFaint}"/>
+                                            <WrapPanel Margin="0,6,0,0">
+                                                <Button x:Name="IsolationButton" Content="版本隔离：跟随全局"
+                                                        Style="{StaticResource GlassButton}" Click="OnToggleIsolation"
+                                                        ToolTip="开启后这个版本用自己目录里的 mods / config / saves，不跟全局共用"/>
+                                            </WrapPanel>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border x:Name="VmPaneModify" CornerRadius="16" Background="{DynamicResource Glass}"
+                                            BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="20,16"
+                                            Margin="0,14,0,0" Visibility="Collapsed">
+                                        <StackPanel>
+                                            <TextBlock Text="修改这个版本" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
+                                            <TextBlock Text="改名会同步改文件夹和 json；删除会问两次，删完进回收站。" FontSize="10.5"
+                                                       Foreground="{DynamicResource InkFaint}" Margin="0,6,0,12" TextWrapping="Wrap"/>
+
+                                            <WrapPanel>
+                                                <Button x:Name="VmRenameButton" Content="重命名"
+                                                        Style="{StaticResource GlassButton}" Padding="14,6" FontSize="11" Margin="0,0,8,8"
+                                                        IsEnabled="False" Click="OnVmRename" ToolTip="改版本名（文件夹、json、id 一起改）"/>
+                                                <Button x:Name="VmDeleteButton" Content="删除版本"
+                                                        Style="{StaticResource DangerButton}" Height="30" Padding="14,0"
+                                                        FontSize="11" Margin="0,0,8,8" IsEnabled="False" Click="OnVmDeleteVersion"
+                                                        ToolTip="删掉整个版本文件夹（会问两次，删完进回收站）"/>
+                                            </WrapPanel>
+
+                                            <TextBlock Text="备注" FontSize="11" Margin="0,10,0,0" Foreground="{DynamicResource InkFaint}"/>
+                                            <Grid Margin="0,6,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBox x:Name="VmNoteBox" Height="30" MaxLength="120"
+                                                         ToolTip="这个版本的备注，导出整合包时会写进说明里"/>
+                                                <Button Grid.Column="1" Content="保存备注" Style="{StaticResource GlassButton}" Height="30"
+                                                        Margin="8,0,0,0" FontSize="11" Click="OnVmSaveNote"/>
+                                            </Grid>
                                         </StackPanel>
                                     </Border>
 
@@ -1834,15 +1865,67 @@
                                             BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Padding="20,16"
                                             Margin="0,14,0,0" Visibility="Collapsed">
                                         <StackPanel>
-                                            <TextBlock Text="整合包" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
-                                            <TextBlock Text="把这个版本的 mods / config / options.txt 打成一个 zip，别人导入就能玩"
-                                                       FontSize="10.5" Foreground="{DynamicResource InkFaint}" Margin="0,6,0,10"/>
-                                            <StackPanel Orientation="Horizontal">
-                                                <Button Content="导出整合包" Style="{StaticResource HeroButton}" Height="36" Width="150"
+                                            <TextBlock Text="导出整合包" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
+                                            <TextBlock Text="勾选要带上的内容，打包成 zip；别人用「导入整合包」就能装。" FontSize="10.5"
+                                                       Foreground="{DynamicResource InkFaint}" Margin="0,6,0,12" TextWrapping="Wrap"/>
+
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="16"/>
+                                                    <ColumnDefinition Width="180"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0">
+                                                    <TextBlock Text="整合包名称" FontSize="11" Foreground="{DynamicResource InkFaint}"/>
+                                                    <TextBox x:Name="PackNameBox" Margin="0,6,0,0"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2">
+                                                    <TextBlock Text="整合包版本" FontSize="11" Foreground="{DynamicResource InkFaint}"/>
+                                                    <TextBox x:Name="PackVersionBox" Text="1.0.0" Margin="0,6,0,0"/>
+                                                </StackPanel>
+                                            </Grid>
+
+                                            <TextBlock Text="导出内容" FontSize="11" Margin="0,16,0,6" Foreground="{DynamicResource InkFaint}"/>
+                                            <WrapPanel>
+                                                <CheckBox x:Name="PackPartOptions" Content="游戏设置 (options.txt)" IsChecked="True"
+                                                          Foreground="{DynamicResource InkDim}" FontSize="11.5" Margin="0,0,16,8"/>
+                                                <CheckBox x:Name="PackPartMods" Content="Mod" IsChecked="True"
+                                                          Foreground="{DynamicResource InkDim}" FontSize="11.5" Margin="0,0,16,8"/>
+                                                <CheckBox x:Name="PackPartConfig" Content="Mod 设置 (config)" IsChecked="True"
+                                                          Foreground="{DynamicResource InkDim}" FontSize="11.5" Margin="0,0,16,8"/>
+                                                <CheckBox x:Name="PackPartSaves" Content="单人存档 (saves)"
+                                                          Foreground="{DynamicResource InkDim}" FontSize="11.5" Margin="0,0,16,8"/>
+                                                <CheckBox x:Name="PackPartResourcePacks" Content="资源包"
+                                                          Foreground="{DynamicResource InkDim}" FontSize="11.5" Margin="0,0,16,8"/>
+                                                <CheckBox x:Name="PackPartShaderPacks" Content="光影"
+                                                          Foreground="{DynamicResource InkDim}" FontSize="11.5" Margin="0,0,16,8"/>
+                                            </WrapPanel>
+
+                                            <Expander Header="高级选项" Foreground="{DynamicResource InkDim}" FontSize="11.5" Margin="0,8,0,0">
+                                                <StackPanel Margin="0,10,0,0">
+                                                    <CheckBox x:Name="PackIncludeAssets" Content="打包资源文件（assets，导入时不用再下，但体积很大）"
+                                                              Foreground="{DynamicResource InkDim}" FontSize="11.5" Margin="0,0,0,8"/>
+                                                    <CheckBox x:Name="PackModrinthOnly" Content="只记录 Modrinth 下载地址（不打包 mod 本体）"
+                                                              Foreground="{DynamicResource InkDim}" FontSize="11.5" Margin="0,0,0,8"/>
+                                                    <CheckBox x:Name="PackIncludeJar" Content="连原版 client.jar 一起打包（离线也能装）"
+                                                              Foreground="{DynamicResource InkDim}" FontSize="11.5" Margin="0,0,0,8"/>
+                                                    <WrapPanel Margin="0,4,0,0">
+                                                        <Button Content="读取配置" Style="{StaticResource GlassButton}" Padding="12,5" FontSize="11"
+                                                                Margin="0,0,8,0" Click="OnPackLoadConfig"/>
+                                                        <Button Content="保存配置" Style="{StaticResource GlassButton}" Padding="12,5" FontSize="11"
+                                                                Margin="0,0,8,0" Click="OnPackSaveConfig"/>
+                                                        <Button Content="制作指南" Style="{StaticResource GlassButton}" Padding="12,5" FontSize="11"
+                                                                Click="OnPackGuide"/>
+                                                    </WrapPanel>
+                                                </StackPanel>
+                                            </Expander>
+
+                                            <WrapPanel Margin="0,16,0,0">
+                                                <Button Content="开始导出" Style="{StaticResource HeroButton}" Height="36" Width="150"
                                                         Click="OnVmExportPack"/>
                                                 <Button Content="导入整合包" Style="{StaticResource GlassButton}" Margin="10,0,0,0"
                                                         Click="OnVmImportPack"/>
-                                            </StackPanel>
+                                            </WrapPanel>
                                         </StackPanel>
                                     </Border>
 

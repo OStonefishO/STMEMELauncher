@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.19.0";
+    private const string AppVersion = "0.19.2";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -3117,6 +3117,16 @@ public partial class MainWindow : Window
         }
 
         VmPaneOverview.Visibility = tag == "overview" ? Visibility.Visible : Visibility.Collapsed;
+        if (VmPaneSettings != null)
+        {
+            VmPaneSettings.Visibility = tag == "settings" ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        if (VmPaneModify != null)
+        {
+            VmPaneModify.Visibility = tag == "modify" ? Visibility.Visible : Visibility.Collapsed;
+        }
+
         VmPaneMods.Visibility = tag == "mods" ? Visibility.Visible : Visibility.Collapsed;
         VmPaneExport.Visibility = tag == "export" ? Visibility.Visible : Visibility.Collapsed;
 
@@ -3124,6 +3134,18 @@ public partial class MainWindow : Window
         {
             VmTabOverview.Style = (Style)FindResource(tag == "overview" ? "HeroButton" : "GlassButton");
             VmTabOverview.Padding = new Thickness(16, 6, 16, 6);
+        }
+
+        if (VmTabSettings != null)
+        {
+            VmTabSettings.Style = (Style)FindResource(tag == "settings" ? "HeroButton" : "GlassButton");
+            VmTabSettings.Padding = new Thickness(16, 6, 16, 6);
+        }
+
+        if (VmTabModify != null)
+        {
+            VmTabModify.Style = (Style)FindResource(tag == "modify" ? "HeroButton" : "GlassButton");
+            VmTabModify.Padding = new Thickness(16, 6, 16, 6);
         }
 
         if (VmTabMods != null)
@@ -3139,6 +3161,17 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>概览页的「导出整合包」按钮：切到导出页签，顺带把名字填好。</summary>
+    private void OnVmGoExport(object sender, RoutedEventArgs e)
+    {
+        OnVmTab(sender, e);
+        if (PackNameBox != null && string.IsNullOrWhiteSpace(PackNameBox.Text) && _vmCurrent != null)
+        {
+            PackNameBox.Text = _vmCurrent.Id;
+        }
+    }
+
+    /// <summary>按勾选项把版本打包成整合包 zip。</summary>
     private void OnVmExportPack(object sender, RoutedEventArgs e)
     {
         var dir = CurrentVmGameDir();
@@ -3147,11 +3180,14 @@ public partial class MainWindow : Window
             return;
         }
 
+        var name = string.IsNullOrWhiteSpace(PackNameBox?.Text) ? (_vmCurrent?.Id ?? "modpack") : PackNameBox!.Text.Trim();
+        var version = string.IsNullOrWhiteSpace(PackVersionBox?.Text) ? "1.0.0" : PackVersionBox!.Text.Trim();
+
         var dialog = new Microsoft.Win32.SaveFileDialog
         {
             Title = "导出整合包",
             Filter = "整合包 zip|*.zip",
-            FileName = (_vmCurrent?.Id ?? "modpack") + ".zip",
+            FileName = SanitizeName(name) + "-" + version + ".zip",
         };
 
         if (dialog.ShowDialog() != true)
@@ -3166,40 +3202,251 @@ public partial class MainWindow : Window
                 File.Delete(dialog.FileName);
             }
 
-            using var zip = System.IO.Compression.ZipFile.Open(dialog.FileName,
-                System.IO.Compression.ZipArchiveMode.Create);
+            var manifest = new System.Text.StringBuilder();
+            manifest.AppendLine("{");
+            manifest.AppendLine($"  \"name\": \"{Escape(name)}\",");
+            manifest.AppendLine($"  \"version\": \"{Escape(version)}\",");
+            manifest.AppendLine($"  \"gameVersion\": \"{Escape(_vmCurrent?.ClientVersion ?? "")}\",");
+            manifest.AppendLine($"  \"loader\": \"{Escape(_vmCurrent?.Loader ?? "vanilla")}\",");
+            manifest.AppendLine($"  \"loaderVersion\": \"{Escape(_vmCurrent?.LoaderVersion ?? "")}\",");
+            manifest.AppendLine($"  \"createdAt\": \"{DateTime.Now:yyyy-MM-dd HH:mm:ss}\",");
+            manifest.AppendLine("  \"files\": []");
+            manifest.AppendLine("}");
+            var manifestText = manifest.ToString();
 
-            void AddFolder(string folder)
+            var added = 0;
+            using (var zip = System.IO.Compression.ZipFile.Open(dialog.FileName,
+                       System.IO.Compression.ZipArchiveMode.Create))
             {
-                var full = Path.Combine(dir, folder);
-                if (!Directory.Exists(full))
+                void AddFolder(string folder, bool enabled)
                 {
-                    return;
+                    if (!enabled)
+                    {
+                        return;
+                    }
+
+                    var full = Path.Combine(dir, folder);
+                    if (!Directory.Exists(full))
+                    {
+                        return;
+                    }
+
+                    foreach (var file in Directory.GetFiles(full, "*", SearchOption.AllDirectories))
+                    {
+                        var entryName = Path.GetRelativePath(dir, file).Replace('\\', '/');
+                        zip.CreateEntryFromFile(file, entryName);
+                        added++;
+                    }
                 }
 
-                foreach (var file in Directory.GetFiles(full, "*", SearchOption.AllDirectories))
+                AddFolder("mods", PackPartMods?.IsChecked == true);
+                AddFolder("config", PackPartConfig?.IsChecked == true);
+                AddFolder("saves", PackPartSaves?.IsChecked == true);
+                AddFolder("resourcepacks", PackPartResourcePacks?.IsChecked == true);
+                AddFolder("shaderpacks", PackPartShaderPacks?.IsChecked == true);
+
+                if (PackPartOptions?.IsChecked == true)
                 {
-                    var entryName = Path.GetRelativePath(dir, file).Replace('\\', '/');
-                    zip.CreateEntryFromFile(file, entryName);
+                    var options = Path.Combine(dir, "options.txt");
+                    if (File.Exists(options))
+                    {
+                        zip.CreateEntryFromFile(options, "options.txt");
+                        added++;
+                    }
                 }
+
+                // 原版 jar（可选）
+                if (PackIncludeJar?.IsChecked == true && _vmCurrent != null)
+                {
+                    var jar = Path.Combine(_settings.GameDirectory, "versions", _vmCurrent.ClientVersion,
+                        _vmCurrent.ClientVersion + ".jar");
+                    if (File.Exists(jar))
+                    {
+                        zip.CreateEntryFromFile(jar, "client.jar");
+                        added++;
+                    }
+                }
+
+                // assets（可选，体积大）
+                if (PackIncludeAssets?.IsChecked == true)
+                {
+                    var assets = Path.Combine(_settings.GameDirectory, "assets");
+                    if (Directory.Exists(assets))
+                    {
+                        foreach (var file in Directory.GetFiles(assets, "*", SearchOption.AllDirectories).Take(20000))
+                        {
+                            var entryName = "assets/" + Path.GetRelativePath(assets, file).Replace('\\', '/');
+                            zip.CreateEntryFromFile(file, entryName);
+                            added++;
+                        }
+                    }
+                }
+
+                var entry = zip.CreateEntry("meme-modpack.json");
+                using var writer = new StreamWriter(entry.Open());
+                writer.Write(manifestText);
             }
 
-            AddFolder("mods");
-            AddFolder("config");
-
-            var options = Path.Combine(dir, "options.txt");
-            if (File.Exists(options))
-            {
-                zip.CreateEntryFromFile(options, "options.txt");
-            }
-
-            VmStatus.Text = "已导出: " + dialog.FileName;
+            VmStatus.Text = $"已导出：{dialog.FileName}（{added} 个文件）";
+            ShowToast("整合包已导出", $"{added} 个文件", "✓", 5000);
         }
         catch (Exception ex)
         {
             VmStatus.Text = "导出失败: " + ex.Message;
+            ShowToast("导出失败", ex.Message, "⚠", 6000);
         }
     }
+
+    private static string SanitizeName(string text)
+    {
+        foreach (var bad in Path.GetInvalidFileNameChars())
+        {
+            text = text.Replace(bad, '_');
+        }
+
+        return string.IsNullOrWhiteSpace(text) ? "modpack" : text;
+    }
+
+    private static string Escape(string text) => text.Replace("\\", "\\\\").Replace("\"", "\\\"");
+
+    /// <summary>把当前勾选存成一份配置 json，下次读取。</summary>
+    private void OnPackSaveConfig(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "保存导出配置",
+            Filter = "配置 json|*.json",
+            FileName = "pack-export.json",
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        var config = new
+        {
+            name = PackNameBox?.Text,
+            version = PackVersionBox?.Text,
+            options = PackPartOptions?.IsChecked == true,
+            mods = PackPartMods?.IsChecked == true,
+            config = PackPartConfig?.IsChecked == true,
+            saves = PackPartSaves?.IsChecked == true,
+            resourcepacks = PackPartResourcePacks?.IsChecked == true,
+            shaderpacks = PackPartShaderPacks?.IsChecked == true,
+            includeAssets = PackIncludeAssets?.IsChecked == true,
+            modrinthOnly = PackModrinthOnly?.IsChecked == true,
+            includeJar = PackIncludeJar?.IsChecked == true,
+        };
+
+        try
+        {
+            File.WriteAllText(dialog.FileName,
+                System.Text.Json.JsonSerializer.Serialize(config,
+                    new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+            ShowToast("配置已保存", dialog.FileName, "✓", 4000);
+        }
+        catch (Exception ex)
+        {
+            ShowToast("保存失败", ex.Message, "⚠", 5000);
+        }
+    }
+
+    private void OnPackLoadConfig(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "读取导出配置",
+            Filter = "配置 json|*.json",
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(dialog.FileName));
+            var root = doc.RootElement;
+
+            string? Str(string key) => root.TryGetProperty(key, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.String ? v.GetString() : null;
+            bool Flag(string key) => root.TryGetProperty(key, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.True;
+
+            if (PackNameBox != null && Str("name") is { Length: > 0 } n) PackNameBox.Text = n;
+            if (PackVersionBox != null && Str("version") is { Length: > 0 } ver) PackVersionBox.Text = ver;
+            if (PackPartOptions != null) PackPartOptions.IsChecked = Flag("options");
+            if (PackPartMods != null) PackPartMods.IsChecked = Flag("mods");
+            if (PackPartConfig != null) PackPartConfig.IsChecked = Flag("config");
+            if (PackPartSaves != null) PackPartSaves.IsChecked = Flag("saves");
+            if (PackPartResourcePacks != null) PackPartResourcePacks.IsChecked = Flag("resourcepacks");
+            if (PackPartShaderPacks != null) PackPartShaderPacks.IsChecked = Flag("shaderpacks");
+            if (PackIncludeAssets != null) PackIncludeAssets.IsChecked = Flag("includeAssets");
+            if (PackModrinthOnly != null) PackModrinthOnly.IsChecked = Flag("modrinthOnly");
+            if (PackIncludeJar != null) PackIncludeJar.IsChecked = Flag("includeJar");
+
+            ShowToast("配置已读取", Path.GetFileName(dialog.FileName), "✓", 3600);
+        }
+        catch (Exception ex)
+        {
+            ShowToast("读取失败", ex.Message, "⚠", 5000);
+        }
+    }
+
+    private void OnPackGuide(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "https://github.com/OStonefishO/STMEMELauncher#整合包",
+                UseShellExecute = true,
+            });
+        }
+        catch
+        {
+            VmStatus.Text = "勾选要带上的内容 → 开始导出；别人拖进启动器就能导入。";
+        }
+    }
+
+    /// <summary>概览里显示前几个 mod 名字。</summary>
+    private void UpdateModPreview()
+    {
+        if (VmModPreview == null || _vmCurrent == null)
+        {
+            return;
+        }
+
+        var dir = CurrentVmGameDir();
+        if (dir == null)
+        {
+            VmModPreview.Text = "—";
+            return;
+        }
+
+        var modsDir = Path.Combine(dir, "mods");
+        if (!Directory.Exists(modsDir) || Directory.GetFiles(modsDir, "*.jar").Length == 0)
+        {
+            // 没开版本隔离时 mod 放在游戏根目录
+            var shared = Path.Combine(_settings.GameDirectory, "mods");
+            if (Directory.Exists(shared))
+            {
+                modsDir = shared;
+            }
+        }
+
+        if (!Directory.Exists(modsDir))
+        {
+            VmModPreview.Text = "这个版本还没有 mod";
+            return;
+        }
+
+        var files = Directory.GetFiles(modsDir, "*.jar").Select(Path.GetFileName).OrderBy(n => n).ToList();
+        VmModPreview.Text = files.Count == 0
+            ? "这个版本还没有 mod"
+            : $"共 {files.Count} 个：" + string.Join("、", files.Take(5)) + (files.Count > 5 ? " …" : string.Empty);
+    }
+
 
     private void OnVmImportPack(object sender, RoutedEventArgs e)
     {
