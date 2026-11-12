@@ -32,7 +32,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.20.14";
+    private const string AppVersion = "0.20.15";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -707,7 +707,10 @@ public partial class MainWindow : Window
                 versionInfo = _service.Resolve(card.Summary.Id) ?? versionInfo;
 
                 // 整包版本可能继承到加载器版本，链上解析不到 jar 时直接按原版目录兜底
-                if (versionInfo.JarPath == null)
+                // 注意：Forge/NeoForge 用的是打补丁的 client jar（在 -p 里），
+                // 再往 classpath 塞一份原版 jar 会出现两个 net.minecraft 模块 →
+                // module.ResolutionException（twelvemonkeys 那个报错就是这么来的）
+                if (versionInfo.JarPath == null && versionInfo.Loader is not ("forge" or "neoforge"))
                 {
                     var vanillaJar = Path.Combine(root, "versions", versionInfo.ClientVersion,
                         versionInfo.ClientVersion + ".jar");
