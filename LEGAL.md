@@ -92,7 +92,7 @@ MEME Launcher（以下简称「本软件」）是由个人开发者（下称「�
 
 若你认为本软件（或本软件分发的链接/资源）侵犯了你的合法权益，请通过以下方式联系：
 
-- 邮箱：`[在此填写你的联系邮箱]`
+- 邮箱：`stonefish233@gmail.com`
 - 仓库 Issue：<https://github.com/OStonefishO/STMEMELauncher/issues>
 
 请在联系时提供：权利证明、涉及的具体内容、你的联系方式。核实后作者会在合理时间内删除或调整相关内容。
