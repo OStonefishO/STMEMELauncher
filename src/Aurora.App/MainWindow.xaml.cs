@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.19.3";
+    private const string AppVersion = "0.19.4";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -3172,6 +3172,68 @@ public partial class MainWindow : Window
     }
 
     /// <summary>按勾选项把版本打包成整合包 zip。</summary>
+    /// <summary>清掉加载器的核心库后重装（NeoForge / Forge 报 corrupted 时的最后一招）。</summary>
+    private async void OnVmReinstallLoader(object sender, RoutedEventArgs e)
+    {
+        if (_vmCurrent == null || _vmCurrent.Loader is not ("neoforge" or "forge"))
+        {
+            ShowToast("这个版本没有加载器", "只有 Forge / NeoForge 需要重装加载器", "⚠", 4000);
+            return;
+        }
+
+        if (!Confirm("重装加载器",
+                $"将清空 libraries 里 {_vmCurrent.Loader} 的核心文件，然后重新安装 {_vmCurrent.LoaderVersion}。\n" +
+                "不会动你的 mods / 存档 / 配置。继续吗？",
+                "开始重装", "算了"))
+        {
+            return;
+        }
+
+        var root = GameRootFor(_vmCurrent.Directory) ?? _settings.GameDirectory;
+        var libs = Path.Combine(root, "libraries", "net",
+            _vmCurrent.Loader == "neoforge" ? "neoforged" : "minecraftforge");
+
+        try
+        {
+            VmStatus.Text = "清理旧的核心库…";
+            if (Directory.Exists(libs))
+            {
+                Directory.Delete(libs, recursive: true);
+            }
+
+            // srg / extra / slim 也一起清掉，让重装自己生成
+            var clientLibs = Path.Combine(root, "libraries", "net", "minecraft", "client");
+            if (Directory.Exists(clientLibs))
+            {
+                Directory.Delete(clientLibs, recursive: true);
+            }
+
+            VmStatus.Text = "重新安装 " + _vmCurrent.Loader + " " + _vmCurrent.LoaderVersion + "…";
+            var installer = _service.CreateLoaderInstaller();
+            var option = new Aurora.Core.Net.LoaderOption
+            {
+                Loader = _vmCurrent.Loader,
+                Version = _vmCurrent.LoaderVersion ?? string.Empty,
+                McVersion = _vmCurrent.ClientVersion,
+            };
+
+            var progress = new Progress<Aurora.Core.Net.InstallProgress>(p =>
+            {
+                VmStatus.Text = $"[{p.Stage}] {p.Message} · {p.Percent:0}%";
+            });
+
+            var id = await installer.InstallAsync(option, progress);
+            VmStatus.Text = "重装完成：" + id;
+            ShowToast("加载器已重装", id, "✓", 5000);
+            LoadVersions();
+        }
+        catch (Exception ex)
+        {
+            VmStatus.Text = "重装失败: " + ex.Message;
+            ShowToast("重装失败", ex.Message, "⚠", 7000);
+        }
+    }
+
     private void OnVmExportPack(object sender, RoutedEventArgs e)
     {
         var dir = CurrentVmGameDir();

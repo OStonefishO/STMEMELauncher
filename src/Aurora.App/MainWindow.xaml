@@ -1738,6 +1738,9 @@
                                                         ToolTip="补下缺失的 assets / 依赖库 / natives（闪退报缺文件时用）"/>
                                         <Button x:Name="VmExportShortcut" Content="导出整合包" Style="{StaticResource GlassButton}" Margin="0,0,8,8"
                                                 Click="OnVmGoExport" Tag="export" ToolTip="打开导出页签，按内容勾选打包"/>
+                                        <Button x:Name="VmReinstallLoaderButton" Content="重装加载器" Style="{StaticResource GlassButton}" Margin="0,0,8,8"
+                                                Click="OnVmReinstallLoader" IsEnabled="False"
+                                                ToolTip="清掉 libraries 里的加载器核心后重装（NeoForge 报 corrupted 时用）"/>
 
                                             </WrapPanel>
 
