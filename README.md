@@ -31,19 +31,16 @@
 
 ### 预览
 
-| 新版（动感） | 终端（荧光绿） | 经典（左栏） |
-|---|---|---|
-| ![](docs/screens/ui-vivid-home.png) | ![](docs/screens/ui-terminal-home.png) | ![](docs/screens/ui-classic-home.png) |
-
-| 纸质便签（浅色） | 像素 8bit（NES） | 毛玻璃极光 |
-|---|---|---|
-| ![](docs/screens/ui-paper-home.png) | ![](docs/screens/ui-pixel-home.png) | ![](docs/screens/ui-aurora-home.png) |
+<table>
+  <tr><td><img src="docs/screens/ui-vivid-home.png" width="420" alt="新版（动感）"><br><sub>新版（动感）</sub></td><td><img src="docs/screens/ui-terminal-home.png" width="420" alt="终端（荧光绿）"><br><sub>终端（荧光绿）</sub></td><td><img src="docs/screens/ui-classic-home.png" width="420" alt="经典（左栏）"><br><sub>经典（左栏）</sub></td></tr>
+  <tr><td><img src="docs/screens/ui-paper-home.png" width="420" alt="纸质便签（浅色）"><br><sub>纸质便签（浅色）</sub></td><td><img src="docs/screens/ui-pixel-home.png" width="420" alt="像素 8bit（NES）"><br><sub>像素 8bit（NES）</sub></td><td><img src="docs/screens/ui-aurora-home.png" width="420" alt="毛玻璃极光"><br><sub>毛玻璃极光</sub></td></tr>
+</table>
 
 另外两页：
 
-| 设置（含布局与色相） | 终端设置页 | 联机页 |
-|---|---|---|
-| ![](docs/screens/ui-settings.png) | ![](docs/screens/ui-terminal-settings.png) | ![](docs/screens/ui-online.png) |
+<table>
+  <tr><td><img src="docs/screens/ui-settings.png" width="420" alt="设置（含布局与色相）"><br><sub>设置（含布局与色相）</sub></td><td><img src="docs/screens/ui-terminal-settings.png" width="420" alt="终端设置页"><br><sub>终端设置页</sub></td><td><img src="docs/screens/ui-online.png" width="420" alt="联机页"><br><sub>联机页</sub></td></tr>
+</table>
 
 ## 亮点
 
@@ -61,9 +58,9 @@
 - **界面音效**：按钮、启动成功/失败提示音，音量可调、可整体关闭（代码合成，不带音频文件）
 - **「其他」页**：下载来源、导入导出设置、打开配置/日志/游戏目录、清空缓存、免责声明、高级选项（JVM/游戏参数、启动前命令、内存调优 G1GC/ZGC、Java Launch Wrapper、LWJGL Unsafe Agent）
 
-| 主世界 | 下界 | 末地 |
-|---|---|---|
-| ![](docs/screens/p0.png) | ![](docs/screens/p8.png) | ![](docs/screens/p9.png) |
+<table>
+  <tr><td><img src="docs/screens/p0.png" width="420" alt="主世界"><br><sub>主世界</sub></td><td><img src="docs/screens/p8.png" width="420" alt="下界"><br><sub>下界</sub></td><td><img src="docs/screens/p9.png" width="420" alt="末地"><br><sub>末地</sub></td></tr>
+</table>
 
 ![内容页中文翻译](docs/screens/p10.png)
 ## 安全性
@@ -168,15 +165,15 @@ Windows 11 的 **Smart App Control** 会拦掉所有没有数字签名的 exe，
 
 | 启动页 | 安装 |
 |---|---|
-| ![](docs/screens/p0.png) | ![](docs/screens/p1.png) |
+<table><tr><td><img src="docs/screens/p0.png" width="500" alt="主界面"></td><td><img src="docs/screens/p1.png" width="500" alt="安装版本"></td></tr></table>
 
 | 内容 | 账号 |
 |---|---|
-| ![](docs/screens/p2.png) | ![](docs/screens/p3.png) |
+<table><tr><td><img src="docs/screens/p2.png" width="500" alt="内容下载"></td><td><img src="docs/screens/p3.png" width="500" alt="版本管理"></td></tr></table>
 
 | 设置 | 联机 |
 |---|---|
-| ![](docs/screens/p4.png) | ![](docs/screens/p6.png) |
+<table><tr><td><img src="docs/screens/p4.png" width="500" alt="账号"></td><td><img src="docs/screens/p6.png" width="500" alt="联机"></td></tr></table>
 
 ---
 
