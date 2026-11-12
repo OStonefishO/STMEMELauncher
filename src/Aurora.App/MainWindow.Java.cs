@@ -154,10 +154,15 @@ public partial class MainWindow
         var all = _service.ScanJava();
 
         JavaRuntime? chosen = null;
-        if (!string.IsNullOrWhiteSpace(_settings.JavaPath))
+
+        // 版本单独的 Java 优先，其次全局设置，最后按版本要求自动挑
+        var perVersion = _service.VersionJavaPath(version.Id);
+        var preferred = !string.IsNullOrWhiteSpace(perVersion) ? perVersion : _settings.JavaPath;
+
+        if (!string.IsNullOrWhiteSpace(preferred))
         {
             chosen = all.FirstOrDefault(j =>
-                string.Equals(j.JavaPath, _settings.JavaPath, StringComparison.OrdinalIgnoreCase));
+                string.Equals(j.JavaPath, preferred, StringComparison.OrdinalIgnoreCase));
         }
 
         chosen ??= _service.SelectJava(version.JavaMajor, out _);
@@ -220,6 +225,221 @@ public partial class MainWindow
     }
 
     /// <summary>主页那几个 Java 控件：自动 / 手动、扫描、选 java.exe。</summary>
+    /// <summary>
+    /// 选 Java：列出扫到的所有 Java，外加「自动」。返回 false = 用户取消。
+    /// chosen 为 null 表示「自动」。
+    /// </summary>
+    private bool TryPickJava(string title, string customHint, string? currentPath, out string? chosen)
+    {
+        chosen = null;
+        string? picked = null;
+
+        var options = _service.ScanJava();
+        var window = new Window
+        {
+            Title = title,
+            Width = 480,
+            SizeToContent = SizeToContent.Height,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Owner = this,
+            ResizeMode = ResizeMode.NoResize,
+            WindowStyle = WindowStyle.ToolWindow,
+            Background = (Brush)FindResource("AppBg"),
+        };
+        StyleDialogWindow(window);
+
+        var panel = new StackPanel { Margin = new Thickness(22, 18, 22, 18) };
+        panel.Children.Add(new TextBlock
+        {
+            Text = customHint,
+            FontSize = 11.5,
+            Foreground = (Brush)FindResource("InkDim"),
+            TextWrapping = TextWrapping.Wrap,
+        });
+
+        var list = new ListBox { Margin = new Thickness(0, 10, 0, 12), MaxHeight = 260 };
+        list.Items.Add("自动（按版本要求挑一个）");
+        foreach (var option in options)
+        {
+            list.Items.Add($"Java {option.Major} · {option.VersionText} · {option.JavaPath}");
+        }
+
+        var manual = !string.IsNullOrWhiteSpace(currentPath);
+        list.SelectedIndex = 0;
+        if (manual)
+        {
+            for (var i = 1; i < list.Items.Count; i++)
+            {
+                if (list.Items[i] is string text && text.EndsWith(currentPath!, StringComparison.OrdinalIgnoreCase))
+                {
+                    list.SelectedIndex = i;
+                    break;
+                }
+            }
+        }
+
+        panel.Children.Add(list);
+
+        var buttons = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+        };
+
+        var scan = new Button
+        {
+            Content = "重新扫描",
+            Style = (Style)FindResource("GlassButton"),
+            Height = 34,
+            Padding = new Thickness(14, 0, 14, 0),
+            Margin = new Thickness(0, 0, 8, 0),
+        };
+        scan.Click += async (_, __) =>
+        {
+            await RefreshJavaOptionsAsync(currentPath);
+            var refreshed = _service.ScanJava();
+            list.Items.Clear();
+            list.Items.Add("自动（按版本要求挑一个）");
+            foreach (var option in refreshed)
+            {
+                list.Items.Add($"Java {option.Major} · {option.VersionText} · {option.JavaPath}");
+            }
+
+            list.SelectedIndex = 0;
+        };
+
+        var pick = new Button
+        {
+            Content = "选 java.exe",
+            Style = (Style)FindResource("GlassButton"),
+            Height = 34,
+            Padding = new Thickness(14, 0, 14, 0),
+            Margin = new Thickness(0, 0, 8, 0),
+        };
+        pick.Click += (_, __) =>
+        {
+            var dialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "选一个 java.exe（一般在 jdk\\bin 或 jre\\bin 里）",
+                Filter = "Java 可执行文件|java.exe;javaw.exe|所有文件|*.*",
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                list.Items.Add("手动指定 · " + dialog.FileName);
+                list.SelectedIndex = list.Items.Count - 1;
+                picked = dialog.FileName;
+            }
+        };
+
+        var cancel = new Button
+        {
+            Content = "取消",
+            Style = (Style)FindResource("GlassButton"),
+            Width = 84,
+            Height = 34,
+            IsCancel = true,
+            Margin = new Thickness(0, 0, 8, 0),
+        };
+
+        var ok = new Button
+        {
+            Content = "确定",
+            Style = (Style)FindResource("HeroButton"),
+            Width = 84,
+            Height = 34,
+            IsDefault = true,
+        };
+
+        ok.Click += (_, __) =>
+        {
+            if (picked == null)
+            {
+                var index = list.SelectedIndex;
+                picked = index <= 0
+                    ? null
+                    : (list.Items[index] as string)?.Split(new[] { " · " }, StringSplitOptions.None)
+                        .LastOrDefault()?.Trim();
+            }
+
+            window.DialogResult = true;
+        };
+
+        buttons.Children.Add(scan);
+        buttons.Children.Add(pick);
+        buttons.Children.Add(cancel);
+        buttons.Children.Add(ok);
+        panel.Children.Add(buttons);
+
+        window.Content = panel;
+        var confirmed = window.ShowDialog() == true;
+        chosen = picked;
+        return confirmed;
+    }
+
+    /// <summary>首页那行 Java 按钮：改全局吃法。</summary>
+    private void OnOpenGlobalJava(object sender, RoutedEventArgs e)
+    {
+        if (!TryPickJava("选择 Java", "自动 = 按当前版本要求的 Java 主版本挑一个；也可以指定某个 java.exe。", _settings.JavaPath, out var chosen))
+        {
+            return;
+        }
+
+        _settings.JavaPath = chosen ?? string.Empty;
+        Aurora.Core.Configuration.ConfigStore.Save(_settings);
+        UpdateHomeJavaUi();
+        ShowToast("Java 已设置", string.IsNullOrWhiteSpace(_settings.JavaPath) ? "自动匹配" : ShortenPath(_settings.JavaPath!), "✓", 3200);
+    }
+
+    /// <summary>版本页：只给这个版本指定 Java。</summary>
+    private void OnChangeVmJava(object sender, RoutedEventArgs e)
+    {
+        if (_vmCurrent == null)
+        {
+            return;
+        }
+
+        var current = _service.VersionJavaPath(_vmCurrent.Id);
+        if (!TryPickJava($"改 Java · {_vmCurrent.Id}",
+                "只对这个版本生效；「自动」= 按它要求的 Java 版本挑，别的版本不受影响。", current, out var chosen))
+        {
+            return;
+        }
+
+        _service.SetVersionJavaPath(_vmCurrent.Id, chosen);
+        UpdateVmJavaText();
+        ShowToast("已设置本版本 Java", string.IsNullOrWhiteSpace(chosen) ? "跟随自动匹配" : ShortenPath(chosen!), "✓", 3200);
+    }
+
+    /// <summary>版本页里显示这个版本用的 Java。</summary>
+    private void UpdateVmJavaText()
+    {
+        if (VmJavaText == null)
+        {
+            return;
+        }
+
+        if (_vmCurrent == null)
+        {
+            VmJavaText.Text = "跟随全局";
+            return;
+        }
+
+        var perVersion = _service.VersionJavaPath(_vmCurrent.Id);
+        if (!string.IsNullOrWhiteSpace(perVersion))
+        {
+            VmJavaText.Text = "本版本指定 · " + ShortenPath(perVersion!);
+            return;
+        }
+
+        var resolved = _service.Resolve(_vmCurrent.Id);
+        var needed = resolved?.JavaMajor ?? 0;
+        var java = _service.SelectJava(needed, out _);
+        VmJavaText.Text = java == null
+            ? (needed > 0 ? $"自动（需要 Java {needed}，没找到）" : "跟随全局")
+            : $"自动 · Java {java.Major} ({needed})";
+    }
+
     private void UpdateHomeJavaUi()
     {
         if (JavaModeButton == null)
@@ -228,7 +448,11 @@ public partial class MainWindow
         }
 
         var manual = !string.IsNullOrWhiteSpace(_settings.JavaPath);
-        JavaModeButton.Content = manual ? "Java：手动" : "Java：自动";
+
+        if (GlobalJavaButton != null)
+        {
+            GlobalJavaButton.Content = manual ? "Java：手动" : "Java：自动";
+        }
         JavaModeButton.Style = (Style)FindResource(manual ? "HeroButton" : "GlassButton");
         JavaModeButton.Padding = new Thickness(12, 5, 12, 5);
 
@@ -277,6 +501,11 @@ public partial class MainWindow
         HomeJavaHint.Text = java.Major == needed
             ? (manual ? "手动 · " + ShortenPath(java.JavaPath) : $"自动匹配到 Java {java.Major}")
             : $"这个版本要 Java {needed}，现在是 {java.Major}，启动前会问你";
+
+        if (GlobalJavaHint != null)
+        {
+            GlobalJavaHint.Text = $"{HomeJavaHint.Text} · 点左边的按钮换";
+        }
     }
 
     private async void OnHomeScanJava(object sender, RoutedEventArgs e)

@@ -656,7 +656,8 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
+                        
+                            <RowDefinition Height="Auto"/></Grid.RowDefinitions>
                         <!-- 极光背景（仅新版布局显示） -->
                         <Canvas x:Name="AuroraLayer" Grid.RowSpan="3" IsHitTestVisible="False" ClipToBounds="True">
                             <Ellipse x:Name="AuroraA" Width="620" Height="620" Canvas.Left="-120" Canvas.Top="-160">
@@ -1227,6 +1228,16 @@
                             </Grid>
                         </Grid>
 
+                        <!-- Java（六套界面共用这一行） -->
+                        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="26,0,0,10">
+                            <Button x:Name="GlobalJavaButton" Content="Java：自动" Style="{StaticResource GlassButton}"
+                                    Padding="14,6" FontSize="11.5" Click="OnOpenGlobalJava"
+                                    ToolTip="点一下选 Java：自动匹配 / 指定某个 java.exe"/>
+                            <TextBlock x:Name="GlobalJavaHint" Text="" FontSize="10.5"
+                                       Foreground="{DynamicResource InkFaint}" VerticalAlignment="Center"
+                                       Margin="12,0,0,0" MaxWidth="520" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+
                         <!-- 版本轮播 -->
                         <StackPanel Grid.Row="2" Margin="26,0,0,6">
                             <Grid Margin="0,0,0,4">
@@ -1751,6 +1762,17 @@
                                                         Style="{StaticResource GlassButton}" Margin="0,0,8,8"
                                                         Click="OnToggleIsolation"
                                                         ToolTip="开启后这个版本用自己目录里的 mods / config / saves，不跟全局共用"/>
+                                            </WrapPanel>
+
+                                            <WrapPanel Margin="0,10,0,0">
+                                                <TextBlock Text="Java" FontSize="11.5" VerticalAlignment="Center"
+                                                           Margin="0,0,10,8" Foreground="{DynamicResource InkDim}"/>
+                                                <TextBlock x:Name="VmJavaText" Text="跟随全局" FontSize="11.5"
+                                                           VerticalAlignment="Center" Margin="0,0,10,8"
+                                                           Foreground="{DynamicResource Ink}"/>
+                                                <Button Content="改 Java" Style="{StaticResource GlassButton}"
+                                                        Margin="0,0,8,8" Click="OnChangeVmJava"
+                                                        ToolTip="只给这个版本指定 java.exe；「自动」= 按版本要求挑"/>
                                             </WrapPanel>
 
                                             <TextBlock x:Name="IsolationHint" Text="" FontSize="10.5" Margin="0,8,0,0"

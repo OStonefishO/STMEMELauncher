@@ -31,7 +31,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.15.66";
+    private const string AppVersion = "0.15.67";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -2328,19 +2328,45 @@ public partial class MainWindow : Window
         }
 
         var created = _service.EnsureConfigFiles(resolved);
-        if (created.Count == 0)
-        {
-            VmStatus.Text = "配置已经是齐的，没缺东西";
-            ShowToast("配置齐全", "没缺东西", "✓", 3500);
-            return;
-        }
+        var list = created.Count == 0 ? "配置本来就是齐的" : "配置：" + string.Join("、", created.Take(4));
+        VmStatus.Text = list + " · 正在检查 jar / 依赖库 / 资源…";
 
-        var list = string.Join("、", created.Take(6));
-        VmStatus.Text = "已补齐：" + list;
-        ShowToast("已补齐配置", list, "✓", 5000);
+        // 「补齐配置」要真的能把坏的版本救回来：顺带把 jar、依赖库、natives、assets、srg 全查一遍
+        _ = RepairVersionFilesAsync(resolved, list);
     }
 
     /// <summary>修复资源：把缺失的 assets 对象、依赖库按版本 json 重新补一遍。</summary>
+    /// <summary>「补齐配置」背后的完整修复：配置 + jar + 依赖库 + natives + assets + srg。</summary>
+    private async Task RepairVersionFilesAsync(Aurora.Core.Models.ResolvedVersion resolved, string prefix)
+    {
+        var id = resolved.Id;
+        var gameDir = GameRootFor(resolved.Directory) ?? _settings.GameDirectory;
+
+        var manager = _service.CreateDownloadManager();
+        var job = manager.EnqueueJob("补齐配置 " + id, "修复");
+
+        try
+        {
+            var progress = new Progress<InstallProgress>(p =>
+            {
+                manager.UpdateJob(job, p.Percent, $"[{p.Stage}] {p.Message}");
+                VmStatus.Text = $"{prefix} · [{p.Stage}] {p.Message} · {p.Percent:0}%";
+            });
+
+            var fixedCount = await _service.CreateInstaller(gameDir).RepairAsync(resolved, progress);
+            manager.CompleteJob(job, true);
+
+            var message = fixedCount > 0 ? $"补齐 {fixedCount} 个文件" : "文件都是齐的";
+            VmStatus.Text = prefix + " · " + message;
+            ShowToast("补齐配置完成", message, "✓", 5000);
+        }
+        catch (Exception ex)
+        {
+            manager.CompleteJob(job, false, ex.Message);
+            VmStatus.Text = "补齐失败: " + ex.Message;
+        }
+    }
+
     private async void OnVmRepair(object sender, RoutedEventArgs e)
     {
         if (_vmCurrent == null)

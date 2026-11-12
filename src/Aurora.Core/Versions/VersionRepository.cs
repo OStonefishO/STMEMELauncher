@@ -25,6 +25,26 @@ public sealed class VersionRepository
     public string AssetsDirectory => Path.Combine(GameDirectory, "assets");
 
     /// <summary>扫描版本目录，返回可直接展示的摘要列表（按名称排序）。</summary>
+    /// <summary>顺 inheritsFrom 找 Java 主版本（加载器版本自己没有 javaVersion）。</summary>
+    private int JavaMajorOf(string id, VersionJson? json, int depth)
+    {
+        if (json?.JavaVersion is { MajorVersion: > 0 } version)
+        {
+            return version.MajorVersion;
+        }
+
+        if (depth < 6 && !string.IsNullOrEmpty(json?.InheritsFrom))
+        {
+            var parent = LoadRaw(json!.InheritsFrom!);
+            if (parent != null)
+            {
+                return JavaMajorOf(json.InheritsFrom!, parent, depth + 1);
+            }
+        }
+
+        return InferJavaMajor(NormalizeClientVersion(json?.ClientVersion, id));
+    }
+
     public List<VersionSummary> Scan()
     {
         _jsonById.Clear();
@@ -125,7 +145,8 @@ public sealed class VersionRepository
                 ClientVersion = NormalizeClientVersion(json.ClientVersion, id),
                 Loader = loader,
                 LoaderVersion = loaderVersion,
-                JavaMajor = json.JavaVersion?.MajorVersion ?? 8,
+                // 加载器版本的 json 里没有 javaVersion，要顺继承链找，否则首页会显示「Java 8」
+                JavaMajor = JavaMajorOf(id, json, 0),
                 ModCount = modCount,
                 HasJar = jarPath != null && File.Exists(jarPath),
                 HasJson = true,

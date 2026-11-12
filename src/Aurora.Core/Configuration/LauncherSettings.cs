@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Aurora.Core.Infrastructure;
 
 namespace Aurora.Core.Configuration;
@@ -105,6 +105,9 @@ public sealed class LauncherSettings
 
     /// <summary>每个版本的备注（整合包作者写给玩家看的说明），键是版本 id。</summary>
     public Dictionary<string, string> VersionNotes { get; set; } = new();
+
+    /// <summary>按版本单独指定的 java.exe（键是版本 id）；没写就用全局 JavaPath / 自动匹配。</summary>
+    public Dictionary<string, string> VersionJavaPaths { get; set; } = new();
 
     /// <summary>额外的 Java 搜索目录（例如自己装的 JDK 根目录）。</summary>
     public List<string> ExtraJavaPaths { get; set; } = new();

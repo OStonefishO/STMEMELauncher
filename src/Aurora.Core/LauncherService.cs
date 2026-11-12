@@ -374,6 +374,39 @@ public sealed partial class LauncherService
 
     public CurseForgeClient CreateCurseForge() => new(Settings.CurseForgeApiKey);
 
+    /// <summary>这个版本单独指定的 java.exe（没指定返回 null）。</summary>
+    public string? VersionJavaPath(string versionId)
+    {
+        if (string.IsNullOrWhiteSpace(versionId))
+        {
+            return null;
+        }
+
+        return Settings.VersionJavaPaths.TryGetValue(versionId, out var path) && !string.IsNullOrWhiteSpace(path)
+            ? path
+            : null;
+    }
+
+    /// <summary>给版本单独指定 java.exe；传 null / 空就恢复自动。</summary>
+    public void SetVersionJavaPath(string versionId, string? javaPath)
+    {
+        if (string.IsNullOrWhiteSpace(versionId))
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(javaPath))
+        {
+            Settings.VersionJavaPaths.Remove(versionId);
+        }
+        else
+        {
+            Settings.VersionJavaPaths[versionId] = javaPath!;
+        }
+
+        Aurora.Core.Configuration.ConfigStore.Save(Settings);
+    }
+
     public IReadOnlyList<JavaRuntime> ScanJava()
     {
         var roots = new List<string>();
