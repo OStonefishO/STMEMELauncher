@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using Aurora.Core.Auth;
 
 namespace Aurora.App;
@@ -16,16 +17,44 @@ public partial class MsaDiagWindow : Window
     private readonly Action<string>? _onClientIdChanged;
     private CancellationTokenSource? _cts;
 
-    public MsaDiagWindow(string clientId, Action<string>? onClientIdChanged = null)
+    private readonly string? _shotPath;
+
+    public MsaDiagWindow(string clientId, Action<string>? onClientIdChanged = null, string? shotPath = null)
     {
         InitializeComponent();
         _clientId = clientId;
         _onClientIdChanged = onClientIdChanged;
+        _shotPath = shotPath;
         Loaded += async (_, _) =>
         {
             ClientIdText.Text = _clientId;
+            if (!string.IsNullOrEmpty(_shotPath))
+            {
+                _ = Task.Delay(1500).ContinueWith(_ => Dispatcher.BeginInvoke(new Action(SaveShot)));
+            }
             await RunAsync();
         };
+    }
+
+    /// <summary>调试：把窗口自己渲染成 png，验证布局用。</summary>
+    private void SaveShot()
+    {
+        try
+        {
+            var width = (int)Math.Max(1, ActualWidth);
+            var height = (int)Math.Max(1, ActualHeight);
+            var bmp = new System.Windows.Media.Imaging.RenderTargetBitmap(width, height, 96, 96,
+                PixelFormats.Pbgra32);
+            bmp.Render(this);
+            var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+            encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bmp));
+            using var fs = System.IO.File.Create(_shotPath!);
+            encoder.Save(fs);
+        }
+        catch
+        {
+            // 截图失败不影响诊断
+        }
     }
 
     private async Task RunAsync()

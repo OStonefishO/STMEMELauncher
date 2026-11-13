@@ -32,7 +32,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.20.22";
+    private const string AppVersion = "0.20.23";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -112,6 +112,19 @@ public partial class MainWindow : Window
                 SourceCombo.SelectedIndex = 1;
                 _ = LoadContentPageAsync();
             };
+        }
+
+        // 调试用：--msa-test 直接打开微软登录诊断窗口（截图看布局）
+        if (argv.Contains("--msa-test"))
+        {
+            Loaded += (_, __) => _ = Task.Delay(600).ContinueWith(_ => Dispatcher.BeginInvoke(new Action(() =>
+            {
+                var shotIdx = Array.IndexOf(argv, "--shot");
+                var shotPath = shotIdx >= 0 && shotIdx + 1 < argv.Length
+                    ? Path.ChangeExtension(argv[shotIdx + 1], null) + "-msa.png"
+                    : null;
+                new MsaDiagWindow(_settings.MicrosoftClientId, null, shotPath) { Owner = this }.Show();
+            })));
         }
 
         var flag = Array.IndexOf(argv, "--page");
@@ -608,7 +621,8 @@ public partial class MainWindow : Window
         }
 
         var summary = card.Summary;
-        BigVersion.Text = summary.ClientVersion;
+        var heroVersion = PlainMcVersion(summary.ClientVersion) ?? summary.ClientVersion;
+        BigVersion.Text = heroVersion;
         // 长版本号（1.20.1-forge-47.4.29 这种）会撑破卡片：按长度缩字号
         BigVersion.FontSize = summary.ClientVersion.Length switch
         {

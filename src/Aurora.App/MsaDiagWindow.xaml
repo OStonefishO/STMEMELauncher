@@ -87,9 +87,8 @@
             </Border>
 
             <!-- ClientId 切换：403 invalid app registration 时换一个已登记的 AppID 再试 -->
-            <Border Grid.Row="1" CornerRadius="12" Background="#10FFFFFF" BorderBrush="#22FFFFFF"
-                    BorderThickness="1" Padding="14,10" Margin="0,12,0,0"
-                    Visibility="{Binding ElementName=ClientSwitchHint, Path=Visibility}">
+            <Border Grid.Row="4" CornerRadius="12" Background="#10FFFFFF" BorderBrush="#22FFFFFF"
+                    BorderThickness="1" Padding="14,10" Margin="0,14,0,0">
                 <StackPanel>
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="当前 ClientId" FontSize="11" Foreground="{StaticResource InkFaint}"
@@ -117,7 +116,7 @@
             <TextBlock x:Name="StatusText" Grid.Row="3" Text="准备中…" FontSize="11.5"
                        Foreground="{StaticResource InkDim}" Margin="0,14,0,0" TextWrapping="Wrap"/>
 
-            <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,18,0,0">
+            <StackPanel Grid.Row="5" Orientation="Horizontal" Margin="0,16,0,0">
                 <Button x:Name="RestartButton" Content="重新诊断" Style="{StaticResource SoftButton}" Click="OnRestart"/>
                 <Button Content="关闭" Style="{StaticResource SoftButton}" Margin="10,0,0,0" Click="OnClose"/>
             </StackPanel>
