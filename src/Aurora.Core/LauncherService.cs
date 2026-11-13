@@ -372,7 +372,25 @@ public sealed partial class LauncherService
 
     public Skins.OfflineSkinService CreateOfflineSkinService() => new(SharedDownloader);
 
-    public CurseForgeClient CreateCurseForge() => new(Settings.CurseForgeApiKey);
+    /// <summary>
+    /// CurseForge 源：填了 key 走官方直连；没 key（或显式选了镜像）走 MCIM 反向代理，
+    /// 这样国内即使 key 还没批也能搜到 CurseForge 的模组/整合包。
+    /// </summary>
+    public CurseForgeClient CreateCurseForge()
+    {
+        var mode = (Settings.ContentSource ?? "auto").ToLowerInvariant();
+        if (mode == "mcim")
+        {
+            return CurseForgeClient.Mirror();
+        }
+
+        if (!string.IsNullOrWhiteSpace(Settings.CurseForgeApiKey))
+        {
+            return new CurseForgeClient(Settings.CurseForgeApiKey);
+        }
+
+        return CurseForgeClient.Mirror();
+    }
 
     /// <summary>这个版本单独指定的 java.exe（没指定返回 null）。</summary>
     public string? VersionJavaPath(string versionId)

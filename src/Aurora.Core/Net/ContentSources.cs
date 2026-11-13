@@ -451,24 +451,37 @@ public sealed class CurseForgeClient : IContentSource
 {
     private const string Api = "https://api.curseforge.com/v1";
 
-    private readonly HttpClient _http;
+    /// <summary>MCIM 提供的 CurseForge 反向代理（不需要 key，国内可用）。</summary>
+    private const string MirrorApi = "https://mod.mcimirror.top/curseforge/v1";
 
-    public CurseForgeClient(string? apiKey)
+    private readonly HttpClient _http;
+    private readonly string _base;
+
+    public CurseForgeClient(string? apiKey, string? baseUrl = null, string? displayName = null)
     {
         ApiKey = apiKey?.Trim() ?? string.Empty;
+        _base = string.IsNullOrWhiteSpace(baseUrl) ? Api : baseUrl!.TrimEnd('/');
+        DisplayName = displayName ?? "CurseForge";
         _http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
         _http.DefaultRequestHeaders.UserAgent.ParseAdd("MemeLauncher/0.4");
-        if (!string.IsNullOrEmpty(ApiKey))
+        if (!string.IsNullOrEmpty(ApiKey) && _base == Api)
         {
             _http.DefaultRequestHeaders.Add("x-api-key", ApiKey);
         }
     }
 
+    /// <summary>镜像模式：走 MCIM，不需要 API key。</summary>
+    public static CurseForgeClient Mirror() => new(null, MirrorApi, "CurseForge（MCIM 镜像）");
+
+    public bool IsMirror => _base != Api;
+
     public string ApiKey { get; }
 
-    public string Name => "CurseForge";
+    public string DisplayName { get; }
 
-    public bool IsAvailable => !string.IsNullOrEmpty(ApiKey);
+    public string Name => DisplayName;
+
+    public bool IsAvailable => IsMirror || !string.IsNullOrEmpty(ApiKey);
 
     public ContentKind[] SupportedKinds =>
         new[]
@@ -483,7 +496,7 @@ public sealed class CurseForgeClient : IContentSource
             return new ContentResult();
         }
 
-        var url = $"{Api}/mods/search?gameId=432&classId={ContentKindInfo.CurseForgeClassId(query.Kind)}" +
+        var url = $"{_base}/mods/search?gameId=432&classId={ContentKindInfo.CurseForgeClassId(query.Kind)}" +
                   $"&index={Math.Max(0, query.Offset)}&pageSize={Math.Clamp(query.PageSize, 1, 50)}" +
                   "&sortField=2&sortOrder=desc";
 
@@ -569,7 +582,7 @@ public sealed class CurseForgeClient : IContentSource
 
         try
         {
-            var json = await GetStringAsync($"{Api}/mods/{id}", ct).ConfigureAwait(false);
+            var json = await GetStringAsync($"{_base}/mods/{id}", ct).ConfigureAwait(false);
             using var doc = JsonDocument.Parse(json);
             if (!doc.RootElement.TryGetProperty("data", out var mod))
             {
@@ -610,7 +623,7 @@ public sealed class CurseForgeClient : IContentSource
 
         while (index < 200)
         {
-            var url = $"{Api}/mods/{item.Id}/files?pageSize={pageSize}&index={index}";
+            var url = $"{_base}/mods/{item.Id}/files?pageSize={pageSize}&index={index}";
             var json = await GetStringAsync(url, ct).ConfigureAwait(false);
             using var doc = JsonDocument.Parse(json);
             if (!doc.RootElement.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array)
@@ -683,7 +696,7 @@ public sealed class CurseForgeClient : IContentSource
             return new List<ContentTag>();
         }
 
-        var url = $"{Api}/categories?gameId=432&classId={ContentKindInfo.CurseForgeClassId(kind)}";
+        var url = $"{_base}/categories?gameId=432&classId={ContentKindInfo.CurseForgeClassId(kind)}";
         var json = await GetStringAsync(url, ct).ConfigureAwait(false);
         using var doc = JsonDocument.Parse(json);
 
@@ -714,7 +727,7 @@ public sealed class CurseForgeClient : IContentSource
             return new List<ContentFile>();
         }
 
-        var url = $"{Api}/mods/{item.Id}/files?pageSize=50";
+        var url = $"{_base}/mods/{item.Id}/files?pageSize=50";
         if (!string.IsNullOrWhiteSpace(mcVersion))
         {
             url += "&gameVersion=" + Uri.EscapeDataString(mcVersion);
@@ -775,6 +788,20 @@ public sealed class CurseForgeClient : IContentSource
             return cached;
         }
 
+        try
+        {
+            return await GetOnceAsync(url, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (_base == Api && IsKeyProblem(ex))
+        {
+            // API key 被拒（403）或官方接口不可达时，自动退到 MCIM 镜像重试一次
+            var mirrorUrl = url.Replace(Api, MirrorApi, StringComparison.Ordinal);
+            return await GetOnceAsync(mirrorUrl, ct).ConfigureAwait(false);
+        }
+    }
+
+    private async Task<string> GetOnceAsync(string url, CancellationToken ct)
+    {
         using var response = await _http.GetAsync(url, ct).ConfigureAwait(false);
         var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
@@ -783,6 +810,16 @@ public sealed class CurseForgeClient : IContentSource
         }
 
         return body;
+    }
+
+    /// <summary>key 无效（403/401）或网络层失败，都值得换镜像再试。</summary>
+    private static bool IsKeyProblem(Exception ex)
+    {
+        var text = ex.Message ?? string.Empty;
+        return text.Contains(" 403", StringComparison.Ordinal) ||
+               text.Contains(" 401", StringComparison.Ordinal) ||
+               ex is HttpRequestException ||
+               ex is TaskCanceledException;
     }
 
     private static string Trim(string text, int max) =>

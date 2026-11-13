@@ -32,7 +32,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.20.21";
+    private const string AppVersion = "0.20.22";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -102,6 +102,16 @@ public partial class MainWindow : Window
             EnsureMusicInited();
             SetFunTab(false);
             AddMusicFiles(new[] { argv[musicFlag + 1] });
+        }
+
+        // 调试用：--content-cf 直接切到 CurseForge 源并搜一次（截图/验证用）
+        if (argv.Contains("--content-cf"))
+        {
+            Loaded += (_, __) =>
+            {
+                SourceCombo.SelectedIndex = 1;
+                _ = LoadContentPageAsync();
+            };
         }
 
         var flag = Array.IndexOf(argv, "--page");
@@ -1387,12 +1397,29 @@ public partial class MainWindow : Window
 
     private string? EffectiveVersion()
     {
-        return _contentVersionMode switch
+        var raw = _contentVersionMode switch
         {
             ContentVersionMode.All => null,
             ContentVersionMode.Specific => _contentVersionValue,
             _ => (VersionList.SelectedItem as VersionCard)?.Summary.ClientVersion,
         };
+
+        return PlainMcVersion(raw);
+    }
+
+    /// <summary>
+    /// 内容站的 gameVersion 只认 1.20.1 这种纯版本号；
+    /// 版本 id 形如 1.20.1-forge-47.4.29 时要截掉加载器尾巴，否则查不到东西。
+    /// </summary>
+    private static string? PlainMcVersion(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return value;
+        }
+
+        var match = System.Text.RegularExpressions.Regex.Match(value.Trim(), @"^\d{1,3}\.\d{1,3}(?:\.\d{1,3})?");
+        return match.Success ? match.Value : value.Trim();
     }
 
     private string? EffectiveLoader()
@@ -1730,9 +1757,21 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
+            // CurseForge 走不通时（key 被拒 / 官方被 CloudFront 拦 / 镜像上游缺 key），
+            // 别让玩家对着报错发呆：说明原因并自动切回 Modrinth 再搜一次。
+            if (SourceCombo.SelectedIndex == 1)
+            {
+                ContentStatus.Text = "CurseForge 暂时用不了（" + FirstLine(ex.Message) + "），已切回 Modrinth";
+                SourceCombo.SelectedIndex = 0;
+                ShowToast("CurseForge 不可用", "已自动切回 Modrinth；要修 CurseForge 见「其他」页的 API Key", "⚠", 6000);
+                await LoadContentPageAsync();
+                return;
+            }
+
             ContentStatus.Text = "搜索失败: " + ex.Message;
         }
     }
+
 
     /// <summary>列表里没有被百科缓存过的前 10 个，后台慢慢补中文名（不阻塞界面）。</summary>
     private async Task FillMcmodNamesAsync(List<ContentCard> cards)
