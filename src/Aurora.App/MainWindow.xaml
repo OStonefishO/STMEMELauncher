@@ -1740,6 +1740,9 @@
                                         <StackPanel>
                                             <TextBlock x:Name="VmTitle" Text="先在左边选一个版本" FontSize="18"
                                                        FontWeight="Bold" Foreground="{DynamicResource Ink}" TextWrapping="Wrap"/>
+                                            <TextBlock x:Name="VmKind" Text="" FontSize="12" Margin="0,4,0,0"
+                                                       Foreground="{DynamicResource InkDim}" TextWrapping="Wrap"
+                                                       ToolTip="加载器 + 它对应的 Minecraft 版本"/>
                                             <TextBlock x:Name="VmPath" Text="" FontSize="11" Margin="0,6,0,0"
                                                        Foreground="{DynamicResource InkFaint}" TextWrapping="Wrap"/>
 

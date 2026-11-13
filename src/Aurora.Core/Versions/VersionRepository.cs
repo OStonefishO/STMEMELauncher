@@ -178,12 +178,17 @@ public sealed class VersionRepository
         return string.IsNullOrEmpty(json?.InheritsFrom) ? null : FindJarInChain(json!.InheritsFrom!, depth + 1);
     }
 
-    private static string? FindJar(string dir, string id, VersionJson json)
+    private static string? FindJar(string dir, string id, VersionJson? json)
     {
-        var candidates = new List<string>();
-        if (!string.IsNullOrEmpty(json.Jar))
+        if (string.IsNullOrWhiteSpace(dir) || string.IsNullOrWhiteSpace(id))
         {
-            candidates.Add(Path.Combine(dir, json.Jar + ".jar"));
+            return null;
+        }
+
+        var candidates = new List<string>();
+        if (!string.IsNullOrEmpty(json?.Jar))
+        {
+            candidates.Add(Path.Combine(dir, json!.Jar + ".jar"));
         }
 
         candidates.Add(Path.Combine(dir, id + ".jar"));

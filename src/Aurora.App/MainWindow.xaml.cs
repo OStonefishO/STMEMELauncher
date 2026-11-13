@@ -32,7 +32,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.20.23";
+    private const string AppVersion = "0.20.24";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -134,8 +134,16 @@ public partial class MainWindow : Window
         }
         Loaded += (_, __) =>
         {
-            BuildVersionTabsInCode();
-            NeutralizeNavFocus();
+            try
+            {
+                BuildVersionTabsInCode();
+                NeutralizeNavFocus();
+            }
+            catch (Exception ex)
+            {
+                System.IO.File.AppendAllText(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "meme-load.log"),
+                    DateTime.Now + " tabs/nav: " + ex + "\n");
+            }
             SoundService.Enabled = _settings.SoundEnabled;
             SoundService.Volume = _settings.UiVolume;
             EventManager.RegisterClassHandler(typeof(ButtonBase), ButtonBase.ClickEvent,
@@ -145,6 +153,9 @@ public partial class MainWindow : Window
             _ = InitSkinWebAsync();
             _ = CheckUpdatesAsync(silent: true);
             _ = ProbeMirrorNoticeAsync();
+
+            System.IO.File.AppendAllText(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "meme-load.log"),
+                DateTime.Now + " loaded reached shot block\n");
 
             // 调试用：--shot <png>，等界面稳定后自己存一张图然后退出
             var shotFlag = Array.IndexOf(argv, "--shot");
@@ -1425,6 +1436,33 @@ public partial class MainWindow : Window
     /// 内容站的 gameVersion 只认 1.20.1 这种纯版本号；
     /// 版本 id 形如 1.20.1-forge-47.4.29 时要截掉加载器尾巴，否则查不到东西。
     /// </summary>
+    /// <summary>把版本类型说清楚：原版 26.3 / Fabric 0.20.1 · MC 26.3 / Forge 47.4.29 · MC 1.20.1 …</summary>
+    private static string DescribeVersionKind(VersionSummary summary)
+    {
+        var mc = PlainMcVersion(summary.ClientVersion) ?? summary.ClientVersion;
+        var loaderLabel = (summary.Loader ?? string.Empty).ToLowerInvariant() switch
+        {
+            "fabric" => "Fabric",
+            "forge" => "Forge",
+            "neoforge" => "NeoForge",
+            "quilt" => "Quilt",
+            "optifine" => "OptiFine",
+            "liteloader" => "LiteLoader",
+            _ => "原版",
+        };
+
+        var mcText = string.IsNullOrWhiteSpace(mc) ? string.Empty : "MC " + mc;
+        if (loaderLabel == "原版")
+        {
+            return string.IsNullOrWhiteSpace(mc) ? "原版" : "原版 " + mc;
+        }
+
+        var loaderVersion = string.IsNullOrWhiteSpace(summary.LoaderVersion) ? string.Empty : " " + summary.LoaderVersion;
+        return string.IsNullOrWhiteSpace(mcText)
+            ? loaderLabel + loaderVersion
+            : loaderLabel + loaderVersion + " · " + mcText;
+    }
+
     private static string? PlainMcVersion(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -2325,6 +2363,7 @@ public partial class MainWindow : Window
         var dir = resolved == null ? _settings.GameDirectory : _service.GameDirectoryFor(resolved);
 
         VmTitle.Text = _vmCurrent.Id;
+        VmKind.Text = DescribeVersionKind(_vmCurrent);
         VmPath.Text = dir;
         VmMemoryBox.Text = _settings.MaxMemoryMb.ToString();
 
@@ -8145,7 +8184,10 @@ ToastIcon.Text = icon;
             return;
         }
 
-        var list = cards.ToList();
+        // 改名/删除后 ItemsSource 可能是旧快照，先按磁盘重扫一次再弹
+        LoadVersions();
+
+        var list = (VersionList.ItemsSource as IEnumerable<VersionCard>)?.ToList() ?? cards.ToList();
         if (list.Count == 0)
         {
             SetStatus("还没有可用版本，先去「内容 → 安装版本」装一个");
