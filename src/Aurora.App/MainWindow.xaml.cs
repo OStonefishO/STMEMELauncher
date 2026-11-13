@@ -32,7 +32,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.20.24";
+    private const string AppVersion = "0.20.25";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -1436,7 +1436,10 @@ public partial class MainWindow : Window
     /// 内容站的 gameVersion 只认 1.20.1 这种纯版本号；
     /// 版本 id 形如 1.20.1-forge-47.4.29 时要截掉加载器尾巴，否则查不到东西。
     /// </summary>
-    /// <summary>把版本类型说清楚：原版 26.3 / Fabric 0.20.1 · MC 26.3 / Forge 47.4.29 · MC 1.20.1 …</summary>
+    /// <summary>
+    /// 版本概览第二行：加载器 + 对应 MC 版本 + Java + 模组数，
+    /// 例：Fabric 0.20.1 · MC 26.3 · Java 21 · 2 mods
+    /// </summary>
     private static string DescribeVersionKind(VersionSummary summary)
     {
         var mc = PlainMcVersion(summary.ClientVersion) ?? summary.ClientVersion;
@@ -1451,16 +1454,28 @@ public partial class MainWindow : Window
             _ => "原版",
         };
 
-        var mcText = string.IsNullOrWhiteSpace(mc) ? string.Empty : "MC " + mc;
+        var parts = new List<string>();
         if (loaderLabel == "原版")
         {
-            return string.IsNullOrWhiteSpace(mc) ? "原版" : "原版 " + mc;
+            parts.Add(string.IsNullOrWhiteSpace(mc) ? "原版" : "原版 " + mc);
+        }
+        else
+        {
+            var loaderVersion = string.IsNullOrWhiteSpace(summary.LoaderVersion) ? string.Empty : " " + summary.LoaderVersion;
+            parts.Add(loaderLabel + loaderVersion);
+            if (!string.IsNullOrWhiteSpace(mc))
+            {
+                parts.Add("MC " + mc);
+            }
         }
 
-        var loaderVersion = string.IsNullOrWhiteSpace(summary.LoaderVersion) ? string.Empty : " " + summary.LoaderVersion;
-        return string.IsNullOrWhiteSpace(mcText)
-            ? loaderLabel + loaderVersion
-            : loaderLabel + loaderVersion + " · " + mcText;
+        if (summary.JavaMajor > 0)
+        {
+            parts.Add("Java " + summary.JavaMajor);
+        }
+
+        parts.Add(summary.ModCount == 0 ? "无模组" : summary.ModCount + " mods");
+        return string.Join(" · ", parts);
     }
 
     private static string? PlainMcVersion(string? value)
