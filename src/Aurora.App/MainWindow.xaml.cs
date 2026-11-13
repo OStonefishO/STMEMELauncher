@@ -32,7 +32,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.20.20";
+    private const string AppVersion = "0.20.21";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -296,7 +296,19 @@ public partial class MainWindow : Window
             {
                 _ = Dispatcher.BeginInvoke(new Action(() =>
                 {
-                    new MsaDiagWindow(_settings.MicrosoftClientId) { Owner = this }.Show();
+                    new MsaDiagWindow(_settings.MicrosoftClientId, id =>
+            {
+                _settings.MicrosoftClientId = id;
+                try
+                {
+                    Aurora.Core.Configuration.ConfigStore.Save(_settings);
+                }
+                catch
+                {
+                    // 存不下不影响本次诊断
+                }
+            })
+            { Owner = this }.Show();
                 }), System.Windows.Threading.DispatcherPriority.Background);
             }
             // 调试用：--biome 0/1/2，直接切到某个群系（截图用）

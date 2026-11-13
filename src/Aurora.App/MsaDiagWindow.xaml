@@ -55,6 +55,7 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <StackPanel Grid.Row="0">
@@ -83,6 +84,31 @@
                         <Button Content="打开登录页" Style="{StaticResource SoftButton}" Margin="0,8,0,0" Click="OnOpenLink"/>
                     </StackPanel>
                 </Grid>
+            </Border>
+
+            <!-- ClientId 切换：403 invalid app registration 时换一个已登记的 AppID 再试 -->
+            <Border Grid.Row="1" CornerRadius="12" Background="#10FFFFFF" BorderBrush="#22FFFFFF"
+                    BorderThickness="1" Padding="14,10" Margin="0,12,0,0"
+                    Visibility="{Binding ElementName=ClientSwitchHint, Path=Visibility}">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="当前 ClientId" FontSize="11" Foreground="{StaticResource InkFaint}"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock x:Name="ClientIdText" Text="" FontSize="11" FontFamily="Consolas"
+                                   Foreground="{StaticResource InkDim}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <TextBlock x:Name="ClientSwitchHint" FontSize="10.5" Foreground="{StaticResource InkFaint}"
+                               TextWrapping="Wrap" Margin="0,4,0,6"
+                               Text="第 ④ 步 403 表示这个 AppID 还没进 Mojang 白名单。可以换一个已登记的 ClientId 直接重试，或改用外置登录。"/>
+                    <WrapPanel>
+                        <Button Content="用官方启动器 ID 重试" Style="{StaticResource SoftButton}"
+                                Click="OnUseOfficialClientId"/>
+                        <Button Content="粘贴自定义 ClientId" Style="{StaticResource SoftButton}"
+                                Margin="8,0,0,0" Click="OnPasteClientId"/>
+                        <Button Content="改用外置登录" Style="{StaticResource SoftButton}"
+                                Margin="8,0,0,0" Click="OnUseAuthlibInjector"/>
+                    </WrapPanel>
+                </StackPanel>
             </Border>
 
             <!-- 步骤 -->

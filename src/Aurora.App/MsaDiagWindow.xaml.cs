@@ -9,14 +9,23 @@ namespace Aurora.App;
 /// <summary>微软登录四步诊断窗口：显示设备码，然后把每一步结果逐条打出来。</summary>
 public partial class MsaDiagWindow : Window
 {
-    private readonly string _clientId;
+    /// <summary>官方启动器（Xbox Live 公共客户端）的 AppID，历史上一直被允许登录 Minecraft。</summary>
+    private const string OfficialClientId = "00000000402b5328";
+
+    private string _clientId;
+    private readonly Action<string>? _onClientIdChanged;
     private CancellationTokenSource? _cts;
 
-    public MsaDiagWindow(string clientId)
+    public MsaDiagWindow(string clientId, Action<string>? onClientIdChanged = null)
     {
         InitializeComponent();
         _clientId = clientId;
-        Loaded += async (_, _) => await RunAsync();
+        _onClientIdChanged = onClientIdChanged;
+        Loaded += async (_, _) =>
+        {
+            ClientIdText.Text = _clientId;
+            await RunAsync();
+        };
     }
 
     private async Task RunAsync()
@@ -130,6 +139,52 @@ public partial class MsaDiagWindow : Window
     }
 
     private async void OnRestart(object sender, RoutedEventArgs e) => await RunAsync();
+
+    /// <summary>换用官方启动器的 ClientId 再跑一遍（绕开自家 AppID 白名单未批的情况）。</summary>
+    private async void OnUseOfficialClientId(object sender, RoutedEventArgs e)
+    {
+        _clientId = OfficialClientId;
+        ClientIdText.Text = _clientId;
+        _onClientIdChanged?.Invoke(_clientId);
+        await RunAsync();
+    }
+
+    /// <summary>粘贴任意已登记的 ClientId（例如其它开源启动器公开的 AppID）。</summary>
+    private async void OnPasteClientId(object sender, RoutedEventArgs e)
+    {
+        string? input;
+        try
+        {
+            input = Clipboard.ContainsText() ? Clipboard.GetText().Trim() : null;
+        }
+        catch
+        {
+            input = null;
+        }
+
+        if (string.IsNullOrWhiteSpace(input) || input.Length < 20)
+        {
+            StatusText.Text = "先把 ClientId 复制到剪贴板（形如 00000000402b5328 或 xxxxxxxx-xxxx-...），再点这个按钮";
+            return;
+        }
+
+        _clientId = input;
+        ClientIdText.Text = _clientId;
+        _onClientIdChanged?.Invoke(_clientId);
+        await RunAsync();
+    }
+
+    /// <summary>第 ④ 步过不去时的稳妥方案：改用外置登录（LittleSkin 等）。</summary>
+    private void OnUseAuthlibInjector(object sender, RoutedEventArgs e)
+    {
+        MessageBox.Show(this,
+            "外置登录不经过 Mojang 白名单：\n\n" +
+            "1. 打开「账号」页 → 切换外置登录\n" +
+            "2. 服务器地址填 https://littleskin.cn/api/yggdrasil\n" +
+            "3. 用皮肤站账号密码登录，启动器会自动装 authlib-injector\n\n" +
+            "这样正版皮肤和披风同样能显示，只是不校验微软账号。",
+            "改用外置登录", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
 
     private void OnClose(object sender, RoutedEventArgs e)
     {
