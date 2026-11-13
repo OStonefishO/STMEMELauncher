@@ -482,6 +482,7 @@ public partial class MainWindow
             .Where(c => MatchesPickerQuery(c, query))
             .ToList();
 
+
         if (_pickerCount != null)
         {
             _pickerCount.Text = items.Count == _pickerCards.Count

@@ -28,21 +28,22 @@ public sealed class VersionRepository
     /// <summary>顺 inheritsFrom 找 Java 主版本（加载器版本自己没有 javaVersion）。</summary>
     private int JavaMajorOf(string id, VersionJson? json, int depth)
     {
-        if (json?.JavaVersion is { MajorVersion: > 0 } version)
-        {
-            return version.MajorVersion;
-        }
+        var own = json?.JavaVersion is { MajorVersion: > 0 } version ? version.MajorVersion : 0;
 
+        // 子版本自己写的 javaVersion 常常是老的（比如整包 json 里残留 8），
+        // 而真正要跑的是继承链上最新的那个，所以沿链取最大值。
+        var inherited = 0;
         if (depth < 6 && !string.IsNullOrEmpty(json?.InheritsFrom))
         {
             var parent = LoadRaw(json!.InheritsFrom!);
             if (parent != null)
             {
-                return JavaMajorOf(json.InheritsFrom!, parent, depth + 1);
+                inherited = JavaMajorOf(json.InheritsFrom!, parent, depth + 1);
             }
         }
 
-        return InferJavaMajor(NormalizeClientVersion(json?.ClientVersion, id));
+        var guessed = InferJavaMajor(NormalizeClientVersion(json?.ClientVersion, id));
+        return Math.Max(own, Math.Max(inherited, guessed));
     }
 
     public List<VersionSummary> Scan()

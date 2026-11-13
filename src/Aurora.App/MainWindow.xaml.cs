@@ -32,7 +32,7 @@ public partial class MainWindow : Window
     private List<RemoteVersion> _mcVersions = new();
     private ContentItem? _selectedContent;
     private CancellationTokenSource? _loginCts;
-    private const string AppVersion = "0.20.25";
+    private const string AppVersion = "0.20.26";
     private bool _updatesLoaded;
     private ReleaseInfo? _pendingRelease;
     private readonly SakuraFrp _tunnel = new();
@@ -127,6 +127,29 @@ public partial class MainWindow : Window
             })));
         }
 
+        // 调试：--dump-versions 打印每个版本的解析结果后退出
+        if (argv.Contains("--dump-versions"))
+        {
+            try
+            {
+                var sb = new System.Text.StringBuilder();
+                foreach (var v in _service.ListVersions())
+                {
+                    sb.AppendLine(v.Id + " | mc=" + v.ClientVersion + " | loader=" + v.Loader + " " + v.LoaderVersion +
+                                  " | java=" + v.JavaMajor + " | mods=" + v.ModCount);
+                }
+
+                System.IO.File.WriteAllText(System.IO.Path.Combine("D:\\综合创作", "_versions.txt"), sb.ToString());
+            }
+            catch (Exception ex)
+            {
+                System.IO.File.WriteAllText(System.IO.Path.Combine("D:\\综合创作", "_versions.txt"), "ERR: " + ex);
+            }
+
+            Environment.Exit(0);
+            return;
+        }
+
         var flag = Array.IndexOf(argv, "--page");
         if (flag >= 0 && flag + 1 < argv.Length && int.TryParse(argv[flag + 1], out var pageIndex))
         {
@@ -213,9 +236,21 @@ public partial class MainWindow : Window
             {
                 Dispatcher.BeginInvoke(new Action(() =>
                 {
+                    LoadVersions();
                     if (VersionList.ItemsSource is IEnumerable<VersionCard> pickerCards)
                     {
                         OpenVersionPicker(pickerCards.ToList());
+                        var qFlag = Array.IndexOf(argv, "--picker-q");
+                        if (qFlag >= 0 && qFlag + 1 < argv.Length)
+                        {
+                            _pickerQuery = argv[qFlag + 1];
+                            if (_pickerSearchBox != null)
+                            {
+                                _pickerSearchBox.Text = _pickerQuery;
+                            }
+
+                            RenderVersionPickerRows();
+                        }
                     }
                 }), System.Windows.Threading.DispatcherPriority.Background);
             }
