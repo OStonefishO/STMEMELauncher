@@ -63,6 +63,20 @@ public sealed class GameLauncher
             CreateNoWindow = true,
         };
 
+        // 系统级 JAVA_TOOL_OPTIONS / _JAVA_OPTIONS 会往游戏里塞 -javaagent，
+        // 这类 agent 常自带 asm 等包，和 ModLauncher 的模块图打架（module.ResolutionException）。
+        foreach (var env in new[] { "JAVA_TOOL_OPTIONS", "_JAVA_OPTIONS", "JDK_JAVA_OPTIONS" })
+        {
+            if (psi.Environment.ContainsKey(env))
+            {
+                psi.Environment[env] = string.Empty;
+            }
+            else
+            {
+                psi.Environment[env] = string.Empty;
+            }
+        }
+
         foreach (var arg in plan.AllArguments)
         {
             psi.ArgumentList.Add(arg);

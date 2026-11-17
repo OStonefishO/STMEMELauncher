@@ -195,6 +195,25 @@ public static class CrashInspector
         },
         new()
         {
+            Category = "环境",
+            Headline = "系统里给 Java 塞了额外的 agent",
+            Verdict = "游戏进程启动了第三方 javaagent（常见来源是 JAVA_TOOL_OPTIONS 环境变量），",
+            Patterns = new[]
+            {
+                @"export package .* to module",
+                @"Ignoring duplicate module on SecureModuleFinder",
+                @"astralabyss",
+                @"-javaagent:",
+            },
+            Suggestions = new[]
+            {
+                "启动器已经会自动清空 JAVA_TOOL_OPTIONS / _JAVA_OPTIONS / JDK_JAVA_OPTIONS 再启动；如果仍在报错，请手动执行：setx JAVA_TOOL_OPTIONS \"\"",
+                "确认没有第三方软件（防作弊 / 反调试 / 汉化补丁）把 -javaagent 写进系统环境变量。",
+            },
+            Strong = true,
+        },
+        new()
+        {
             Category = "模组",
             Headline = "同一个模组装了两份",
             Verdict = "mods 文件夹里有重复的模组文件，游戏不知道听谁的。",
